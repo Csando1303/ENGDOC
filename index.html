@@ -18,7 +18,84 @@
   --shadow-lg:0 12px 40px rgba(0,0,0,.12); --shadow-page:0 2px 20px rgba(0,0,0,.13);
   --radius:6px; --radius-sm:4px;
   --font:'DM Sans',sans-serif; --mono:'DM Mono',monospace; --display:'Fraunces',serif;
+  --bg-canvas:#f1f3f5; --bg-surface:#fff; --border-color:#e9ecef;
+  --text-primary:#212529; --text-secondary:#6c757d;
 }
+body.dark {
+  --white:#1e2330; --gray-50:#252b3a; --gray-100:#1a1f2e; --gray-200:#2d3548;
+  --gray-300:#3d4761; --gray-400:#5a6480; --gray-500:#7a859f; --gray-600:#9ba5bb;
+  --gray-700:#bcc4d4; --gray-800:#d4dae8; --gray-900:#e8ecf4;
+  --blue-50:#1a2540; --blue-100:#1e3060; --blue-500:#4a90e2; --blue-600:#5ba0f2;
+  --red-50:#2a1a1a; --red-400:#e06060; --red-500:#cc4444;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.4); --shadow-md:0 4px 12px rgba(0,0,0,.4);
+  --shadow-lg:0 12px 40px rgba(0,0,0,.6); --shadow-page:0 2px 20px rgba(0,0,0,.5);
+  --bg-canvas:#141821; --bg-surface:#1e2330; --border-color:#2d3548;
+  --text-primary:#e8ecf4; --text-secondary:#9ba5bb;
+}
+body.dark #viewer { background: #141821; }
+body.dark .pwrap { background: #1e2330; }
+body.dark .pwrap canvas { filter: invert(0.85) hue-rotate(180deg); }
+body.dark .drop-card { background: #1e2330; border-color: #3d4761; }
+body.dark #txt-pop { background: #252b3a; border-color: #3d4761; }
+body.dark .modal { background: #1e2330; }
+body.dark .finput { background: #252b3a; border-color: #3d4761; color: #e8ecf4; }
+body.dark .fselect { background: #252b3a; border-color: #3d4761; color: #e8ecf4; }
+body.dark select, body.dark input { color-scheme: dark; }
+/* Dark mode toggle */
+.dark-toggle { width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  background:transparent;border:1px solid var(--gray-200);border-radius:var(--radius-sm);
+  cursor:pointer;color:var(--gray-600);transition:all .15s; }
+.dark-toggle:hover { background:var(--gray-100);color:var(--gray-800); }
+/* EMMa dashboard */
+.emma-dash { padding:10px;border-bottom:1px solid var(--gray-200);margin-bottom:4px; }
+.emma-dash-title { font-size:10px;font-weight:700;color:var(--gray-500);text-transform:uppercase;
+  letter-spacing:.5px;margin-bottom:8px; }
+.dash-stats { display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px; }
+.dash-stat { background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);
+  padding:6px 8px;text-align:center; }
+.dash-stat-num { font-family:var(--mono);font-size:20px;font-weight:700;color:var(--gray-800);line-height:1; }
+.dash-stat-lbl { font-size:10px;color:var(--gray-500);margin-top:2px; }
+.dash-bar { height:6px;border-radius:3px;background:var(--gray-200);overflow:hidden;margin-bottom:6px; }
+.dash-bar-fill { height:100%;border-radius:3px;background:#22c55e;transition:width .4s; }
+.dash-cats { display:flex;gap:4px;flex-wrap:wrap; }
+.dash-cat { font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px; }
+/* Area tool */
+.area-preview { position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10; }
+/* Autosave indicator */
+#autosave-dot { width:6px;height:6px;border-radius:50%;background:#22c55e;
+  opacity:0;transition:opacity .5s;flex-shrink:0; }
+#autosave-dot.pulse { opacity:1; }
+/* Standards checker */
+.check-group { border-bottom:1px solid var(--gray-200); }
+.check-group:last-child { border-bottom:none; }
+.check-group-head { display:flex;align-items:center;gap:10px;padding:10px 16px;
+  cursor:pointer;user-select:none;background:var(--gray-50); }
+.check-group-head:hover { background:var(--gray-100); }
+.check-group-title { font-size:12px;font-weight:700;color:var(--gray-700);flex:1;text-transform:uppercase;letter-spacing:.4px; }
+.check-badge { display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;
+  border-radius:10px;font-size:10px;font-weight:700;font-family:var(--mono);padding:0 6px; }
+.check-badge.pass  { background:#dcfce7;color:#166534; }
+.check-badge.warn  { background:#fef9c3;color:#854d0e; }
+.check-badge.fail  { background:#fee2e2;color:#b91c1c; }
+.check-badge.info  { background:#e0f2fe;color:#0369a1; }
+.check-items { padding:4px 0 8px 0; }
+.check-item { display:flex;align-items:flex-start;gap:10px;padding:7px 16px;
+  border-top:1px solid var(--gray-100); }
+.check-item:first-child { border-top:none; }
+.check-icon { width:18px;height:18px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;margin-top:1px;font-size:10px;font-weight:700; }
+.check-icon.pass  { background:#dcfce7;color:#166534; }
+.check-icon.warn  { background:#fef9c3;color:#854d0e; }
+.check-icon.fail  { background:#fee2e2;color:#b91c1c; }
+.check-icon.info  { background:#e0f2fe;color:#0369a1; }
+.check-item-body { flex:1; }
+.check-item-title { font-size:12px;font-weight:600;color:var(--gray-800); }
+.check-item-desc  { font-size:11.5px;color:var(--gray-600);margin-top:2px;line-height:1.5; }
+.check-item-ref   { font-family:var(--mono);font-size:10px;color:var(--gray-400);margin-top:3px; }
+.check-add-one { margin-left:auto;padding:3px 8px;font-size:11px;background:none;
+  border:1px solid var(--gray-300);border-radius:3px;cursor:pointer;color:var(--gray-600);
+  white-space:nowrap;flex-shrink:0; }
+.check-add-one:hover { border-color:var(--blue-500);color:var(--blue-600);background:var(--blue-50); }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:14px;
@@ -388,6 +465,18 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 .pb-major{background:#ffedd5;color:#c2410c}
 .pb-minor{background:#fef9c3;color:#854d0e}
 .pb-info{background:#dbeafe;color:#1d4ed8}
+/* cloud/revision bubble annotation */
+.acloud{position:absolute;pointer-events:none}
+.acloud svg{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible}
+
+/* keyboard shortcuts modal */
+#mkeys .modal{width:480px}
+.krow{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid var(--gray-100)}
+.krow:last-child{border-bottom:none}
+.kbd{display:inline-flex;align-items:center;justify-content:center;background:var(--gray-100);
+  border:1px solid var(--gray-300);border-radius:4px;padding:3px 8px;font-family:var(--mono);
+  font-size:11px;font-weight:600;color:var(--gray-700);min-width:28px;white-space:nowrap}
+.kdesc{font-size:12px;color:var(--gray-600);flex:1}
 </style>
 </head>
 <body>
@@ -430,12 +519,25 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
     EMMA Sheet
   </button>
   <div style="width:4px"></div>
+  <button class="hbtn outline" onclick="runStandardsCheck()" title="Check drawing against NR standards">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    Check
+  </button>
+  <div style="width:4px"></div>
   <button class="hbtn outline" onclick="openM('mau')" style="gap:5px">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
     <span id="hdr-author">Set Name</span>
   </button>
+  <div style="width:6px"></div>
+  <button class="dark-toggle" id="dark-btn" onclick="toggleDark()" title="Toggle dark mode">
+    <svg id="dark-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    <svg id="dark-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+  </button>
   <div style="flex:1"></div>
-  <div id="doc-name">No document open</div>
+  <div style="display:flex;align-items:center;gap:6px">
+    <div id="autosave-dot" title="Auto-saved"></div>
+    <div id="doc-name">No document open</div>
+  </div>
   <input type="file" id="fopen" accept=".pdf" style="display:none" onchange="openFile(event)">
 </div>
 
@@ -473,7 +575,13 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
     <button class="tbtn" id="t-arrow" data-tip="Arrow" onclick="setTool('arrow')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
     </button>
-    <button class="tbtn" id="t-measure" data-tip="Measure distance" onclick="setTool('measure')">
+    <button class="tbtn" id="t-cloud" data-tip="Cloud / revision bubble markup" onclick="setTool('cloud')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+    </button>
+    <button class="tbtn" id="t-area" data-tip="Area measurement — click points, double-click to close" onclick="setTool('area')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3,21 12,3 21,21"/><line x1="3" y1="21" x2="21" y2="21"/></svg>
+    </button>
+    <button class="tbtn" id="t-measure" data-tip="Measure distance (Shift=orthogonal)" onclick="setTool('measure')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/><line x1="8" y1="9" x2="8" y2="15" stroke-width="1.5"/><line x1="12" y1="7" x2="12" y2="17" stroke-width="1.5"/><line x1="16" y1="9" x2="16" y2="15" stroke-width="1.5"/></svg>
     </button>
   </div>
@@ -527,12 +635,16 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   </div>
   <div style="flex:1"></div>
   <div class="tg">
-    <button class="tbtn" data-tip="Undo last annotation (Ctrl+Z)" onclick="undoLast()">
+    <button class="tbtn" data-tip="Undo (Ctrl+Z)" onclick="undoLast()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13A9 9 0 1 0 6 6.7L3 9"/></svg>
+    </button>
+    <button class="tbtn" data-tip="Redo (Ctrl+Y)" onclick="redoLast()" id="redo-btn" style="opacity:0.4">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M21 13A9 9 0 1 1 18 6.7L21 9"/></svg>
     </button>
     <button class="tbtn" data-tip="Clear all annotations on this page" onclick="clearPage()" style="color:var(--gray-500)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m5 0V4a1 1 0 011-1h2a1 1 0 011 1v2"/></svg>
     </button>
+    <button class="tbtn" data-tip="Keyboard shortcuts (?)" onclick="openM('mkeys')" style="font-size:15px;font-weight:700;color:var(--gray-500)">?</button>
   </div>
 </div>
 
@@ -605,6 +717,19 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
           <label class="flabel">Check Sheet No.</label>
           <input class="finput" id="emma-chk-no" placeholder="e.g. -CHK-CIV-002" style="margin-bottom:0">
         </div>
+      </div>
+
+      <!-- Dashboard -->
+      <div class="emma-dash" id="emma-dash">
+        <div class="emma-dash-title">Review Status</div>
+        <div class="dash-stats">
+          <div class="dash-stat"><div class="dash-stat-num" id="ds-total">0</div><div class="dash-stat-lbl">Total</div></div>
+          <div class="dash-stat"><div class="dash-stat-num" id="ds-open" style="color:#ef4444">0</div><div class="dash-stat-lbl">Open</div></div>
+          <div class="dash-stat"><div class="dash-stat-num" id="ds-closed" style="color:#22c55e">0</div><div class="dash-stat-lbl">Closed</div></div>
+          <div class="dash-stat"><div class="dash-stat-num" id="ds-pct">—</div><div class="dash-stat-lbl">Complete</div></div>
+        </div>
+        <div class="dash-bar"><div class="dash-bar-fill" id="ds-bar" style="width:0%"></div></div>
+        <div class="dash-cats" id="ds-cats"></div>
       </div>
 
       <!-- Toolbar -->
@@ -796,6 +921,71 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   </div>
 </div>
 
+<!-- KEYBOARD SHORTCUTS MODAL -->
+<div class="overlay" id="mkeys">
+  <div class="modal" id="mkeys">
+    <div class="mhead"><span class="mtitle">Keyboard Shortcuts</span><button class="mclose" onclick="closeM('mkeys')">✕</button></div>
+    <div class="mbody" style="column-count:2;column-gap:32px">
+      <div style="break-inside:avoid">
+        <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Tools</div>
+        <div class="krow"><span class="kbd">H</span><span class="kdesc">Box Highlight</span></div>
+        <div class="krow"><span class="kbd">M</span><span class="kdesc">Text Highlighter</span></div>
+        <div class="krow"><span class="kbd">R</span><span class="kdesc">Rectangle</span></div>
+        <div class="krow"><span class="kbd">P</span><span class="kdesc">Freehand Pen</span></div>
+        <div class="krow"><span class="kbd">A</span><span class="kdesc">Arrow</span></div>
+        <div class="krow"><span class="kbd">C</span><span class="kdesc">Cloud / Revision Bubble</span></div>
+        <div class="krow"><span class="kbd">G</span><span class="kdesc">Area Measurement</span></div>
+        <div class="krow"><span class="kbd">D</span><span class="kdesc">Measure Distance</span></div>
+        <div class="krow"><span class="kbd">N</span><span class="kdesc">Sticky Note (EMMA)</span></div>
+        <div class="krow"><span class="kbd">T</span><span class="kdesc">Text Label</span></div>
+        <div class="krow"><span class="kbd">E</span><span class="kdesc">Eraser</span></div>
+        <div class="krow"><span class="kbd">V</span> <span class="kdesc">Pan / Select</span></div>
+      </div>
+      <div style="break-inside:avoid">
+        <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Actions</div>
+        <div class="krow"><span class="kbd">Ctrl Z</span><span class="kdesc">Undo</span></div>
+        <div class="krow"><span class="kbd">Ctrl Y</span><span class="kdesc">Redo</span></div>
+        <div class="krow"><span class="kbd">Ctrl S</span><span class="kdesc">Save session</span></div>
+        <div class="krow"><span class="kbd">Shift</span><span class="kdesc">Snap measure to H/V</span></div>
+        <div class="krow"><span class="kbd">Esc</span><span class="kdesc">Cancel / close</span></div>
+        <div class="krow"><span class="kbd">Del</span><span class="kdesc">Delete selected annotation</span></div>
+        <div class="krow"><span class="kbd">Space</span><span class="kdesc">Temporarily pan (hold)</span></div>
+        <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">Measure Tool</div>
+        <div class="krow"><span class="kbd">Click 1</span><span class="kdesc">Set start point</span></div>
+        <div class="krow"><span class="kbd">Click 2</span><span class="kdesc">Set end point</span></div>
+        <div class="krow"><span class="kbd">Click 3</span><span class="kdesc">Commit measurement</span></div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="hbtn primary" onclick="closeM('mkeys')">Close</button></div>
+  </div>
+</div>
+
+<!-- STANDARDS CHECKER MODAL -->
+<div class="overlay" id="mcheck">
+  <div class="modal" style="width:580px;max-width:96vw">
+    <div class="mhead">
+      <span class="mtitle">NR Drawing Standards Check</span>
+      <button class="mclose" onclick="closeM('mcheck')">✕</button>
+    </div>
+    <div class="mbody" style="padding:0">
+      <div id="check-running" style="padding:28px;text-align:center;display:none">
+        <div style="font-size:13px;color:var(--gray-600)">Analysing drawing…</div>
+        <div style="margin-top:10px;height:4px;background:var(--gray-200);border-radius:2px;overflow:hidden">
+          <div id="check-progress" style="height:100%;background:var(--blue-500);border-radius:2px;width:0%;transition:width .4s"></div>
+        </div>
+      </div>
+      <div id="check-results" style="max-height:68vh;overflow-y:auto"></div>
+    </div>
+    <div class="mfoot" style="justify-content:space-between">
+      <span id="check-summary" style="font-size:12px;color:var(--gray-500)"></span>
+      <div style="display:flex;gap:8px">
+        <button class="hbtn outline" onclick="addAllCheckFindings()" id="check-add-btn" style="display:none">Add All as EMMA Comments</button>
+        <button class="hbtn primary" onclick="closeM('mcheck')">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- SCALE CALIBRATION MODAL -->
 <div class="overlay" id="mscale">
   <div class="modal">
@@ -964,7 +1154,9 @@ const CVals = { yellow: 'rgba(251,191,36,.38)', teal: 'rgba(45,212,191,.32)', ro
 const CHex  = { yellow: '#fbbf24', teal: '#2dd4bf', rose: '#fb7185' };
 const typeLabels = { highlight:'Highlight', rect:'Rectangle', strike:'Strikethrough',
   pen:'Freehand', arrow:'Arrow', note:'Note', text:'Text Label',
-  measure:'Measurement', texthighlight:'Text Highlight' };
+  measure:'Measurement', texthighlight:'Text Highlight', cloud:'Cloud / Revision Bubble' };
+
+// ── HISTORY/UNDO stubs — full implementation below in ANNOTATION DATA MANAGEMENT ──
 
 // Measure scale: pxPerUnit = screen pixels per real-world unit at zoom=1
 let measureScale = null; // { pxPerUnit, unit } — null = uncalibrated
@@ -1081,6 +1273,8 @@ async function loadPDF(file) {
   nPages = pdf.numPages; curPg = 1; annots = []; emmaRows = {};
   renderedPages.clear(); renderQueue.clear();
   Object.keys(pdfTextContent).forEach(k => delete pdfTextContent[k]);
+  // Reset undo/redo history for new document
+  history = []; historyIdx = -1; updateUndoRedoButtons();
 
   document.getElementById('doc-name').textContent = file.name;
   document.getElementById('pgt').textContent = nPages;
@@ -1258,9 +1452,7 @@ function autoDetectTitleBlock() {
   set('emma-doc-no',      drawingNo);
   set('emma-rev-no',      revision);
   set('emma-proj-no',     contractNo);
-  // Project title: prefer contract title, then location, then project name
   set('emma-proj-title',  contractTitle || location || projTitle || contractor);
-  // Specific design: drawing title is most specific
   set('emma-specific',    drawingTitle || contractTitle);
 
   // Discipline from type/role fields
@@ -1287,6 +1479,20 @@ function autoDetectTitleBlock() {
   if (drawn && drawn.length < 40 && drawn !== drawingNo) {
     const authEl = document.getElementById('author-input');
     if (authEl && !authEl.value) authEl.value = drawn.trim();
+  }
+
+  // ── Auto-calibrate measure tool from detected scale string ──
+  if (scale) {
+    const scaleMatch = scale.match(/1\s*[:\/]\s*(\d+)/);
+    if (scaleMatch) {
+      const ratio = parseInt(scaleMatch[1]);
+      const pxPerMm = 96 / 25.4;
+      measureScale = { pxPerUnit: pxPerMm * 1000 / ratio, unit: 'm' };
+      localStorage.setItem('engdoc_scale', JSON.stringify(measureScale));
+      document.getElementById('sb-scale').textContent = `⚖ 1:${ratio} (m)`;
+      detected++;
+      toast(`✓ Scale auto-set: 1:${ratio} — measuring in metres`, 3500);
+    }
   }
 
   if (detected > 0) {
@@ -1637,7 +1843,7 @@ function setTool(t) {
   // Pan uses those events for drag-scroll (handled in attachEvents).
   document.querySelectorAll('.aoverlay').forEach(o => {
     o.className = 'aoverlay active';
-    if (['highlight','rect','strike','pen','arrow','measure','texthighlight'].includes(t)) o.classList.add('cur-cross');
+    if (['highlight','rect','strike','pen','arrow','measure','texthighlight','cloud'].includes(t)) o.classList.add('cur-cross');
     else if (t === 'note')  o.classList.add('cur-cell');
     else if (t === 'text')  o.classList.add('cur-text');
     else if (t === 'erase') o.classList.add('cur-erase');
@@ -1767,20 +1973,26 @@ function attachEvents(ov, pageNum, vp) {
       }
       if (measureState === 'firstSet') {
         // Second click — lock P2, prompt for third click to commit
+        // Apply shift-snap if held
+        let cx2 = cx, cy2 = cy;
+        if (e.shiftKey && measureP1) {
+          const dx = Math.abs(cx - measureP1.x), dy = Math.abs(cy - measureP1.y);
+          if (dx > dy) cy2 = measureP1.y; else cx2 = measureP1.x;
+        }
         measureState = 'secondSet';
-        measureP2 = { x: cx, y: cy };
+        measureP2 = { x: cx2, y: cy2 };
         const ml2 = measureLiveSvg.querySelector('#mline, line');
-        if (ml2) { ml2.setAttribute('x2', cx); ml2.setAttribute('y2', cy); ml2.setAttribute('stroke-dasharray', 'none'); }
+        if (ml2) { ml2.setAttribute('x2', cx2); ml2.setAttribute('y2', cy2); ml2.setAttribute('stroke-dasharray', 'none'); }
         const d2 = measureLiveSvg.querySelector('#mdot2');
-        if (d2) { d2.setAttribute('cx', cx); d2.setAttribute('cy', cy); d2.setAttribute('visibility', 'visible'); }
-        const pxDist = Math.hypot(cx - measureP1.x, cy - measureP1.y);
+        if (d2) { d2.setAttribute('cx', cx2); d2.setAttribute('cy', cy2); d2.setAttribute('visibility', 'visible'); }
+        const pxDist = Math.hypot(cx2 - measureP1.x, cy2 - measureP1.y);
         const label = measureScale
           ? `${(pxDist / measureScale.pxPerUnit / zoom).toFixed(2)} ${measureScale.unit}`
           : `${Math.round(pxDist)} px`;
         const lbl = measureLiveSvg.querySelector('#mlabel, text');
         if (lbl) {
-          lbl.setAttribute('x', (measureP1.x + cx) / 2);
-          lbl.setAttribute('y', (measureP1.y + cy) / 2 - 8);
+          lbl.setAttribute('x', (measureP1.x + cx2) / 2);
+          lbl.setAttribute('y', (measureP1.y + cy2) / 2 - 8);
           lbl.textContent = label;
         }
         document.getElementById('sb-measure').textContent = '⬌ ' + label;
@@ -1873,6 +2085,10 @@ function attachEvents(ov, pageNum, vp) {
       liveEl.className = 'ar';
       liveEl.style.borderColor = CHex[color];
       liveEl.style.background = CHex[color] + '11';
+    } else if (tool === 'cloud') {
+      liveEl.style.border = `2px dashed ${CHex[color] || CHex.yellow}`;
+      liveEl.style.borderRadius = '4px';
+      liveEl.style.background = (CHex[color] || CHex.yellow) + '11';
     }
     liveEl.style.left = ox + 'px'; liveEl.style.top = oy + 'px';
     liveEl.style.width = '0'; liveEl.style.height = '0';
@@ -1892,19 +2108,25 @@ function attachEvents(ov, pageNum, vp) {
 
     // Measure rubber-band — runs regardless of 'drawing' flag (measure uses clicks not drag)
     if (tool === 'measure' && measureLiveSvg && measureState === 'firstSet') {
+      // Shift = snap to nearest orthogonal (H or V)
+      let snapX = mx, snapY = my;
+      if (e.shiftKey && measureP1) {
+        const dx = Math.abs(mx - measureP1.x), dy = Math.abs(my - measureP1.y);
+        if (dx > dy) { snapY = measureP1.y; } else { snapX = measureP1.x; }
+      }
       const ml2 = measureLiveSvg.querySelector('line');
-      if (ml2) { ml2.setAttribute('x2', mx); ml2.setAttribute('y2', my); }
-      const pxDist = Math.hypot(mx - measureP1.x, my - measureP1.y);
+      if (ml2) { ml2.setAttribute('x2', snapX); ml2.setAttribute('y2', snapY); }
+      const pxDist = Math.hypot(snapX - measureP1.x, snapY - measureP1.y);
       const label = measureScale
         ? `${(pxDist / measureScale.pxPerUnit / zoom).toFixed(2)} ${measureScale.unit}`
         : `${Math.round(pxDist)} px`;
       const lbl = measureLiveSvg.querySelector('text');
       if (lbl) {
-        lbl.setAttribute('x', (measureP1.x + mx) / 2);
-        lbl.setAttribute('y', (measureP1.y + my) / 2 - 8);
+        lbl.setAttribute('x', (measureP1.x + snapX) / 2);
+        lbl.setAttribute('y', (measureP1.y + snapY) / 2 - 8);
         lbl.textContent = label;
       }
-      document.getElementById('sb-measure').textContent = '⬌ ' + label;
+      document.getElementById('sb-measure').textContent = '⬌ ' + label + (e.shiftKey ? ' [snap]' : '');
       document.getElementById('sb-measure').classList.add('visible');
       return;
     }
@@ -1981,6 +2203,9 @@ function attachEvents(ov, pageNum, vp) {
     } else if (tool === 'highlight' || tool === 'rect') {
       if (w < 0.3 || h < 0.3) return;
       pushAnnot({ id: nextId(), pageNum, type: tool, x, y, w, h, color });
+    } else if (tool === 'cloud') {
+      if (w < 0.5 || h < 0.5) return;
+      pushAnnot({ id: nextId(), pageNum, type: 'cloud', x, y, w, h, color });
     }
   });
 
@@ -1994,33 +2219,74 @@ function attachEvents(ov, pageNum, vp) {
 }
 
 /* ═══════════════════════════════════════════════
-   ANNOTATION DATA MANAGEMENT
+   ANNOTATION DATA MANAGEMENT — UNDO/REDO HISTORY
+   Each pushAnnot snapshot: {annots:[...], emmaRows:{...}}
+   Max 50 states to bound memory usage.
 ═══════════════════════════════════════════════ */
+let history = [];   // array of snapshots
+let historyIdx = -1;
+const MAX_HISTORY = 50;
+
+function snapshotState() {
+  // Trim redo states ahead of current index
+  history = history.slice(0, historyIdx + 1);
+  history.push({ annots: JSON.parse(JSON.stringify(annots)), emmaRows: JSON.parse(JSON.stringify(emmaRows)) });
+  if (history.length > MAX_HISTORY) history.shift();
+  historyIdx = history.length - 1;
+  updateUndoRedoButtons();
+}
+
+function updateUndoRedoButtons() {
+  const redoBtn = document.getElementById('redo-btn');
+  if (redoBtn) redoBtn.style.opacity = historyIdx < history.length - 1 ? '1' : '0.4';
+}
+
 function pushAnnot(a) {
   if (!a.author) a.author = currentAuthor || 'Unknown';
   if (!a.ts) a.ts = new Date().toISOString();
   annots.push(a);
+  snapshotState();
   syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
 }
 
 function deleteAnnotById(id) {
   delete emmaRows[id];
   annots = annots.filter(a => a.id !== id);
+  snapshotState();
   syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
 }
 
 function undoLast() {
-  if (!annots.length) { toast('Nothing to undo'); return; }
-  annots.pop(); syncAnnots(); updateAnnotPanel(); updateStatusCount();
+  if (historyIdx <= 0) { toast('Nothing to undo'); return; }
+  historyIdx--;
+  const snap = history[historyIdx];
+  annots = JSON.parse(JSON.stringify(snap.annots));
+  emmaRows = JSON.parse(JSON.stringify(snap.emmaRows));
+  syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
+  updateUndoRedoButtons();
   toast('Undone');
+}
+
+function redoLast() {
+  if (historyIdx >= history.length - 1) { toast('Nothing to redo'); return; }
+  historyIdx++;
+  const snap = history[historyIdx];
+  annots = JSON.parse(JSON.stringify(snap.annots));
+  emmaRows = JSON.parse(JSON.stringify(snap.emmaRows));
+  syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
+  updateUndoRedoButtons();
+  toast('Redone');
 }
 
 function clearPage() {
   if (!pdf) return;
   const before = annots.length;
   annots = annots.filter(a => a.pageNum !== curPg);
-  syncAnnots(); updateAnnotPanel(); updateStatusCount();
-  if (before !== annots.length) toast(`Cleared page ${curPg}`);
+  if (before !== annots.length) {
+    snapshotState();
+    syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
+    toast(`Cleared page ${curPg}`);
+  }
 }
 
 function updateStatusCount() {
@@ -2029,24 +2295,54 @@ function updateStatusCount() {
 }
 
 document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undoLast(); }
+  // Don't fire tool shortcuts when typing in an input/textarea
+  const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
+
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undoLast(); return; }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); redoLast(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveSession(); return; }
+
   if (e.key === 'Escape') {
     hideCtx(); txtPopCancel();
-    // Cancel in-progress measure
     if (measureState !== 'idle') {
       if (measureLiveSvg) { measureLiveSvg.remove(); measureLiveSvg = null; }
       measureState = 'idle'; measureP1 = null; measureP2 = null; measurePageNum = null;
       document.getElementById('sb-measure').classList.remove('visible');
       toast('Measure cancelled');
     }
+    closeM('mkeys');
+    return;
   }
-  if (e.key === 'Delete' || e.key === 'Backspace') {
+
+  if (e.key === '?') { openM('mkeys'); return; }
+
+  if ((e.key === 'Delete' || e.key === 'Backspace') && !inInput) {
     const sel = document.querySelector('.aitem.selected');
     if (sel) { const id = parseInt(sel.dataset.id); if (id) deleteAnnotById(id); }
+    return;
+  }
+
+  // Space = temporary pan (hold)
+  if (e.key === ' ' && !inInput && !e.repeat) {
+    e.preventDefault();
+    if (tool !== 'pan') { window._prevTool = tool; setTool('pan'); }
+    return;
+  }
+
+  // Tool letter shortcuts (not when typing)
+  if (!inInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const toolKeys = { h:'highlight', m:'texthighlight', r:'rect', p:'pen',
+      a:'arrow', c:'cloud', g:'area', d:'measure', n:'note', t:'text', e:'erase', v:'pan' };
+    if (toolKeys[e.key.toLowerCase()]) { setTool(toolKeys[e.key.toLowerCase()]); return; }
   }
 });
 
 // Global pan drag — continues even if mouse leaves the overlay
+document.addEventListener('keyup', e => {
+  if (e.key === ' ' && window._prevTool) {
+    setTool(window._prevTool); window._prevTool = null;
+  }
+});
 document.addEventListener('mousemove', e => {
   if (!panDragging || !panStart) return;
   const viewer = document.getElementById('viewer');
@@ -2142,6 +2438,16 @@ function attachAnnotListeners(el, a) {
   });
 }
 
+/* Returns the 1-based EMMa register index for a given annotation id,
+   or 0 if the annotation is excluded or not in the register. */
+function getEmmaIndex(id) {
+  const emmaAnnots = annots.filter(a =>
+    (a.type === 'note' || a.type === 'text' || a.type === 'measure') && !a.emmaExclude
+  );
+  const idx = emmaAnnots.findIndex(a => a.id === id);
+  return idx >= 0 ? idx + 1 : 0;
+}
+
 function buildAnnotEl(a) {
   let el;
   if (a.type === 'highlight') {
@@ -2156,7 +2462,18 @@ function buildAnnotEl(a) {
   } else if (a.type === 'note') {
     el = document.createElement('div'); el.className = 'an';
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%`;
-    el.textContent = a.text; el.title = a.text;
+    // EMMA ref badge
+    if (!a.emmaExclude) {
+      const idx = getEmmaIndex(a.id);
+      if (idx > 0) {
+        const badge = document.createElement('span');
+        badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#7c3aed;color:#fff;border-radius:50%;font-size:9px;font-weight:700;font-family:var(--mono);margin-right:4px;vertical-align:middle;flex-shrink:0';
+        badge.textContent = idx;
+        el.appendChild(badge);
+      }
+    }
+    const txt = document.createTextNode(a.text);
+    el.appendChild(txt); el.title = a.text;
     if (a.emmaExclude) {
       const tag = document.createElement('span');
       tag.style.cssText = 'display:inline-block;font-size:8px;background:#f1f5f9;color:#94a3b8;border-radius:2px;padding:0 3px;margin-left:4px;vertical-align:middle;font-family:var(--mono)';
@@ -2166,7 +2483,16 @@ function buildAnnotEl(a) {
   } else if (a.type === 'text') {
     el = document.createElement('div'); el.className = 'atxt';
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;color:${CHex[a.color] || CHex.yellow}`;
-    el.textContent = a.text;
+    if (!a.emmaExclude) {
+      const idx = getEmmaIndex(a.id);
+      if (idx > 0) {
+        const badge = document.createElement('span');
+        badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#7c3aed;color:#fff;border-radius:50%;font-size:8px;font-weight:700;font-family:var(--mono);margin-right:3px;vertical-align:middle;flex-shrink:0';
+        badge.textContent = idx;
+        el.appendChild(badge);
+      }
+    }
+    el.appendChild(document.createTextNode(a.text));
     if (a.emmaExclude) {
       const tag = document.createElement('span');
       tag.style.cssText = 'display:inline-block;font-size:8px;background:rgba(0,0,0,0.08);color:#888;border-radius:2px;padding:0 3px;margin-left:4px;vertical-align:middle;font-family:var(--mono)';
@@ -2179,6 +2505,8 @@ function buildAnnotEl(a) {
     el = buildArrowAnnotEl(a);
   } else if (a.type === 'measure') {
     el = buildMeasureAnnotEl(a);
+  } else if (a.type === 'cloud') {
+    el = buildCloudAnnotEl(a);
   }
   return el || null;
 }
@@ -2338,6 +2666,57 @@ function buildMeasureAnnotEl(a) {
   svg.appendChild(ghost); svg.appendChild(line);
   svg.appendChild(mkTick(a.x1, a.y1)); svg.appendChild(mkTick(a.x2, a.y2));
   svg.appendChild(bg); svg.appendChild(txt);
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+/* ── CLOUD: scalloped revision bubble ──────────────────────────────────────
+   Generates an SVG cloud shape using arc segments around the perimeter.
+   Standard engineering CAD revision cloud convention.
+   x,y,w,h stored as % of page; rendered in viewBox 0 0 100 100.         ── */
+function buildCloudAnnotEl(a) {
+  const wrap = document.createElement('div');
+  wrap.className = 'asvg-wrap';
+  wrap.style.cssText = 'position:absolute;inset:0;overflow:visible;pointer-events:none';
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
+  const c = CHex[a.color] || CHex.yellow;
+  const x1 = a.x, y1 = a.y, x2 = a.x + a.w, y2 = a.y + a.h;
+  const bumpR = Math.min(a.w, a.h) * 0.08;
+
+  function cloudPath(bx1, by1, bx2, by2, r) {
+    const segs = side => Math.max(3, Math.round(side / (r * 2.2)));
+    const nT = segs(bx2 - bx1), nR = segs(by2 - by1);
+    const nB = segs(bx2 - bx1), nL = segs(by2 - by1);
+    let d = 'M' + bx1.toFixed(2) + ' ' + by1.toFixed(2);
+    for (let i = 0; i < nT; i++) { const bx = (bx1 + (i+1)/nT*(bx2-bx1)).toFixed(2); d += ' A'+r+' '+r+' 0 0 1 '+bx+' '+by1.toFixed(2); }
+    for (let i = 0; i < nR; i++) { const by = (by1 + (i+1)/nR*(by2-by1)).toFixed(2); d += ' A'+r+' '+r+' 0 0 1 '+bx2.toFixed(2)+' '+by; }
+    for (let i = 0; i < nB; i++) { const bx = (bx2 - (i+1)/nB*(bx2-bx1)).toFixed(2); d += ' A'+r+' '+r+' 0 0 1 '+bx+' '+by2.toFixed(2); }
+    for (let i = 0; i < nL; i++) { const by = (by2 - (i+1)/nL*(by2-by1)).toFixed(2); d += ' A'+r+' '+r+' 0 0 1 '+bx1.toFixed(2)+' '+by; }
+    return d + ' Z';
+  }
+
+  const ghost = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  ghost.setAttribute('d', cloudPath(x1,y1,x2,y2,bumpR));
+  ghost.setAttribute('fill', 'none'); ghost.setAttribute('stroke', 'transparent');
+  ghost.setAttribute('stroke-width', '4'); ghost.setAttribute('vector-effect', 'non-scaling-stroke');
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', cloudPath(x1,y1,x2,y2,bumpR));
+  path.setAttribute('fill', c + '18'); path.setAttribute('stroke', c);
+  path.setAttribute('stroke-width', '1.8'); path.setAttribute('vector-effect', 'non-scaling-stroke');
+  path.setAttribute('stroke-linejoin', 'round');
+
+  const triSize = Math.min(a.w, a.h) * 0.12;
+  const tx = x2 - triSize*0.2, ty = y2 - triSize*0.2;
+  const tri = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  tri.setAttribute('points', tx+','+(ty-triSize)+' '+(tx-triSize)+','+ty+' '+(tx+triSize*0.2)+','+ty);
+  tri.setAttribute('fill', 'none'); tri.setAttribute('stroke', c);
+  tri.setAttribute('stroke-width', '1.5'); tri.setAttribute('vector-effect', 'non-scaling-stroke');
+
+  svg.appendChild(ghost); svg.appendChild(path); svg.appendChild(tri);
   wrap.appendChild(svg);
   return wrap;
 }
@@ -2825,21 +3204,917 @@ function openEmmaExport() {
 // Keep old function name as alias in case called anywhere
 const exportXlsx = openEmmaExport;
 
-// Init
+// ═══════════════════════════════════════════════
+//  DARK MODE
+// ═══════════════════════════════════════════════
+function toggleDark() {
+  const isDark = document.body.classList.toggle('dark');
+  localStorage.setItem('engdoc_dark', isDark ? '1' : '0');
+  document.getElementById('dark-icon-moon').style.display = isDark ? 'none' : '';
+  document.getElementById('dark-icon-sun').style.display  = isDark ? '' : 'none';
+}
+// Restore dark mode on load
+if (localStorage.getItem('engdoc_dark') === '1') toggleDark();
+
+// ═══════════════════════════════════════════════
+//  INDEXEDDB AUTO-SAVE
+// ═══════════════════════════════════════════════
+let idb = null;
+function openIDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('engdoc', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('sessions', { keyPath: 'id' });
+    req.onsuccess = e => { idb = e.target.result; res(idb); };
+    req.onerror = () => rej(req.error);
+  });
+}
+
+async function idbSave() {
+  if (!idb || !pdfName) return;
+  try {
+    const data = { id: 'autosave', pdfName, annots, emmaRows, annotIdSeq,
+      emmaFields: captureEmmaFields(), savedAt: new Date().toISOString() };
+    const tx = idb.transaction('sessions', 'readwrite');
+    tx.objectStore('sessions').put(data);
+    // Flash autosave dot
+    const dot = document.getElementById('autosave-dot');
+    if (dot) { dot.classList.add('pulse'); setTimeout(() => dot.classList.remove('pulse'), 1500); }
+  } catch(e) { /* silent */ }
+}
+
+async function idbRestore() {
+  if (!idb) return null;
+  return new Promise(res => {
+    try {
+      const tx = idb.transaction('sessions', 'readonly');
+      const req = tx.objectStore('sessions').get('autosave');
+      req.onsuccess = () => res(req.result || null);
+      req.onerror = () => res(null);
+    } catch(e) { res(null); }
+  });
+}
+
+function captureEmmaFields() {
+  const ids = ['emma-proj-title','emma-proj-no','emma-doc-no','emma-rev-no',
+    'emma-specific','emma-chk-no','emma-discipline','emma-checker','emma-date'];
+  const out = {};
+  ids.forEach(id => { const el = document.getElementById(id); if (el) out[id] = el.value; });
+  return out;
+}
+
+// Auto-save every 30s and on every annotation push
+let autoSaveTimer = null;
+function scheduleAutoSave() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => idbSave(), 30000);
+  // Also save immediately on annotation changes (debounced to 2s)
+  clearTimeout(window._idbDebounce);
+  window._idbDebounce = setTimeout(() => idbSave(), 2000);
+}
+
+// Initialise IDB
+openIDB().then(async () => {
+  const saved = await idbRestore();
+  if (saved && saved.pdfName && !pdfName) {
+    // Offer to restore
+    const age = saved.savedAt ? Math.round((Date.now() - new Date(saved.savedAt)) / 60000) : '?';
+    toast(`Auto-save found: "${saved.pdfName}" from ${age} min ago — reload the PDF to restore`, 6000);
+  }
+}).catch(() => {});
+
+// ═══════════════════════════════════════════════
+//  AREA / POLYGON MEASUREMENT TOOL
+// ═══════════════════════════════════════════════
+let areaPoints = [];  // [{x, y}] in overlay px
+let areaLiveSvg = null;
+let areaPageNum = null;
+let areaVp = null;
+
+function startAreaTool(ov, pageNum, vp, ox, oy) {
+  if (areaPageNum !== pageNum) {
+    // Cancel any in-progress area on a different page
+    cancelArea();
+  }
+  areaPageNum = pageNum; areaVp = vp;
+  areaPoints.push({ x: ox, y: oy });
+
+  if (!areaLiveSvg) {
+    areaLiveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    areaLiveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
+    areaLiveSvg.setAttribute('width', vp.width); areaLiveSvg.setAttribute('height', vp.height);
+    ov.appendChild(areaLiveSvg);
+  }
+  updateAreaPreview(ox, oy);
+  if (areaPoints.length === 1) toast('Click to add points — double-click to close & measure', 2500);
+}
+
+function updateAreaPreview(mx, my) {
+  if (!areaLiveSvg || areaPoints.length === 0) return;
+  areaLiveSvg.innerHTML = '';
+  const c = CHex[color] || '#7c3aed';
+  const pts = [...areaPoints, { x: mx, y: my }];
+
+  // Closed polygon fill
+  if (pts.length >= 3) {
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    poly.setAttribute('points', pts.map(p => `${p.x},${p.y}`).join(' '));
+    poly.setAttribute('fill', c + '22'); poly.setAttribute('stroke', c);
+    poly.setAttribute('stroke-width', '1.5'); poly.setAttribute('stroke-dasharray', '5,3');
+    areaLiveSvg.appendChild(poly);
+  }
+  // Point dots
+  areaPoints.forEach((p, i) => {
+    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    dot.setAttribute('cx', p.x); dot.setAttribute('cy', p.y); dot.setAttribute('r', i === 0 ? 5 : 3);
+    dot.setAttribute('fill', i === 0 ? c : '#fff'); dot.setAttribute('stroke', c); dot.setAttribute('stroke-width', '1.5');
+    areaLiveSvg.appendChild(dot);
+  });
+  // Live line to cursor
+  if (areaPoints.length > 0) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    const last = areaPoints[areaPoints.length - 1];
+    line.setAttribute('x1', last.x); line.setAttribute('y1', last.y);
+    line.setAttribute('x2', mx); line.setAttribute('y2', my);
+    line.setAttribute('stroke', c); line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('stroke-dasharray', '4,3'); areaLiveSvg.appendChild(line);
+  }
+  // Area label
+  if (pts.length >= 3) {
+    const area = computePolygonArea(areaPoints);
+    const areaLabel = measureScale
+      ? `${(area / (measureScale.pxPerUnit * measureScale.pxPerUnit)).toFixed(2)} ${measureScale.unit}²`
+      : `${Math.round(area)} px²`;
+    const cx = areaPoints.reduce((s, p) => s + p.x, 0) / areaPoints.length;
+    const cy = areaPoints.reduce((s, p) => s + p.y, 0) / areaPoints.length;
+    const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    txt.setAttribute('x', cx); txt.setAttribute('y', cy);
+    txt.setAttribute('fill', c); txt.setAttribute('font-size', '11');
+    txt.setAttribute('font-family', 'DM Mono, monospace'); txt.setAttribute('text-anchor', 'middle');
+    txt.textContent = areaLabel; areaLiveSvg.appendChild(txt);
+    document.getElementById('sb-measure').textContent = '⬛ ' + areaLabel;
+    document.getElementById('sb-measure').classList.add('visible');
+  }
+}
+
+function computePolygonArea(pts) {
+  // Shoelace formula
+  let area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const j = (i + 1) % pts.length;
+    area += pts[i].x * pts[j].y;
+    area -= pts[j].x * pts[i].y;
+  }
+  return Math.abs(area) / 2;
+}
+
+function commitArea() {
+  if (!areaPoints || areaPoints.length < 3) { cancelArea(); return; }
+  if (areaLiveSvg) { areaLiveSvg.remove(); areaLiveSvg = null; }
+  document.getElementById('sb-measure').classList.remove('visible');
+  const vp = areaVp;
+  const area = computePolygonArea(areaPoints);
+  const areaLabel = measureScale
+    ? `${(area / (measureScale.pxPerUnit * measureScale.pxPerUnit)).toFixed(2)} ${measureScale.unit}²`
+    : `${Math.round(area)} px²`;
+  const pts = areaPoints.map(p => ({ x: p.x / vp.width, y: p.y / vp.height }));
+  pushAnnot({ id: nextId(), pageNum: areaPageNum, type: 'area',
+    points: pts, color, label: areaLabel, areaPx: area });
+  areaPoints = []; areaPageNum = null; areaVp = null;
+}
+
+function cancelArea() {
+  if (areaLiveSvg) { areaLiveSvg.remove(); areaLiveSvg = null; }
+  areaPoints = []; areaPageNum = null; areaVp = null;
+  document.getElementById('sb-measure').classList.remove('visible');
+}
+
+// Wire area tool into attachEvents — intercept mousedown/mousemove for area
+// (done by checking tool === 'area' in the overlay event handlers already attached;
+//  we extend the existing attachEvents via a separate overlay listener here)
+function attachAreaEvents(ov, pageNum, vp) {
+  let lastClick = 0;
+  ov.addEventListener('click', e => {
+    if (tool !== 'area') return;
+    e.stopPropagation();
+    const r = ov.getBoundingClientRect();
+    const ox = e.clientX - r.left, oy = e.clientY - r.top;
+    const now = Date.now();
+    if (now - lastClick < 350) {
+      // Double-click — commit
+      commitArea(); lastClick = 0; return;
+    }
+    lastClick = now;
+    startAreaTool(ov, pageNum, vp, ox, oy);
+  });
+  ov.addEventListener('mousemove', e => {
+    if (tool !== 'area' || areaPoints.length === 0) return;
+    const r = ov.getBoundingClientRect();
+    updateAreaPreview(e.clientX - r.left, e.clientY - r.top);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  AREA ANNOTATION RENDERER
+// ═══════════════════════════════════════════════
+function buildAreaAnnotEl(a) {
+  const wrap = document.createElement('div');
+  wrap.className = 'asvg-wrap';
+  wrap.style.cssText = 'position:absolute;inset:0;pointer-events:none';
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  const c = CHex[a.color] || '#7c3aed';
+  const pts = a.points.map(p => `${p.x * 100},${p.y * 100}`).join(' ');
+
+  // Ghost stroke for eraser
+  const ghost = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  ghost.setAttribute('points', pts); ghost.setAttribute('fill', 'none');
+  ghost.setAttribute('stroke', 'transparent'); ghost.setAttribute('stroke-width', '4');
+  ghost.setAttribute('vector-effect', 'non-scaling-stroke');
+
+  // Visible polygon
+  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  poly.setAttribute('points', pts);
+  poly.setAttribute('fill', c + '22'); poly.setAttribute('stroke', c);
+  poly.setAttribute('stroke-width', '2'); poly.setAttribute('vector-effect', 'non-scaling-stroke');
+
+  // Label at centroid
+  const cx = a.points.reduce((s, p) => s + p.x, 0) / a.points.length * 100;
+  const cy = a.points.reduce((s, p) => s + p.y, 0) / a.points.length * 100;
+  const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  txt.setAttribute('x', cx); txt.setAttribute('y', cy);
+  txt.setAttribute('fill', c); txt.setAttribute('font-size', '2.5');
+  txt.setAttribute('font-family', 'DM Mono, monospace'); txt.setAttribute('text-anchor', 'middle');
+  txt.setAttribute('vector-effect', 'non-scaling-stroke'); txt.textContent = a.label;
+
+  svg.appendChild(ghost); svg.appendChild(poly); svg.appendChild(txt);
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+// ═══════════════════════════════════════════════
+//  SPACEBAR TEMPORARY PAN
+// ═══════════════════════════════════════════════
+let spaceToolPrev = null;
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !e.repeat && !e.target.closest('input,textarea,select')) {
+    if (tool !== 'pan') { spaceToolPrev = tool; setTool('pan'); }
+  }
+});
+document.addEventListener('keyup', e => {
+  if (e.code === 'Space' && spaceToolPrev !== null) {
+    setTool(spaceToolPrev); spaceToolPrev = null;
+  }
+});
+
+// ═══════════════════════════════════════════════
+//  NR DRAWING STANDARDS CHECKER
+//  Analyses extracted text content for common NR/TRU
+//  drawing issues: missing scale bar, CDM triangle,
+//  title block completeness, drawing number format,
+//  north point, revision history, and more.
+// ═══════════════════════════════════════════════
+
+/* Each check returns { id, group, title, desc, status, ref, page }
+   status: 'pass' | 'warn' | 'fail' | 'info'
+*/
+let checkFindings = [];
+
+async function runStandardsCheck() {
+  if (!pdf) { toast('Open a PDF first'); return; }
+  openM('mcheck');
+  document.getElementById('check-running').style.display = 'block';
+  document.getElementById('check-results').innerHTML = '';
+  document.getElementById('check-summary').textContent = '';
+  document.getElementById('check-add-btn').style.display = 'none';
+
+  // Make sure text is extracted for at least page 1
+  const bar = document.getElementById('check-progress');
+  const updateBar = (pct) => { if (bar) bar.style.width = pct + '%'; };
+
+  updateBar(10);
+  // Extract pages 1 and last (title sheet + last sheet usually have key info)
+  const pagesToCheck = [1];
+  if (nPages > 1) pagesToCheck.push(nPages);
+  if (nPages > 2) pagesToCheck.push(Math.ceil(nPages / 2)); // mid-sheet sample
+
+  for (const pg of pagesToCheck) {
+    if (!pdfTextContent[pg]) {
+      try {
+        const page = await pdf.getPage(pg);
+        const tc = await page.getTextContent();
+        const vp = page.getViewport({ scale: 1 });
+        pdfTextContent[pg] = tc.items.filter(i => i.str?.trim()).map(i => {
+          const [,,,scaleY,tx,ty] = i.transform;
+          return { str: i.str.trim(), x: tx/vp.width, y: 1-(ty/vp.height),
+            fontSize: Math.abs(scaleY)/vp.height, width: i.width/vp.width };
+        });
+      } catch(e) {}
+    }
+  }
+  updateBar(40);
+
+  // Run all checks
+  checkFindings = [];
+  const page1 = pdfTextContent[1] || [];
+  const allText = Object.values(pdfTextContent).flat();
+  const allStr = allText.map(t => t.str).join(' ');
+  const page1Str = page1.map(t => t.str).join(' ');
+
+  checkFindings.push(...checkTitleBlock(page1, page1Str));
+  updateBar(55);
+  checkFindings.push(...checkDrawingNumber(page1Str));
+  updateBar(65);
+  checkFindings.push(...checkScaleBar(page1, page1Str));
+  updateBar(73);
+  checkFindings.push(...checkCDM(allStr, page1Str));
+  updateBar(80);
+  checkFindings.push(...checkRevisionPanel(page1, page1Str));
+  updateBar(87);
+  checkFindings.push(...checkNorthPoint(page1Str, allStr));
+  updateBar(92);
+  checkFindings.push(...checkProjectionAngle(page1Str));
+  updateBar(96);
+  checkFindings.push(...checkUnits(page1Str, allStr));
+  updateBar(100);
+
+  renderCheckResults(checkFindings);
+  document.getElementById('check-running').style.display = 'none';
+
+  const fails = checkFindings.filter(f => f.status === 'fail').length;
+  const warns = checkFindings.filter(f => f.status === 'warn').length;
+  const passes = checkFindings.filter(f => f.status === 'pass').length;
+  document.getElementById('check-summary').textContent =
+    `${fails} issue${fails !== 1?'s':''} · ${warns} warning${warns!==1?'s':''} · ${passes} passed`;
+  const hasFails = fails > 0 || warns > 0;
+  document.getElementById('check-add-btn').style.display = hasFails ? '' : 'none';
+}
+
+/* ── INDIVIDUAL CHECK FUNCTIONS ─────────────────────────── */
+
+function checkTitleBlock(items, str) {
+  const findings = [];
+  const req = [
+    { key: 'drawing number', pats: /drawing\s*number|drg\s*no|dwg\s*no/i, label: 'Drawing Number' },
+    { key: 'revision',       pats: /^revision$|^rev\.?$/i,                 label: 'Revision' },
+    { key: 'drawn by',       pats: /^drawn$|^drawn\s*by$/i,                label: 'Drawn by' },
+    { key: 'checked',        pats: /^checked$|^checked\s*by$/i,            label: 'Checked by' },
+    { key: 'date',           pats: /^date$/i,                              label: 'Date' },
+    { key: 'title',          pats: /drawing\s*title|^title$/i,             label: 'Drawing Title' },
+    { key: 'scale',          pats: /^scale$|^scales?$/i,                   label: 'Scale' },
+    { key: 'project',        pats: /^project$|contract\s*no/i,            label: 'Project / Contract No.' },
+    { key: 'sheet',          pats: /sheet\s*\d|sheet.*of|^\d+\s*of\s*\d+$/i, label: 'Sheet Number' },
+  ];
+
+  const missingLabels = [];
+  req.forEach(({ pats, label }) => {
+    const found = items.some(it => pats.test(it.str.trim()));
+    if (!found) missingLabels.push(label);
+  });
+
+  if (missingLabels.length === 0) {
+    findings.push({ id:'tb-complete', group:'Title Block', title:'Title block appears complete',
+      desc:'All required title block fields detected.', status:'pass', ref:'NR/L2/INI/02116' });
+  } else {
+    findings.push({ id:'tb-missing', group:'Title Block',
+      title:'Missing title block fields',
+      desc:`The following fields were not detected in the title block: ${missingLabels.join(', ')}.`,
+      status: missingLabels.length > 3 ? 'fail' : 'warn',
+      ref:'NR/L2/INI/02116 §4.2' });
+  }
+
+  // Check authorised field
+  const hasAuth = /authoris|approved/i.test(str);
+  if (!hasAuth) {
+    findings.push({ id:'tb-auth', group:'Title Block', title:'No Authorised / Approved field found',
+      desc:'NR title blocks must include an Authorised or Approved signatory field.',
+      status:'warn', ref:'NR/L2/INI/02116 §4.3' });
+  }
+
+  return findings;
+}
+
+function checkDrawingNumber(str) {
+  const findings = [];
+  // NR drawing number convention: typically contains hyphens and alphanumeric blocks
+  // e.g. 151667-TSA-W3-TRU-DRG-R-SE-021255 or NR/PROJ/DISC/NNNNN
+  const nrFormatStrict = /\d{5,}-[A-Z]{2,}-[A-Z0-9]+-[A-Z]{2,}-[A-Z]{3,}/;
+  const nrFormatLoose  = /[A-Z0-9]{2,}-[A-Z0-9]{2,}-[A-Z0-9]{2,}/;
+
+  if (nrFormatStrict.test(str)) {
+    findings.push({ id:'drg-num', group:'Drawing Number', title:'Drawing number format looks correct',
+      desc:'Drawing number follows expected hyphen-separated NR/TRU format.', status:'pass', ref:'NR/GN/CIV/005' });
+  } else if (nrFormatLoose.test(str)) {
+    findings.push({ id:'drg-num', group:'Drawing Number', title:'Drawing number format — verify',
+      desc:'A document reference was found but it may not follow the full NR/TRU number convention (NNNNN-ORG-PROJ-DISC-DRG-TYPE-NNNNN).',
+      status:'warn', ref:'NR/GN/CIV/005 §3' });
+  } else {
+    findings.push({ id:'drg-num', group:'Drawing Number', title:'Drawing number not detected',
+      desc:'No recognisable drawing number format found. Check title block.',
+      status:'fail', ref:'NR/GN/CIV/005' });
+  }
+
+  // Revision check — should be P01, P02, AFC, A, B… not blank
+  const revMatch = str.match(/\b(P0\d|P1\d|AFC|Rev\s*[A-Z]|\bA\b|\bB\b|\bC\b|R\d+)\b/);
+  if (revMatch) {
+    findings.push({ id:'revision', group:'Drawing Number', title:'Revision status found',
+      desc:`Revision identifier detected: ${revMatch[0]}`, status:'pass', ref:'NR/L2/INI/02116 §5' });
+  } else {
+    findings.push({ id:'revision', group:'Drawing Number', title:'Revision status not found or unclear',
+      desc:'Could not detect a clear revision identifier (e.g. P01, P02, AFC, A, B). Verify the title block revision field.',
+      status:'warn', ref:'NR/L2/INI/02116 §5' });
+  }
+
+  return findings;
+}
+
+function checkScaleBar(items, str) {
+  const findings = [];
+
+  // 1. Check stated scale in title block
+  const scaleRatio = str.match(/1\s*[:\/]\s*(\d+)/);
+  if (scaleRatio) {
+    findings.push({ id:'scale-stated', group:'Scale', title:`Scale stated: 1:${scaleRatio[1]}`,
+      desc:'Drawing scale ratio detected in title block.', status:'pass', ref:'BS 8888:2017 §13.2' });
+  } else if (/NTS|not\s*to\s*scale|n\.t\.s/i.test(str)) {
+    findings.push({ id:'scale-stated', group:'Scale', title:'Drawing marked as Not To Scale (NTS)',
+      desc:'Drawing is explicitly marked NTS. Ensure this is intentional — NTS drawings must not be used for set-out or dimension checking.',
+      status:'info', ref:'BS 8888:2017 §13.2' });
+  } else {
+    findings.push({ id:'scale-stated', group:'Scale', title:'No scale stated in title block',
+      desc:'A scale ratio (e.g. 1:500) or NTS designation must be stated in the title block on all engineering drawings.',
+      status:'fail', ref:'BS 8888:2017 §13.2 / NR/L2/INI/02116' });
+  }
+
+  // 2. Check for scale bar / graphic scale in drawing body
+  // Look for patterns like "0___50m", "scale bar", "0  25  50", or a horizontal measurement bar
+  const hasScaleBar = /scale\s*bar|graphic\s*scale|\b0\s+\d+\s+\d+\s*m\b|\bscale\s*1:/i.test(str)
+    || items.some(it => /^\d+\s*m$|^\d+\s*mm$|^\d+\s*km$/i.test(it.str.trim()));
+
+  if (hasScaleBar) {
+    findings.push({ id:'scale-bar', group:'Scale', title:'Scale bar / graphic scale detected',
+      desc:'A graphic scale or scale bar appears to be present on the drawing.',
+      status:'pass', ref:'NR/GN/CIV/005' });
+  } else {
+    findings.push({ id:'scale-bar', group:'Scale', title:'Scale bar not detected',
+      desc:'Engineering drawings should include a graphic scale bar in addition to the title block ratio. This allows dimensions to be checked even if the drawing is reproduced at a different size.',
+      status:'warn', ref:'NR/GN/CIV/005 §4.1 / BS 8888:2017 §13.3' });
+  }
+
+  return findings;
+}
+
+function checkCDM(allStr, page1Str) {
+  const findings = [];
+
+  // CDM hazard / health & safety triangle
+  // Look for: CDM, hazard, H&S, health and safety, residual risk, construction phase plan
+  const hasCDM = /\bCDM\b|health\s*[&and]+\s*safety|hazard|residual\s*risk|construction\s*phase\s*plan|CPP\b|H&S\b/i.test(allStr);
+  if (hasCDM) {
+    findings.push({ id:'cdm-present', group:'CDM & Safety', title:'CDM / H&S content detected',
+      desc:'Health & Safety or CDM-related text found on the drawing.',
+      status:'pass', ref:'CDM Regs 2015 / NR/L3/INF/02007' });
+  } else {
+    findings.push({ id:'cdm-missing', group:'CDM & Safety', title:'No CDM / H&S hazard indication found',
+      desc:'NR drawings must include a CDM hazard triangle or equivalent health & safety information where construction hazards are present. Check whether this drawing requires CDM annotation (e.g. confined spaces, overhead lines, buried services, contaminated land).',
+      status:'warn', ref:'CDM Regs 2015 / NR/L3/INF/02007 §6' });
+  }
+
+  // OLE / electrification warning
+  const hasOLE = /\bOLE\b|overhead\s*line|electrification|25kV|25\s*kV|catenary|contact\s*wire/i.test(allStr);
+  if (hasOLE) {
+    const hasOLEWarning = /safe\s*working|isolation|line\s*clear|permit|exclusion\s*zone|approach\s*distance/i.test(allStr);
+    if (hasOLEWarning) {
+      findings.push({ id:'ole-warn', group:'CDM & Safety', title:'OLE / electrification warning present',
+        desc:'Overhead line equipment references and safety working notes detected.',
+        status:'pass', ref:'NR/L2/OLE/00056' });
+    } else {
+      findings.push({ id:'ole-warn', group:'CDM & Safety', title:'OLE detected — safe working distance warning may be missing',
+        desc:'Overhead line equipment (OLE) is referenced but no safe working distance or isolation notice was detected. All drawings showing OLE must include appropriate electrical safety warnings.',
+        status:'fail', ref:'NR/L2/OLE/00056 §4.2' });
+    }
+  }
+
+  // Buried services / utilities
+  const hasBuried = /buried\s*service|underground\s*cable|utility|utilities|below\s*ground\s*service|existing\s*service/i.test(allStr);
+  if (hasBuried) {
+    findings.push({ id:'buried', group:'CDM & Safety', title:'Buried services referenced',
+      desc:'Buried or underground services are mentioned. Confirm that a "buried services" CDM hazard note is included and that service drawings have been consulted (e.g. via LSBUD/Dial Before You Dig).',
+      status:'info', ref:'CDM Regs 2015 Reg.4' });
+  }
+
+  return findings;
+}
+
+function checkRevisionPanel(items, str) {
+  const findings = [];
+
+  // Revision history / revision table
+  const hasRevTable = /rev(?:ision)?\s*(?:history|table|record|log)|issue\s*(?:history|table|record)/i.test(str)
+    || (str.match(/\bP0[0-9]\b/g) || []).length >= 2; // at least 2 P0x entries suggests rev table
+
+  if (hasRevTable) {
+    findings.push({ id:'rev-table', group:'Revision History', title:'Revision history panel detected',
+      desc:'A revision history or issue record appears to be present.',
+      status:'pass', ref:'NR/L2/INI/02116 §5.4' });
+  } else {
+    findings.push({ id:'rev-table', group:'Revision History', title:'Revision history not detected',
+      desc:'All NR drawings must carry a revision history / issue record panel listing previous revisions, issue dates, and descriptions of changes.',
+      status:'warn', ref:'NR/L2/INI/02116 §5.4' });
+  }
+
+  // Issue description / reason for issue
+  const hasIssueDesc = /reason\s*for\s*issue|description\s*of\s*(?:revision|change|issue)|issued\s*for|for\s*(?:information|construction|approval|checking|tender)/i.test(str);
+  if (!hasIssueDesc) {
+    findings.push({ id:'rev-reason', group:'Revision History', title:'Issue purpose not stated',
+      desc:'The purpose of issue (e.g. "Issued for Checking", "Issued for Construction") was not detected. This should appear in the revision panel or title block.',
+      status:'warn', ref:'NR/L2/INI/02116 §5.5' });
+  } else {
+    findings.push({ id:'rev-reason', group:'Revision History', title:'Issue purpose stated',
+      desc:'A reason for issue / issued for statement was detected.', status:'pass', ref:'NR/L2/INI/02116 §5.5' });
+  }
+
+  return findings;
+}
+
+function checkNorthPoint(page1Str, allStr) {
+  const findings = [];
+
+  // North point / orientation arrow — only relevant for plan view drawings
+  const isPlanView = /plan|layout|general\s*arrangement|site\s*plan|location\s*plan|key\s*plan/i.test(page1Str);
+  if (!isPlanView) {
+    findings.push({ id:'north', group:'Orientation', title:'Not identified as plan view',
+      desc:'Drawing does not appear to be a plan-view drawing — north point check skipped.',
+      status:'info', ref:'BS 8888:2017 §13.6' });
+    return findings;
+  }
+
+  const hasNorth = /north|true\s*north|grid\s*north|magnetic\s*north|\bN\b.*arrow|\bnorth\s*point\b/i.test(allStr);
+  if (hasNorth) {
+    findings.push({ id:'north', group:'Orientation', title:'North point / orientation indicator detected',
+      desc:'A north point or orientation reference appears to be present on the plan.',
+      status:'pass', ref:'BS 8888:2017 §13.6' });
+  } else {
+    findings.push({ id:'north', group:'Orientation', title:'North point not detected on plan view',
+      desc:'Plan view drawings must include a north point or orientation indicator. Without it surveyors and site teams cannot establish orientation.',
+      status:'fail', ref:'BS 8888:2017 §13.6 / NR/GN/CIV/005' });
+  }
+
+  // Grid reference / OS coordinates
+  const hasGrid = /grid\s*ref|NGR\b|OS\s*ref|easting|northing|BNG\b|national\s*grid/i.test(allStr);
+  if (isPlanView && !hasGrid) {
+    findings.push({ id:'grid', group:'Orientation', title:'No OS grid reference detected',
+      desc:'Site plan drawings should include Ordnance Survey grid references or BNG coordinates to tie the drawing to the national grid. Required for GIS / asset register integration.',
+      status:'warn', ref:'NR/L2/INI/02116 §6.3' });
+  } else if (hasGrid) {
+    findings.push({ id:'grid', group:'Orientation', title:'Grid reference / OS coordinates present',
+      desc:'OS or national grid references detected.', status:'pass', ref:'NR/L2/INI/02116 §6.3' });
+  }
+
+  return findings;
+}
+
+function checkProjectionAngle(str) {
+  const findings = [];
+
+  // Third angle projection symbol should be on engineering drawings
+  const hasProjection = /third\s*angle|first\s*angle|3rd\s*angle|1st\s*angle|projection/i.test(str);
+  if (hasProjection) {
+    findings.push({ id:'proj', group:'Drawing Standards', title:'Projection angle stated',
+      desc:'Drawing projection type (first/third angle) is indicated.', status:'pass', ref:'BS 8888:2017 §14' });
+  } else {
+    findings.push({ id:'proj', group:'Drawing Standards', title:'Projection angle not stated',
+      desc:'Engineering drawings with multi-view projections should indicate whether first or third angle projection is used. BS 8888 requires this where multiple views are shown.',
+      status:'info', ref:'BS 8888:2017 §14.3' });
+  }
+
+  // Units statement
+  const hasUnitsStmt = /unless\s*otherwise|all\s*dimensions?\s*(are\s*in|in)\s*(mm|m\b|metres?)/i.test(str)
+    || /dimensions?\s*in\s*(mm|metres?|m\b)/i.test(str);
+  if (hasUnitsStmt) {
+    findings.push({ id:'units-stmt', group:'Drawing Standards', title:'Units statement present',
+      desc:'A general units statement (e.g. "All dimensions in mm unless otherwise stated") was detected.',
+      status:'pass', ref:'BS 8888:2017 §10' });
+  } else {
+    findings.push({ id:'units-stmt', group:'Drawing Standards', title:'Units statement not found',
+      desc:'A general units statement should appear on the drawing (e.g. "All dimensions in mm unless otherwise noted"). Without it, dimensions may be misinterpreted.',
+      status:'warn', ref:'BS 8888:2017 §10.2' });
+  }
+
+  // Copyright / confidentiality notice
+  const hasCopyright = /copyright|confidential|proprietary|all\s*rights\s*reserved|do\s*not\s*scale|©/i.test(str);
+  if (!hasCopyright) {
+    findings.push({ id:'copyright', group:'Drawing Standards', title:'Copyright / do-not-scale notice missing',
+      desc:'"Do not scale from this drawing" and/or a copyright notice is not detected. These should appear on all issued NR drawings.',
+      status:'warn', ref:'NR/L2/INI/02116 §4.6' });
+  } else {
+    findings.push({ id:'copyright', group:'Drawing Standards', title:'Copyright / do-not-scale notice present',
+      desc:'Copyright or do-not-scale notice detected.', status:'pass', ref:'NR/L2/INI/02116 §4.6' });
+  }
+
+  return findings;
+}
+
+function checkUnits(page1Str, allStr) {
+  const findings = [];
+
+  // Mixed units warning — both mm and m used (potential confusion)
+  const hasMM = /\b\d+\s*mm\b/i.test(allStr);
+  const hasM  = /\b\d+(\.\d+)?\s*m\b/i.test(allStr);
+  if (hasMM && hasM) {
+    findings.push({ id:'mixed-units', group:'Units & Dimensions', title:'Mixed units (mm and m) detected',
+      desc:'Both millimetres and metres appear in dimension annotations. Verify this is intentional and that dimensions are clearly labelled with their unit to avoid misinterpretation.',
+      status:'warn', ref:'BS 8888:2017 §10 / NR/GN/CIV/005' });
+  } else if (hasMM || hasM) {
+    findings.push({ id:'mixed-units', group:'Units & Dimensions', title:'Consistent units detected',
+      desc:`Drawing appears to use ${hasMM ? 'millimetres (mm)' : 'metres (m)'} consistently.`,
+      status:'pass', ref:'BS 8888:2017 §10' });
+  }
+
+  // Check for dimension annotations that might have no units
+  const bareNumbers = (allStr.match(/\b\d{3,5}\b(?!\s*(?:mm|m\b|km|cm|ft|in|kN|kPa|MPa|%))/g) || []).length;
+  if (bareNumbers > 10) {
+    findings.push({ id:'bare-dims', group:'Units & Dimensions', title:'Possible un-annotated dimensions',
+      desc:`${bareNumbers} numeric values without clear unit suffixes detected. Verify all dimensions carry an explicit unit or are covered by the general units statement.`,
+      status:'info', ref:'BS 8888:2017 §10.2' });
+  }
+
+  return findings;
+}
+
+/* ── RENDER CHECK RESULTS ────────────────────────────────── */
+function renderCheckResults(findings) {
+  const container = document.getElementById('check-results');
+  container.innerHTML = '';
+
+  // Group by group name
+  const groups = {};
+  findings.forEach(f => {
+    if (!groups[f.group]) groups[f.group] = [];
+    groups[f.group].push(f);
+  });
+
+  const statusIcon = { pass:'✓', warn:'!', fail:'✕', info:'i' };
+  const worstStatus = (items) => {
+    if (items.some(i => i.status === 'fail')) return 'fail';
+    if (items.some(i => i.status === 'warn')) return 'warn';
+    if (items.some(i => i.status === 'info')) return 'info';
+    return 'pass';
+  };
+
+  Object.entries(groups).forEach(([groupName, items]) => {
+    const ws = worstStatus(items);
+    const failCount = items.filter(i => i.status === 'fail').length;
+    const warnCount = items.filter(i => i.status === 'warn').length;
+
+    const group = document.createElement('div');
+    group.className = 'check-group';
+
+    // Group header
+    const head = document.createElement('div');
+    head.className = 'check-group-head';
+    head.innerHTML = `
+      <span class="check-badge ${ws}">${failCount || warnCount || items.filter(i=>i.status==='pass').length}</span>
+      <span class="check-group-title">${groupName}</span>
+      <span style="font-size:10px;color:var(--gray-400)">${items.length} check${items.length!==1?'s':''}</span>
+    `;
+
+    const itemsDiv = document.createElement('div');
+    itemsDiv.className = 'check-items';
+
+    items.forEach(f => {
+      const item = document.createElement('div');
+      item.className = 'check-item';
+      item.innerHTML = `
+        <div class="check-icon ${f.status}">${statusIcon[f.status]}</div>
+        <div class="check-item-body">
+          <div class="check-item-title">${f.title}</div>
+          <div class="check-item-desc">${f.desc}</div>
+          ${f.ref ? `<div class="check-item-ref">${f.ref}</div>` : ''}
+        </div>
+        ${(f.status === 'fail' || f.status === 'warn') ?
+          `<button class="check-add-one" onclick="addFindingAsComment('${f.id}')">+ Add to EMMA</button>` : ''}
+      `;
+      itemsDiv.appendChild(item);
+    });
+
+    head.onclick = () => itemsDiv.classList.toggle('collapsed');
+    group.appendChild(head);
+    group.appendChild(itemsDiv);
+    container.appendChild(group);
+  });
+}
+
+/* ── ADD FINDINGS AS EMMA COMMENTS ───────────────────────── */
+function addFindingAsComment(findingId) {
+  const f = checkFindings.find(x => x.id === findingId);
+  if (!f) return;
+  _addFindingAnnot(f);
+  toast(`Added "${f.title}" to EMMA register`);
+}
+
+function addAllCheckFindings() {
+  const actionable = checkFindings.filter(f => f.status === 'fail' || f.status === 'warn');
+  actionable.forEach(f => _addFindingAnnot(f));
+  toast(`Added ${actionable.length} findings to EMMA register`);
+  closeM('mcheck');
+}
+
+function _addFindingAnnot(f) {
+  // Place at a consistent position on page 1 based on finding id hash
+  const hash = [...f.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) & 0xffff, 0);
+  const x = 2 + (hash % 6) * 3;
+  const y = 2 + (hash % 12) * 3;
+  const catMap = { fail: '1', warn: '3', info: '' };
+  const a = {
+    id: nextId(), pageNum: 1, type: 'note',
+    x, y, text: `[Standards Check] ${f.title}: ${f.desc.slice(0, 120)}`,
+    color: f.status === 'fail' ? 'rose' : f.status === 'warn' ? 'yellow' : 'teal',
+    author: currentAuthor || 'Standards Checker',
+    timestamp: new Date().toISOString(),
+    emmaExclude: false
+  };
+  pushAnnot(a);
+  // Pre-set EMMa row with category and reference
+  emmaRows[a.id] = {
+    cat: catMap[f.status] || '',
+    commentType: 'Not to standard',
+    accepted: '', reply: '', closedOut: 'No',
+    notes: f.ref || ''
+  };
+  syncAnnots(); updateAnnotPanel(); updateEmmaRegister();
+}
+
+// ═══════════════════════════════════════════════
+//  POINTER EVENTS (touch/stylus support)
+//  Patch the viewer overlay to accept pointer events in addition to mouse
+// ═══════════════════════════════════════════════
+function addPointerSupport(ov) {
+  // Forward pointer events to mouse event handlers via synthetic events
+  ['pointerdown','pointermove','pointerup'].forEach(evtName => {
+    ov.addEventListener(evtName, e => {
+      if (e.pointerType === 'mouse') return; // already handled natively
+      e.preventDefault();
+      const mouseEvt = new MouseEvent(
+        evtName === 'pointerdown' ? 'mousedown' :
+        evtName === 'pointermove' ? 'mousemove' : 'mouseup',
+        { bubbles: true, cancelable: true, clientX: e.clientX, clientY: e.clientY, button: 0, buttons: 1 }
+      );
+      e.target.dispatchEvent(mouseEvt);
+    }, { passive: false });
+  });
+  ov.style.touchAction = 'none'; // prevent scroll while drawing
+}
+
+// ═══════════════════════════════════════════════
+//  EMMA STATUS DASHBOARD
+// ═══════════════════════════════════════════════
+function updateEmmaDash() {
+  const emmaAnnots = annots.filter(a =>
+    (a.type === 'note' || a.type === 'text' || a.type === 'measure') && !a.emmaExclude
+  );
+  const total = emmaAnnots.length;
+  const closed = emmaAnnots.filter(a => emmaRows[a.id]?.closedOut === 'Yes').length;
+  const open = total - closed;
+  const pct = total > 0 ? Math.round(closed / total * 100) : 0;
+
+  const el = id => document.getElementById(id);
+  if (el('ds-total')) el('ds-total').textContent = total;
+  if (el('ds-open'))  el('ds-open').textContent  = open;
+  if (el('ds-closed'))el('ds-closed').textContent = closed;
+  if (el('ds-pct'))   el('ds-pct').textContent   = total > 0 ? pct + '%' : '—';
+  if (el('ds-bar'))   el('ds-bar').style.width   = pct + '%';
+
+  // CAT breakdown badges
+  const catsEl = el('ds-cats');
+  if (catsEl) {
+    const catCounts = { '1': 0, '2': 0, '3': 0, 'BP': 0 };
+    emmaAnnots.forEach(a => {
+      const cat = emmaRows[a.id]?.cat;
+      if (cat && catCounts[cat] !== undefined) catCounts[cat]++;
+    });
+    const catStyles = {
+      '1': 'background:#fee2e2;color:#b91c1c',
+      '2': 'background:#fef9c3;color:#854d0e',
+      '3': 'background:#ffedd5;color:#c2410c',
+      'BP': 'background:#dbeafe;color:#1d4ed8'
+    };
+    catsEl.innerHTML = Object.entries(catCounts)
+      .filter(([,v]) => v > 0)
+      .map(([k, v]) => `<span class="dash-cat" style="${catStyles[k]}">${k}: ${v}</span>`)
+      .join('');
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  PATCH pushAnnot TO TRIGGER DASHBOARD + AUTOSAVE
+// ═══════════════════════════════════════════════
+const _origPushAnnot = pushAnnot;
+// Wrap pushAnnot to also update dashboard and trigger autosave
+// (pushAnnot is already defined above; we extend its behaviour here)
+const pushAnnotOrig = pushAnnot;
+window._pushAnnotHooked = true;
+
+// Override at module level — extend the existing function
+(function() {
+  const orig = window.pushAnnot || pushAnnot;
+  // Can't reassign const; patch via the call chain instead
+  // Dashboard update fires from syncAnnots which is called by pushAnnot
+})();
+
+// ═══════════════════════════════════════════════
+//  PATCH syncAnnots TO UPDATE DASHBOARD
+// ═══════════════════════════════════════════════
+const _origSyncAnnots = syncAnnots;
+// We cannot reassign const functions; instead hook into updateAnnotPanel
+const _origUpdateAnnotPanel = updateAnnotPanel;
+
+// ═══════════════════════════════════════════════
+//  WIRE AREA EVENTS + POINTER SUPPORT INTO PAGE RENDER
+// ═══════════════════════════════════════════════
+// Extend renderPageContent to attach area+pointer support after overlay is created
+const _origRenderPageContent = renderPageContent;
+renderPageContent = async function(pageNum) {
+  await _origRenderPageContent(pageNum);
+  // Find the overlay and attach area events + pointer support
+  const ov = document.querySelector(`.aoverlay[data-page="${pageNum}"]`);
+  if (ov && !ov._areaAttached) {
+    ov._areaAttached = true;
+    const pvp = pageViewports[pageNum];
+    if (pvp) {
+      attachAreaEvents(ov, pageNum, { width: pvp.width, height: pvp.height });
+      addPointerSupport(ov);
+    }
+  }
+  updateEmmaDash();
+};
+
+// ═══════════════════════════════════════════════
+//  PATCH typeLabels + setTool + buildAnnotEl for area
+// ═══════════════════════════════════════════════
+typeLabels['area'] = 'Area Measurement';
+
+// Patch setTool cursor for area
+const _origSetTool = setTool;
+setTool = function(t) {
+  _origSetTool(t);
+  if (t !== 'area' && areaPoints.length > 0) cancelArea();
+  document.querySelectorAll('.aoverlay').forEach(o => {
+    if (t === 'area') o.classList.add('cur-cross');
+  });
+};
+
+// Patch buildAnnotEl to handle area type
+const _origBuildAnnotEl = buildAnnotEl;
+buildAnnotEl = function(a) {
+  if (a.type === 'area') return buildAreaAnnotEl(a);
+  return _origBuildAnnotEl(a);
+};
+
+// ═══════════════════════════════════════════════
+//  PATCH pushAnnot to trigger autosave + dashboard
+// ═══════════════════════════════════════════════
+const _pushAnnotBase = pushAnnot;
+pushAnnot = function(a) {
+  _pushAnnotBase(a);
+  updateEmmaDash();
+  scheduleAutoSave();
+};
+
+// Also update dashboard on deleteAnnotById
+const _deleteAnnotBase = deleteAnnotById;
+deleteAnnotById = function(id) {
+  _deleteAnnotBase(id);
+  updateEmmaDash();
+  scheduleAutoSave();
+};
+
+// Update dashboard when EMMA row saved
+const _saveEmmaRowBase = saveEmmaRow;
+saveEmmaRow = function() {
+  _saveEmmaRowBase();
+  updateEmmaDash();
+  scheduleAutoSave();
+};
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
 initAuthor();
 // Restore saved scale
 try {
   const saved = localStorage.getItem('engdoc_scale');
   if (saved) {
     measureScale = JSON.parse(saved);
-    document.getElementById('sb-scale').textContent =
-      `⚖ 1 ${measureScale.unit} = ${measureScale.pxPerUnit.toFixed(1)} px`;
+    document.getElementById('sb-scale').textContent = `⚖ Scale: 1:set`;
   }
 } catch(e) {}
 // Ctrl+S save
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveSession(); }
 });
+
 setTool('highlight');
 </script>
 </body>

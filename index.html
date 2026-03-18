@@ -58,26 +58,21 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 .tbtn.active{background:var(--blue-50);border-color:var(--blue-100);color:var(--blue-600)}
 .tbtn.eraser-active{background:var(--red-50);border-color:#fca5a5;color:var(--red-500)}
 .tbtn svg{width:16px;height:16px;pointer-events:none}
-/* tooltips */
 .tbtn[data-tip]:hover::after{content:attr(data-tip);position:absolute;top:calc(100% + 7px);
   left:50%;transform:translateX(-50%);background:var(--gray-900);color:#fff;
   font-size:11px;padding:3px 8px;border-radius:3px;white-space:nowrap;
   pointer-events:none;z-index:200;font-family:var(--font)}
-/* tool group labels */
 .tglabel{font-family:var(--mono);font-size:9px;color:var(--gray-400);text-transform:uppercase;
   letter-spacing:.5px;padding:0 4px 0 2px;white-space:nowrap}
-/* color swatches */
 .csw{width:18px;height:18px;border-radius:50%;border:2px solid transparent;cursor:pointer;
   transition:transform .12s,border-color .12s;flex-shrink:0}
 .csw:hover{transform:scale(1.2)}
 .csw.active{border-color:var(--gray-700)}
 .csw.cy{background:#fbbf24}.csw.ct{background:#2dd4bf}.csw.cr{background:#fb7185}
-/* stroke width */
 .sw-select{font-family:var(--mono);font-size:11px;background:var(--gray-50);
   border:1px solid var(--gray-300);border-radius:var(--radius-sm);color:var(--gray-700);
   padding:3px 6px;cursor:pointer}
 .sw-select:focus{outline:none;border-color:var(--blue-500)}
-/* page nav */
 .page-nav{display:flex;align-items:center;gap:5px;color:var(--gray-600);font-size:13px}
 .page-nav input{width:40px;text-align:center;font-family:var(--mono);font-size:12px;
   background:var(--gray-50);border:1px solid var(--gray-300);border-radius:var(--radius-sm);
@@ -93,17 +88,66 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 
 /* ── SIDEBAR ─────────────────────── */
 #sidebar{width:200px;background:var(--white);border-right:1px solid var(--gray-200);
-  display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+  display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;
+  transition:width .2s}
+#sidebar.emma-open{width:480px}
 .stabs{display:flex;border-bottom:1px solid var(--gray-200)}
 .stab{flex:1;padding:10px 0;font-size:12px;font-weight:500;text-align:center;cursor:pointer;
   color:var(--gray-500);border-bottom:2px solid transparent;background:none;
   border-top:none;border-left:none;border-right:none;font-family:var(--font);transition:color .12s}
 .stab:hover{color:var(--gray-700)}
 .stab.active{color:var(--blue-600);border-bottom-color:var(--blue-500)}
+.stab.emma{color:#7c3aed}
+.stab.emma.active{color:#7c3aed;border-bottom-color:#7c3aed}
 .spanel{flex:1;overflow-y:auto;padding:10px 8px}
 .spanel::-webkit-scrollbar{width:4px}
 .spanel::-webkit-scrollbar-thumb{background:var(--gray-300);border-radius:2px}
 .spanel.hidden{display:none!important}
+
+/* EMMA live panel */
+#sp-emma{flex:1;overflow-y:auto;display:none;flex-direction:column;padding:0}
+#sp-emma.visible{display:flex}
+.emma-meta{padding:10px 10px 8px;border-bottom:1px solid var(--gray-200);background:var(--gray-50)}
+.emma-meta .flabel{margin-bottom:3px}
+.emma-meta .finput{font-size:11px;padding:5px 8px;margin-bottom:6px}
+.emma-meta .finput:last-child{margin-bottom:0}
+.emma-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.emma-register{flex:1;overflow-y:auto}
+.emma-register-head{display:grid;grid-template-columns:28px 1fr 60px 50px 60px;
+  gap:0;background:#6C5DF3;padding:5px 8px;position:sticky;top:0;z-index:2}
+.emma-register-head span{font-size:9px;font-weight:700;color:#fff;text-transform:uppercase;
+  letter-spacing:.4px;padding:0 3px}
+.emma-row{display:grid;grid-template-columns:28px 1fr 60px 50px 60px;
+  gap:0;border-bottom:1px solid var(--gray-100);padding:5px 8px;
+  align-items:start;transition:background .1s;cursor:pointer}
+.emma-row:hover{background:var(--gray-50)}
+.emma-row.selected{background:#f5f3ff}
+.emma-row-num{font-family:var(--mono);font-size:10px;color:var(--gray-400);
+  padding-top:2px;text-align:center}
+.emma-row-comment{font-size:11px;color:var(--gray-800);line-height:1.4;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.emma-row-doc{font-size:9px;color:var(--gray-500);font-family:var(--mono);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.emma-cat-badge{display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:3px;font-size:10px;font-weight:700;
+  font-family:var(--mono);margin-top:1px}
+.emma-cat-1{background:#fee2e2;color:#b91c1c}   /* Cat 1 = Critical — red */
+.emma-cat-2{background:#ffedd5;color:#c2410c}   /* Cat 2 = Major — amber */
+.emma-cat-3{background:#fef9c3;color:#854d0e}   /* Cat 3 = Minor — yellow */
+.emma-cat-bp{background:#dbeafe;color:#1d4ed8}  /* BP = Best Practice — blue */
+.emma-cat-{background:var(--gray-100);color:var(--gray-500)}
+.emma-status{font-size:9px;padding:2px 5px;border-radius:3px;font-weight:600;margin-top:2px}
+.emma-open-st{background:#fee2e2;color:#b91c1c}
+.emma-closed-st{background:#dcfce7;color:#15803d}
+.emma-empty{text-align:center;color:var(--gray-400);font-size:12px;
+  padding:28px 16px;line-height:1.8}
+.emma-toolbar{display:flex;align-items:center;gap:6px;padding:7px 10px;
+  border-bottom:1px solid var(--gray-200);background:var(--white)}
+.emma-toolbar span{font-size:11px;color:var(--gray-600)}
+.emma-import-btn{display:flex;align-items:center;gap:4px;padding:4px 10px;
+  background:#7c3aed;color:#fff;border:none;border-radius:3px;font-size:11px;
+  font-weight:600;font-family:var(--font);cursor:pointer;transition:background .12s}
+.emma-import-btn:hover{background:#6d28d9}
 .titem{display:flex;align-items:flex-start;gap:8px;padding:6px;border-radius:var(--radius-sm);
   cursor:pointer;border:1px solid transparent;transition:all .12s;margin-bottom:4px}
 .titem:hover{background:var(--gray-50);border-color:var(--gray-200)}
@@ -112,7 +156,6 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   border-radius:2px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .tcwrap canvas{max-width:100%;max-height:100%}
 .tlbl{font-family:var(--mono);font-size:10px;color:var(--gray-500);margin-top:2px}
-/* annotation list */
 .aempty{text-align:center;color:var(--gray-400);font-size:12px;margin-top:28px;line-height:1.7}
 .aitem{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);
   padding:8px 28px 8px 9px;margin-bottom:5px;cursor:pointer;transition:all .12s;position:relative}
@@ -128,15 +171,28 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   color:var(--gray-400);cursor:pointer;font-size:13px;line-height:1;
   padding:2px 3px;border-radius:3px;transition:all .1s}
 .adel:hover{color:var(--red-500);background:var(--red-50)}
+.aedit-btn{margin-top:4px;background:none;border:1px solid var(--gray-300);color:var(--gray-600);
+  font-size:10px;font-family:var(--font);padding:2px 7px;border-radius:3px;cursor:pointer;transition:all .1s}
+.aedit-btn:hover{border-color:var(--blue-500);color:var(--blue-600);background:var(--blue-50)}
 
 /* ── VIEWER ─────────────────────── */
-#viewer{flex:1;overflow:auto;background:var(--gray-100);display:flex;
-  flex-direction:column;align-items:center;padding:28px 32px;position:relative}
+/*
+  The viewer scrolls in BOTH axes. The inner #pdfpages is an inline-block
+  so it sizes to its content and the scroll container expands to fit it —
+  no flex centering that could clip wide pages on the left.
+*/
+#viewer{
+  flex:1;
+  overflow:auto;
+  background:var(--gray-100);
+  /* Do NOT use display:flex here — it prevents horizontal scroll expansion */
+}
 #viewer::-webkit-scrollbar{width:8px;height:8px}
 #viewer::-webkit-scrollbar-track{background:var(--gray-100)}
 #viewer::-webkit-scrollbar-thumb{background:var(--gray-300);border-radius:4px}
+
 #drop-landing{display:flex;flex-direction:column;align-items:center;
-  justify-content:center;height:100%;width:100%}
+  justify-content:center;min-height:100%;width:100%;padding:28px 32px;}
 .drop-card{background:var(--white);border:2px dashed var(--gray-300);border-radius:12px;
   padding:48px 60px;text-align:center;max-width:380px;transition:border-color .2s,background .2s}
 .drop-card.drag-over{border-color:var(--blue-500);background:var(--blue-50)}
@@ -152,10 +208,34 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   transition:background .13s;box-shadow:0 2px 8px rgba(37,99,235,.28)}
 .drop-btn:hover{background:var(--blue-600)}
 
+/* ── PAGE CONTAINER ──
+   display:block + text-align:center centres pages without clipping.
+   min-width:max-content ensures the scroll container expands when pages
+   are wider than the viewport (e.g. at 200% zoom on large drawings).
+── */
+#pdfpages{
+  display:block;
+  text-align:center;
+  padding:28px 32px 60px;
+  min-width:max-content;   /* critical: lets wide pages expand scroll width */
+  box-sizing:border-box;
+}
+
 /* page wrappers */
-.pwrap{position:relative;margin-bottom:24px;border-radius:2px;
-  box-shadow:var(--shadow-page);background:#fff}
+.pwrap{
+  position:relative;
+  display:inline-block;  /* shrink-wrap to canvas size; text-align:center on parent centres it */
+  margin:0 auto 24px;
+  border-radius:2px;
+  box-shadow:var(--shadow-page);
+  background:#fff;
+  vertical-align:top;
+}
 .pwrap canvas{display:block}
+.pwrap.unrendered{background:var(--gray-200)}
+.pwrap.unrendered::after{content:'Loading…';position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:11px;color:var(--gray-400)}
 .pnbadge{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);
   font-family:var(--mono);font-size:10px;color:var(--gray-400);white-space:nowrap}
 
@@ -168,23 +248,38 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 .aoverlay.cur-erase{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Crect x='3' y='10' width='14' height='9' rx='1' fill='%23fff' stroke='%23ef4444' stroke-width='2'/%3E%3Cpath d='M3 19l4-9' stroke='%23ef4444' stroke-width='2'/%3E%3C/svg%3E") 4 16, crosshair}
 
 /* annotation elements */
-.ah{position:absolute;mix-blend-mode:multiply;pointer-events:none;border-radius:1px}
-.ar{position:absolute;border:2px solid #2563eb;background:rgba(37,99,235,.07);
-  pointer-events:none;border-radius:1px}
+.ah{position:absolute;mix-blend-mode:multiply;border-radius:1px}
+.ar{position:absolute;border:2px solid #2563eb;background:rgba(37,99,235,.07);border-radius:1px}
 .an{position:absolute;background:var(--white);border:1px solid var(--gray-300);
   border-radius:var(--radius-sm);padding:5px 8px;font-size:11px;
   color:var(--gray-700);line-height:1.4;max-width:160px;
-  box-shadow:var(--shadow-md);pointer-events:all;cursor:pointer;z-index:5}
+  box-shadow:var(--shadow-md);cursor:pointer;z-index:5}
 .an::before{content:'◆';font-size:8px;color:#fbbf24;margin-right:4px}
-.asvg{position:absolute;top:0;left:0;overflow:visible;pointer-events:none}
+/* SVG annot wrappers — the div itself must NEVER block pointer events.
+   Only the actual SVG strokes get pointer-events (set in JS for erase mode). */
+.asvg-wrap{position:absolute;inset:0;overflow:visible;pointer-events:none}
+.asvg-wrap svg{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .atxt{position:absolute;font-family:var(--font);font-size:13px;font-weight:500;
-  line-height:1.3;pointer-events:all;cursor:pointer;white-space:pre-wrap;
-  padding:2px 4px;border-radius:2px}
-.astrike{position:absolute;pointer-events:none}
+  line-height:1.3;cursor:pointer;white-space:pre-wrap;padding:2px 4px;border-radius:2px}
+.astrike{position:absolute}
 
-/* hover-delete highlight in erase mode */
+/* eraser hover highlight */
 .annot-hover-del{outline:2px solid var(--red-400)!important;
-  background:rgba(239,68,68,.12)!important;cursor:crosshair!important}
+  background:rgba(239,68,68,.08)!important}
+
+/* ── TEXT INPUT POPOVER ── */
+#txt-pop{position:fixed;z-index:400;background:var(--white);border:1px solid var(--gray-300);
+  border-radius:var(--radius);box-shadow:var(--shadow-lg);padding:10px;
+  display:none;flex-direction:column;gap:0;width:300px}
+#txt-pop.open{display:flex}
+#txt-pop textarea{width:100%;height:64px;resize:none;font-family:var(--font);font-size:13px;
+  border:1px solid var(--gray-300);border-radius:var(--radius-sm);padding:6px 8px;
+  color:var(--gray-800);outline:none}
+#txt-pop textarea:focus{border-color:var(--blue-500);box-shadow:0 0 0 2px var(--blue-50)}
+#txt-pop .pop-row{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+.aoverlay.cur-pan{cursor:grab}
+.aoverlay.cur-pan.panning{cursor:grabbing}
+.aoverlay.cur-measure{cursor:crosshair}
 
 /* ── CONTEXT MENU ────────────────── */
 #ctx-menu{position:fixed;background:var(--white);border:1px solid var(--gray-200);
@@ -246,6 +341,44 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   pointer-events:none;z-index:500;white-space:nowrap;box-shadow:var(--shadow-lg)}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .hidden{display:none!important}
+
+/* ── AUTHOR MODAL ── */
+#author-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);
+  z-index:600;display:flex;align-items:center;justify-content:center}
+#author-modal .modal{width:380px}
+#author-modal p{font-size:13px;color:var(--gray-600);margin-bottom:14px;line-height:1.5}
+
+/* author chip in sidebar */
+.aauthor{font-size:10px;color:var(--gray-500);margin-top:2px;font-family:var(--mono);
+  display:flex;align-items:center;gap:3px}
+.ats{font-size:9px;color:var(--gray-400);font-family:var(--mono);margin-top:1px}
+
+/* measure label on canvas */
+.ameasure{position:absolute;pointer-events:none}
+.ameasure-label{position:absolute;background:rgba(30,30,30,.82);color:#fff;
+  font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:3px;
+  white-space:nowrap;transform:translate(-50%,-130%)}
+
+/* live measure readout in status bar */
+#sb-measure{font-family:var(--mono);font-size:11px;color:#7c3aed;font-weight:600;
+  background:#f5f3ff;padding:2px 8px;border-radius:3px;display:none}
+#sb-measure.visible{display:block}
+
+/* EMMA modal wider */
+#memma .modal{width:560px;max-height:88vh;display:flex;flex-direction:column}
+#memma .mbody{overflow-y:auto;flex:1}
+.emma-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.emma-grid .full{grid-column:1/-1}
+.fselect{width:100%;padding:8px 11px;border:1px solid var(--gray-300);
+  border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;
+  color:var(--gray-800);background:var(--white);margin-bottom:0;cursor:pointer}
+.fselect:focus{outline:none;border-color:var(--blue-500);box-shadow:0 0 0 3px var(--blue-50)}
+.priority-badge{display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;
+  font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+.pb-critical{background:#fee2e2;color:#b91c1c}
+.pb-major{background:#ffedd5;color:#c2410c}
+.pb-minor{background:#fef9c3;color:#854d0e}
+.pb-info{background:#dbeafe;color:#1d4ed8}
 </style>
 </head>
 <body>
@@ -262,6 +395,17 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
     Open PDF
   </button>
   <div style="width:6px"></div>
+  <button class="hbtn outline" onclick="saveSession()" title="Save annotations (Ctrl+S)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    Save
+  </button>
+  <div style="width:4px"></div>
+  <button class="hbtn outline" onclick="document.getElementById('fsession').click()" title="Load saved session">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+    Load
+  </button>
+  <input type="file" id="fsession" accept=".engdoc" style="display:none" onchange="loadSession(event)">
+  <div style="width:4px"></div>
   <button class="hbtn outline" onclick="openM('mm')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-3M15 3h-6v4h6V3z"/></svg>
     Merge
@@ -271,6 +415,16 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8l-4-4-4 4M8 16l4 4 4-4M12 4v16"/></svg>
     Split
   </button>
+  <div style="width:4px"></div>
+  <button class="hbtn outline" onclick="openEmmaExport()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+    EMMA Sheet
+  </button>
+  <div style="width:4px"></div>
+  <button class="hbtn outline" onclick="openM('mau')" style="gap:5px">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    <span id="hdr-author">Set Name</span>
+  </button>
   <div style="flex:1"></div>
   <div id="doc-name">No document open</div>
   <input type="file" id="fopen" accept=".pdf" style="display:none" onchange="openFile(event)">
@@ -278,7 +432,6 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 
 <!-- TOOLBAR -->
 <div id="toolbar">
-  <!-- Selection tools -->
   <div class="tg">
     <span class="tglabel">Select</span>
     <button class="tbtn" id="t-pan" data-tip="Pan / Select" onclick="setTool('pan')">
@@ -288,12 +441,13 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l11-11 6 6-3.5 3.5"/><path d="M6 17l-3-3"/></svg>
     </button>
   </div>
-
-  <!-- Markup tools -->
   <div class="tg">
     <span class="tglabel">Markup</span>
-    <button class="tbtn active" id="t-highlight" data-tip="Highlight region" onclick="setTool('highlight')">
+    <button class="tbtn active" id="t-highlight" data-tip="Box highlight" onclick="setTool('highlight')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+    </button>
+    <button class="tbtn" id="t-texthighlight" data-tip="Text highlighter — swipe across text" onclick="setTool('texthighlight')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 17h4l9.5-9.5a2.121 2.121 0 00-3-3L4 14v3z" fill="currentColor" fill-opacity="0.15" stroke="currentColor"/><line x1="2" y1="20" x2="22" y2="20" stroke-width="2" stroke-linecap="round"/></svg>
     </button>
     <button class="tbtn" id="t-rect" data-tip="Rectangle markup" onclick="setTool('rect')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
@@ -302,8 +456,6 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5"/><path d="M6 6h12M6 18h12" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
     </button>
   </div>
-
-  <!-- Drawing tools -->
   <div class="tg">
     <span class="tglabel">Draw</span>
     <button class="tbtn" id="t-pen" data-tip="Freehand pen" onclick="setTool('pen')">
@@ -312,9 +464,10 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
     <button class="tbtn" id="t-arrow" data-tip="Arrow" onclick="setTool('arrow')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
     </button>
+    <button class="tbtn" id="t-measure" data-tip="Measure distance" onclick="setTool('measure')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/><line x1="8" y1="9" x2="8" y2="15" stroke-width="1.5"/><line x1="12" y1="7" x2="12" y2="17" stroke-width="1.5"/><line x1="16" y1="9" x2="16" y2="15" stroke-width="1.5"/></svg>
+    </button>
   </div>
-
-  <!-- Annotation tools -->
   <div class="tg">
     <span class="tglabel">Annotate</span>
     <button class="tbtn" id="t-note" data-tip="Sticky note" onclick="setTool('note')">
@@ -324,8 +477,6 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
     </button>
   </div>
-
-  <!-- Color & stroke -->
   <div class="tg">
     <span class="tglabel">Style</span>
     <div class="csw cy active" id="c-y" onclick="setColor('yellow')" title="Yellow"></div>
@@ -335,13 +486,13 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
     <div class="csw cr" id="c-r" onclick="setColor('rose')" title="Rose"></div>
     <div style="width:8px"></div>
     <select class="sw-select" id="stroke-w" title="Stroke width">
-      <option value="1.5">Thin</option>
-      <option value="2.5" selected>Medium</option>
-      <option value="4">Thick</option>
+      <option value="2">Fine</option>
+      <option value="4" selected>Medium</option>
+      <option value="8">Thick</option>
+      <option value="14">Bold</option>
+      <option value="12">Heavy</option>
     </select>
   </div>
-
-  <!-- Page nav -->
   <div class="tg">
     <button class="tbtn" data-tip="Previous page" onclick="changePage(-1)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
@@ -354,8 +505,6 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
   </div>
-
-  <!-- Zoom -->
   <div class="tg">
     <select class="zoom-sel" id="zsel" onchange="applyZoom(this.value)">
       <option value="0.5">50%</option>
@@ -367,10 +516,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       <option value="fit">Fit Width</option>
     </select>
   </div>
-
   <div style="flex:1"></div>
-
-  <!-- Undo / clear -->
   <div class="tg">
     <button class="tbtn" data-tip="Undo last annotation (Ctrl+Z)" onclick="undoLast()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13A9 9 0 1 0 6 6.7L3 9"/></svg>
@@ -385,12 +531,88 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 <div id="body">
   <div id="sidebar">
     <div class="stabs">
-      <button class="stab active" onclick="switchTab('pages',this)">Pages</button>
-      <button class="stab" onclick="switchTab('notes',this)">Markup</button>
+      <button class="stab active" id="stab-pages" onclick="switchTab('pages',this)">Pages</button>
+      <button class="stab" id="stab-notes" onclick="switchTab('notes',this)">Markup</button>
+      <button class="stab emma" id="stab-emma" onclick="switchTab('emma',this)">EMMA</button>
     </div>
     <div class="spanel" id="sp-pages"></div>
     <div class="spanel hidden" id="sp-notes">
       <div class="aempty" id="aempty">No annotations yet.<br>Use the tools above<br>to start marking.</div>
+    </div>
+
+    <!-- EMMA LIVE PANEL -->
+    <div id="sp-emma">
+      <!-- Project metadata -->
+      <div class="emma-meta">
+        <label class="flabel">Project Title</label>
+        <input class="finput" id="emma-proj-title" placeholder="e.g. Taff's Well Depot">
+        <div class="emma-meta-grid">
+          <div>
+            <label class="flabel">Project No.</label>
+            <input class="finput" id="emma-proj-no" placeholder="e.g. 12345">
+          </div>
+          <div>
+            <label class="flabel">Discipline</label>
+            <select class="finput fselect" id="emma-discipline" style="padding:5px 8px">
+              <option value="Civils">Civils</option>
+              <option value="BIM">BIM</option>
+              <option value="Drainage">Drainage</option>
+              <option value="Electrical Power">Electrical Power</option>
+              <option value="Engineering Management">Engineering Management</option>
+              <option value="Environmental">Environmental</option>
+              <option value="Geotechnical">Geotechnical</option>
+              <option value="Multidisciplinary">Multidisciplinary</option>
+              <option value="OLE">OLE</option>
+              <option value="Project Management">Project Management</option>
+              <option value="Signalling">Signalling</option>
+              <option value="Survey">Survey</option>
+              <option value="Telecoms">Telecoms</option>
+              <option value="Track">Track</option>
+            </select>
+          </div>
+          <div>
+            <label class="flabel">Document No.</label>
+            <input class="finput" id="emma-doc-no" placeholder="e.g. DWG-001">
+          </div>
+          <div>
+            <label class="flabel">Revision</label>
+            <input class="finput" id="emma-rev-no" placeholder="e.g. Rev A">
+          </div>
+          <div>
+            <label class="flabel">Specific Design</label>
+            <input class="finput" id="emma-specific" placeholder="e.g. Form test" style="grid-column:1/-1">
+          </div>
+        </div>
+        <div style="margin-top:4px">
+          <label class="flabel">Check Sheet No.</label>
+          <input class="finput" id="emma-chk-no" placeholder="e.g. -CHK-CIV-002" style="margin-bottom:0">
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="emma-toolbar">
+        <span id="emma-count-label">0 comments</span>
+        <div style="flex:1"></div>
+        <label class="emma-import-btn" title="Load existing Checksheet.xlsm to import project info">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Load Template
+          <input type="file" id="emma-template-file" accept=".xlsm,.xlsx" style="display:none" onchange="loadEmmaTemplate(event)">
+        </label>
+      </div>
+
+      <!-- Live register -->
+      <div class="emma-register-head">
+        <span>#</span>
+        <span>Comment</span>
+        <span>Cat</span>
+        <span>Type</span>
+        <span>Status</span>
+      </div>
+      <div class="emma-register" id="emma-register">
+        <div class="emma-empty" id="emma-empty">
+          No comments yet.<br>Add a <strong>Note</strong> or <strong>Text</strong> annotation<br>to populate the EMMA register.
+        </div>
+      </div>
     </div>
   </div>
 
@@ -417,7 +639,9 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   <div class="sbi"><div class="sbdot g"></div>Ready</div>
   <div class="sbi" id="sb-zoom"><div class="sbdot b"></div>100%</div>
   <div class="sbi" id="sb-tool">Highlight</div>
+  <div id="sb-measure"></div>
   <div style="flex:1"></div>
+  <div class="sbi" id="sb-scale" style="cursor:pointer;color:var(--blue-500)" onclick="openM('mscale')" title="Set drawing scale">⚖ Scale: unset</div>
   <div class="sbi" id="sb-count">0 annotations</div>
   <div class="sbi" id="sb-pos">—</div>
 </div>
@@ -475,611 +699,1759 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   </div>
 </div>
 
+<!-- EMMA ROW EDIT MODAL -->
+<div class="overlay" id="memma-row">
+  <div class="modal" style="width:500px">
+    <div class="mhead">
+      <span class="mtitle">Edit EMMA Comment</span>
+      <button class="mclose" onclick="closeM('memma-row')">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px">
+        <div class="full" style="grid-column:1/-1">
+          <label class="flabel">Checker / RE Comment</label>
+          <textarea class="finput" id="er-comment" style="height:72px;resize:none;margin-bottom:0"></textarea>
+        </div>
+        <div>
+          <label class="flabel">Document No.</label>
+          <input class="finput" id="er-docno" style="margin-bottom:0">
+        </div>
+        <div>
+          <label class="flabel">Rev</label>
+          <input class="finput" id="er-rev" placeholder="e.g. A" style="margin-bottom:0">
+        </div>
+        <div>
+          <label class="flabel">Checker Cat</label>
+          <select class="finput fselect" id="er-cat" style="padding:5px 8px;margin-bottom:0">
+            <option value="">—</option>
+            <option value="1">Cat 1 — Critical (safety/must fix)</option>
+            <option value="2">Cat 2 — Major (technical, should fix)</option>
+            <option value="3">Cat 3 — Minor (consider fixing)</option>
+            <option value="BP">BP — Best Practice</option>
+          </select>
+        </div>
+        <div>
+          <label class="flabel">Comment Type</label>
+          <select class="finput fselect" id="er-type" style="padding:5px 8px;margin-bottom:0">
+            <option value="">—</option>
+            <option>Best Practice</option><option>Buildability issues</option>
+            <option>Carbon management</option><option>Clarity needed</option>
+            <option>Coordination</option><option>Design disagreement</option>
+            <option>General</option><option>Grammar</option>
+            <option>Incorrect reference</option><option>Incorrect symbol used</option>
+            <option>Missing information</option><option>Not to standard</option>
+            <option>Presentation</option><option>Procedural</option>
+            <option>Query</option><option>Safety - good practice</option>
+            <option>Safety - issue/risk</option><option>Scope</option><option>Spelling</option>
+          </select>
+        </div>
+        <div>
+          <label class="flabel">Accepted By Designer?</label>
+          <select class="finput fselect" id="er-accepted" style="padding:5px 8px;margin-bottom:0">
+            <option value="">—</option>
+            <option value="Y">Y — Yes</option>
+            <option value="N">N — No</option>
+          </select>
+        </div>
+        <div>
+          <label class="flabel">Closed Out?</label>
+          <select class="finput fselect" id="er-closed" style="padding:5px 8px;margin-bottom:0">
+            <option value="No">No</option>
+            <option value="Yes">Yes</option>
+            <option value="Transferred to next stage">Transferred</option>
+          </select>
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="flabel">Update or Reply</label>
+          <textarea class="finput" id="er-reply" style="height:52px;resize:none;margin-bottom:0"></textarea>
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="flabel">Notes</label>
+          <input class="finput" id="er-notes" style="margin-bottom:0">
+        </div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('memma-row')">Cancel</button>
+      <button class="hbtn primary" onclick="saveEmmaRow()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCALE CALIBRATION MODAL -->
+<div class="overlay" id="mscale">
+  <div class="modal">
+    <div class="mhead"><span class="mtitle">Set Drawing Scale</span><button class="mclose" onclick="closeM('mscale')">✕</button></div>
+    <div class="mbody">
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:14px">Draw a measurement line on the drawing first, then enter what that line represents in real-world units. This calibrates all future measurements.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label class="flabel">Line length on screen (px)</label>
+          <input class="finput" id="scale-px" type="number" placeholder="e.g. 142" style="margin-bottom:0" readonly>
+        </div>
+        <div>
+          <label class="flabel">Real-world distance</label>
+          <input class="finput" id="scale-real" type="number" placeholder="e.g. 5" style="margin-bottom:0">
+        </div>
+      </div>
+      <div style="height:10px"></div>
+      <label class="flabel">Unit</label>
+      <select class="fselect" id="scale-unit">
+        <option value="m">Metres (m)</option>
+        <option value="mm">Millimetres (mm)</option>
+        <option value="cm">Centimetres (cm)</option>
+        <option value="ft">Feet (ft)</option>
+        <option value="in">Inches (in)</option>
+      </select>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('mscale')">Cancel</button>
+      <button class="hbtn primary" onclick="applyScale()">Set Scale</button>
+    </div>
+  </div>
+</div>
+
+<!-- EMMA SHEET EXPORT MODAL -->
+<div class="overlay" id="memma">
+  <div class="modal" style="width:400px">
+    <div class="mhead"><span class="mtitle">Download EMMA Checksheet</span><button class="mclose" onclick="closeM('memma')">✕</button></div>
+    <div class="mbody">
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:12px">This will populate the <strong>Checking Review</strong> sheet and <strong>Document Check Sheet</strong> in the Amey EMMa template with your current comments and project details.</p>
+      <div id="emma-export-summary" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:10px;font-size:12px;color:var(--gray-700);line-height:1.8;font-family:var(--mono)"></div>
+      <p style="font-size:11px;color:var(--gray-500);margin-top:10px">To preserve VBA macros, load your <code>Checksheet.xlsm</code> template first via the EMMA panel → Load Template button.</p>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('memma')">Cancel</button>
+      <button class="hbtn primary" onclick="exportEmma()">Download Checksheet</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTHOR NAME MODAL -->
+<div id="mau" class="overlay">
+  <div class="modal">
+    <div class="mhead">
+      <span class="mtitle">Your Name</span>
+      <button class="mclose" onclick="closeM('mau')">✕</button>
+    </div>
+    <div class="mbody">
+      <p>Annotations you create will be stamped with this name so reviewers know who made each comment.</p>
+      <label class="flabel">Display name</label>
+      <input class="finput" id="author-input" placeholder="e.g. J. Smith" style="margin-bottom:0">
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('mau')">Cancel</button>
+      <button class="hbtn primary" onclick="saveAuthor()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEXT INPUT POPOVER (replaces prompt() for note/text tools) -->
+<div id="txt-pop">
+  <textarea id="txt-pop-input" placeholder="Enter comment…"></textarea>
+  <div id="emma-fields" style="display:none;margin-top:6px;border-top:1px solid var(--gray-200);padding-top:8px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+      <div>
+        <div style="font-size:9px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Discipline</div>
+        <select id="pop-discipline" style="width:100%;font-family:var(--font);font-size:12px;border:1px solid var(--gray-300);border-radius:3px;padding:4px 6px;background:var(--white)">
+          <option value="">—</option>
+          <option>Structural</option><option>Civil</option><option>Mechanical</option>
+          <option>Electrical</option><option>Plumbing</option><option>Fire</option>
+          <option>Architecture</option><option>Landscape</option><option>Other</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Priority</div>
+        <select id="pop-priority" style="width:100%;font-family:var(--font);font-size:12px;border:1px solid var(--gray-300);border-radius:3px;padding:4px 6px;background:var(--white)">
+          <option value="">—</option>
+          <option value="Critical">🔴 Critical</option>
+          <option value="Major">🟠 Major</option>
+          <option value="Minor">🟡 Minor</option>
+          <option value="Info">🔵 Info</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:6px">
+      <div style="font-size:9px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Grid Ref / Location</div>
+      <input id="pop-gridref" style="width:100%;font-family:var(--font);font-size:12px;border:1px solid var(--gray-300);border-radius:3px;padding:4px 6px" placeholder="e.g. B3 / Level 2 / Grid 4-5">
+    </div>
+    <div>
+      <div style="font-size:9px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Action Required</div>
+      <input id="pop-action" style="width:100%;font-family:var(--font);font-size:12px;border:1px solid var(--gray-300);border-radius:3px;padding:4px 6px" placeholder="e.g. Revise detail, Confirm specification…">
+    </div>
+  </div>
+  <div class="pop-row" style="margin-top:8px">
+    <button class="hbtn outline" style="padding:5px 11px;font-size:12px;margin-right:auto" id="emma-toggle-btn" onclick="toggleEmmaFields()">+ EMMA fields</button>
+    <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray-600);cursor:pointer;user-select:none">
+      <input type="checkbox" id="pop-emma-include" checked style="width:13px;height:13px;accent-color:var(--blue-500)">
+      EMMA
+    </label>
+    <button class="hbtn outline" style="padding:5px 11px;font-size:12px" onclick="txtPopCancel()">Cancel</button>
+    <button class="hbtn primary" style="padding:5px 11px;font-size:12px" onclick="txtPopConfirm()">Add</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-/* ──────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════
    STATE
-────────────────────────────────────────────────── */
-let pdf=null, nPages=0, curPg=1, zoom=1;
-let pdfBytes=null, pdfName='';
-let tool='highlight', color='yellow';
-let annots=[];          // [{id, pageNum, type, ...}]
-let mergeFiles=[];
-let annotIdSeq=0;
+═══════════════════════════════════════════════ */
+let pdf = null, nPages = 0, curPg = 1, zoom = 1;
+let pdfBytes = null, pdfName = '';
+let tool = 'highlight', color = 'yellow';
+let annots = [];         // [{id, pageNum, type, ...}]
+let mergeFiles = [];
+let annotIdSeq = 0;
+
+// Author
+let currentAuthor = localStorage.getItem('engdoc_author') || '';
+
+function saveAuthor() {
+  const val = document.getElementById('author-input').value.trim();
+  if (!val) { toast('Please enter a name'); return; }
+  currentAuthor = val;
+  localStorage.setItem('engdoc_author', val);
+  document.getElementById('hdr-author').textContent = val;
+  closeM('mau');
+  toast(`Name set to "${val}"`);
+}
+
+function initAuthor() {
+  if (currentAuthor) {
+    document.getElementById('hdr-author').textContent = currentAuthor;
+    document.getElementById('author-input').value = currentAuthor;
+  } else {
+    // Prompt on first use — open modal automatically
+    openM('mau');
+    setTimeout(() => document.getElementById('author-input').focus(), 100);
+  }
+}
 
 // drawing state
-let drawing=false, penPoints=[], origin=null, liveEl=null, liveSvg=null;
-let ctxAnnotId=null;    // annotation targeted by context menu
+let drawing = false, penPoints = [], origin = null, liveEl = null, liveSvg = null;
+let ctxAnnotId = null;
 
-const CVals={yellow:'rgba(251,191,36,.38)',teal:'rgba(45,212,191,.32)',rose:'rgba(251,113,133,.36)'};
-const CHex ={yellow:'#fbbf24',teal:'#2dd4bf',rose:'#fb7185'};
-const typeLabels={highlight:'Highlight',rect:'Rectangle',strike:'Strikethrough',
-  pen:'Freehand',arrow:'Arrow',note:'Note',text:'Text Label'};
+// virtual rendering
+// stores per-page metadata for lazy rendering
+const pageViewports = {};    // pageNum -> {width, height} at current zoom
+const renderedPages = new Set();
+const renderQueue = new Set();
+let renderScheduled = false;
+const OVERSCAN = 2; // extra pages above/below viewport to pre-render
 
-function nextId(){ return ++annotIdSeq; }
-function strokeW(){ return parseFloat(document.getElementById('stroke-w').value)||2.5; }
+const CVals = { yellow: 'rgba(251,191,36,.38)', teal: 'rgba(45,212,191,.32)', rose: 'rgba(251,113,133,.36)' };
+const CHex  = { yellow: '#fbbf24', teal: '#2dd4bf', rose: '#fb7185' };
+const typeLabels = { highlight:'Highlight', rect:'Rectangle', strike:'Strikethrough',
+  pen:'Freehand', arrow:'Arrow', note:'Note', text:'Text Label',
+  measure:'Measurement', texthighlight:'Text Highlight' };
 
-/* ──────────────────────────────────────────────────
+// Measure scale: pxPerUnit = screen pixels per real-world unit at zoom=1
+let measureScale = null; // { pxPerUnit, unit } — null = uncalibrated
+let lastMeasurePx = null; // screen px length of last calibration line
+
+function nextId() { return ++annotIdSeq; }
+function strokeW() { return parseFloat(document.getElementById('stroke-w').value) || 2.5; }
+
+// Text input popover state
+let txtPopCallback = null;
+
+function showTxtPop(screenX, screenY, cb, initialVal = '', emmaData = null) {
+  txtPopCallback = cb;
+  const pop = document.getElementById('txt-pop');
+  const ta  = document.getElementById('txt-pop-input');
+  const btn = pop.querySelector('.hbtn.primary');
+  ta.value = initialVal;
+  btn.textContent = initialVal ? 'Save' : 'Add';
+  // Reset EMMA fields
+  document.getElementById('pop-discipline').value = emmaData?.discipline || '';
+  document.getElementById('pop-priority').value   = emmaData?.priority   || '';
+  document.getElementById('pop-gridref').value    = emmaData?.gridRef    || '';
+  document.getElementById('pop-action').value     = emmaData?.action     || '';
+  // EMMA include checkbox — excluded if emmaExclude is explicitly true
+  document.getElementById('pop-emma-include').checked = !(emmaData?.emmaExclude === true);
+  // Show EMMA fields if editing an annotation that has them
+  const hasEmma = emmaData && (emmaData.discipline || emmaData.priority || emmaData.gridRef || emmaData.action);
+  document.getElementById('emma-fields').style.display = hasEmma ? 'block' : 'none';
+  document.getElementById('emma-toggle-btn').textContent = hasEmma ? '− EMMA fields' : '+ EMMA fields';
+  pop.classList.add('open');
+  const pw = 300, ph = 160;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  pop.style.left = Math.min(screenX, vw - pw - 12) + 'px';
+  pop.style.top  = Math.min(screenY + 8, vh - ph - 12) + 'px';
+  requestAnimationFrame(() => { ta.focus(); ta.select(); });
+}
+function toggleEmmaFields() {
+  const el = document.getElementById('emma-fields');
+  const btn = document.getElementById('emma-toggle-btn');
+  const visible = el.style.display !== 'none';
+  el.style.display = visible ? 'none' : 'block';
+  btn.textContent = visible ? '+ EMMA fields' : '− EMMA fields';
+}
+function txtPopConfirm() {
+  const val = document.getElementById('txt-pop-input').value.trim();
+  document.getElementById('txt-pop').classList.remove('open');
+  if (val && txtPopCallback) {
+    const emmaFields = {
+      discipline:  document.getElementById('pop-discipline').value,
+      priority:    document.getElementById('pop-priority').value,
+      gridRef:     document.getElementById('pop-gridref').value.trim(),
+      action:      document.getElementById('pop-action').value.trim(),
+      emmaExclude: !document.getElementById('pop-emma-include').checked,
+    };
+    txtPopCallback(val, emmaFields);
+  }
+  txtPopCallback = null;
+}
+function txtPopCancel() {
+  document.getElementById('txt-pop').classList.remove('open');
+  txtPopCallback = null;
+}
+// Enter to confirm (Shift+Enter = newline)
+document.getElementById('txt-pop-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); txtPopConfirm(); }
+  if (e.key === 'Escape') { e.preventDefault(); txtPopCancel(); }
+});
+document.getElementById('author-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); saveAuthor(); }
+});
+
+// Pan-drag scroll state
+let panDragging = false, panStart = null, panScrollStart = null;
+
+/* ═══════════════════════════════════════════════
    UI HELPERS
-────────────────────────────────────────────────── */
-function toast(m,ms=2600){
-  const el=document.getElementById('toast');
-  el.textContent=m; el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'),ms);
+═══════════════════════════════════════════════ */
+function toast(m, ms = 2600) {
+  const el = document.getElementById('toast');
+  el.textContent = m; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
 }
-function openM(id){document.getElementById(id).classList.add('open')}
-function closeM(id){document.getElementById(id).classList.remove('open')}
-function hideCtx(){document.getElementById('ctx-menu').classList.remove('open')}
+function openM(id)  { document.getElementById(id).classList.add('open'); }
+function closeM(id) { document.getElementById(id).classList.remove('open'); }
+function hideCtx()  { document.getElementById('ctx-menu').classList.remove('open'); }
 
-/* ──────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════
    FILE OPEN
-────────────────────────────────────────────────── */
-async function openFile(e){const f=e.target.files[0];if(f)await loadPDF(f)}
-function onDragOver(e){e.preventDefault();document.getElementById('drop-card').classList.add('drag-over')}
-async function onDrop(e){
-  e.preventDefault();document.getElementById('drop-card').classList.remove('drag-over');
-  const f=e.dataTransfer.files[0];if(f?.type==='application/pdf')await loadPDF(f);
+═══════════════════════════════════════════════ */
+async function openFile(e) { const f = e.target.files[0]; if (f) await loadPDF(f); }
+function onDragOver(e) { e.preventDefault(); document.getElementById('drop-card').classList.add('drag-over'); }
+async function onDrop(e) {
+  e.preventDefault(); document.getElementById('drop-card').classList.remove('drag-over');
+  const f = e.dataTransfer.files[0]; if (f?.type === 'application/pdf') await loadPDF(f);
 }
 
-async function loadPDF(file){
-  pdfName=file.name; pdfBytes=await file.arrayBuffer();
-  pdf=await pdfjsLib.getDocument({data:pdfBytes.slice(0)}).promise;
-  nPages=pdf.numPages; curPg=1; annots=[];
-  document.getElementById('doc-name').textContent=file.name;
-  document.getElementById('pgt').textContent=nPages;
-  document.getElementById('pgi').max=nPages;
-  document.getElementById('spc').textContent=nPages;
+async function loadPDF(file) {
+  pdfName = file.name;
+  pdfBytes = await file.arrayBuffer();
+
+  // Use a streaming-friendly load; no size limit
+  pdf = await pdfjsLib.getDocument({ data: pdfBytes.slice(0), disableRange: false, disableStream: false }).promise;
+  nPages = pdf.numPages; curPg = 1; annots = [];
+  renderedPages.clear(); renderQueue.clear();
+
+  document.getElementById('doc-name').textContent = file.name;
+  document.getElementById('pgt').textContent = nPages;
+  document.getElementById('pgi').max = nPages;
+  document.getElementById('spc').textContent = nPages;
   document.getElementById('drop-landing').classList.add('hidden');
-  await renderAll(); await buildThumbs(); syncAnnots(); updateAnnotPanel();
-  toast(`Opened: ${file.name} — ${nPages} page${nPages!==1?'s':''}`);
+
+  await buildPageShells();
+  await buildThumbs();
+  syncAnnots();
+  updateAnnotPanel();
+  scheduleRender();
+  toast(`Opened: ${file.name} — ${nPages} page${nPages !== 1 ? 's' : ''}`);
 }
 
-/* ──────────────────────────────────────────────────
-   RENDER
-────────────────────────────────────────────────── */
-async function renderAll(){
-  const c=document.getElementById('pdfpages'); c.innerHTML='';
-  for(let i=1;i<=nPages;i++) await renderPage(i,c);
+/* ═══════════════════════════════════════════════
+   VIRTUAL / LAZY RENDERING
+   Strategy:
+   1. Get page 1 viewport synchronously to seed shell sizes.
+   2. Build all shells instantly using page-1 dims as estimate —
+      they get corrected when renderPageContent runs per-page.
+   3. renderPageContent also updates wrap + overlay to exact dims.
+═══════════════════════════════════════════════ */
+async function buildPageShells() {
+  const container = document.getElementById('pdfpages');
+  container.innerHTML = '';
+
+  // Get page 1 viewport to use as size estimate for all shells
+  const page1 = await pdf.getPage(1);
+  const vp1 = page1.getViewport({ scale: zoom });
+  const estW = vp1.width, estH = vp1.height;
+
+  for (let i = 1; i <= nPages; i++) {
+    // Use page-1 estimate; renderPageContent will correct it per page
+    const shellW = estW, shellH = estH;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'pwrap unrendered';
+    wrap.id = `pw-${i}`;
+    wrap.style.width  = shellW + 'px';
+    wrap.style.height = shellH + 'px';
+
+    // Overlay sized to match shell — corrected in renderPageContent
+    const ov = document.createElement('div');
+    // In pan mode the overlay must be pass-through (no 'active' class)
+    ov.className = tool === 'pan' ? 'aoverlay' : 'aoverlay active';
+    ov.dataset.page = i;
+    ov.style.cssText = `position:absolute;top:0;left:0;width:${shellW}px;height:${shellH}px`;
+    // Attach events with a deferred viewport — resolved when page renders
+    ov._pendingAttach = i; // flag; events attached after real vp known
+
+    const badge = document.createElement('div');
+    badge.className = 'pnbadge';
+    badge.textContent = `Page ${i}`;
+
+    wrap.appendChild(ov);
+    wrap.appendChild(badge);
+    container.appendChild(wrap);
+
+    wrap.addEventListener('mousemove', e => {
+      const r = wrap.getBoundingClientRect();
+      const pv = pageViewports[i];
+      if (!pv) return;
+      document.getElementById('sb-pos').textContent =
+        `Pg ${i} · ${Math.round((e.clientX - r.left) / zoom)}, ${Math.round((e.clientY - r.top) / zoom)}`;
+    });
+    wrap.addEventListener('mouseleave', () => { document.getElementById('sb-pos').textContent = '—'; });
+  }
 }
 
-async function renderPage(n,container){
-  const page=await pdf.getPage(n);
-  const vp=page.getViewport({scale:zoom});
-  const wrap=document.createElement('div');
-  wrap.className='pwrap'; wrap.id=`pw-${n}`;
-  wrap.style.width=vp.width+'px';
+function getVisibleRange() {
+  const viewer = document.getElementById('viewer');
+  const viewerRect = viewer.getBoundingClientRect();
+  let first = nPages, last = 1;
+  for (let i = 1; i <= nPages; i++) {
+    const el = document.getElementById(`pw-${i}`);
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    // Check if this page intersects the viewer's visible rect
+    if (r.bottom > viewerRect.top && r.top < viewerRect.bottom) {
+      first = Math.min(first, i);
+      last  = Math.max(last, i);
+    }
+  }
+  if (first > last) { first = 1; last = Math.min(nPages, 3); } // fallback on empty
+  return { first: Math.max(1, first - OVERSCAN), last: Math.min(nPages, last + OVERSCAN) };
+}
 
-  const canvas=document.createElement('canvas');
-  canvas.width=vp.width; canvas.height=vp.height;
-  canvas.style.cssText=`width:${vp.width}px;height:${vp.height}px`;
+function scheduleRender() {
+  if (renderScheduled) return;
+  renderScheduled = true;
+  requestAnimationFrame(async () => {
+    renderScheduled = false;
+    if (!pdf) return;
+    const { first, last } = getVisibleRange();
 
-  const ov=document.createElement('div');
-  ov.className='aoverlay active'; ov.dataset.page=n;
-  ov.style.cssText=`width:${vp.width}px;height:${vp.height}px`;
-  attachEvents(ov,n,vp);
+    // Unload pages far outside viewport to release canvas memory
+    for (const pg of renderedPages) {
+      if (pg < first - 4 || pg > last + 4) {
+        const wrap = document.getElementById(`pw-${pg}`);
+        if (wrap) {
+          const canvas = wrap.querySelector('canvas');
+          if (canvas) {
+            // Clear canvas before removing so GPU memory is freed
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.remove();
+          }
+          wrap.classList.add('unrendered');
+        }
+        renderedPages.delete(pg);
+      }
+    }
 
-  const badge=document.createElement('div');
-  badge.className='pnbadge'; badge.textContent=`Page ${n}`;
-
-  wrap.appendChild(canvas); wrap.appendChild(ov); wrap.appendChild(badge);
-  container.appendChild(wrap);
-  await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
-
-  wrap.addEventListener('mousemove',e=>{
-    const r=wrap.getBoundingClientRect();
-    document.getElementById('sb-pos').textContent=
-      `Pg ${n} · ${Math.round((e.clientX-r.left)/zoom)}, ${Math.round((e.clientY-r.top)/zoom)}`;
+    // Render newly visible pages
+    for (let i = first; i <= last; i++) {
+      if (!renderedPages.has(i) && !renderQueue.has(i)) {
+        renderQueue.add(i);
+        renderPageContent(i).then(() => { renderQueue.delete(i); });
+      }
+    }
   });
-  wrap.addEventListener('mouseleave',()=>{document.getElementById('sb-pos').textContent='—'});
 }
 
-async function buildThumbs(){
-  const panel=document.getElementById('sp-pages'); panel.innerHTML='';
-  for(let i=1;i<=Math.min(nPages,60);i++){
-    const item=document.createElement('div');
-    item.className='titem'+(i===1?' active':''); item.dataset.page=i;
-    item.onclick=()=>scrollTo(i);
-    const wrap=document.createElement('div'); wrap.className='tcwrap';
-    const tc=document.createElement('canvas');
-    const p=await pdf.getPage(i);
-    const tv=p.getViewport({scale:.12});
-    tc.width=tv.width; tc.height=tv.height;
-    await p.render({canvasContext:tc.getContext('2d'),viewport:tv}).promise;
+async function renderPageContent(pageNum) {
+  const wrap = document.getElementById(`pw-${pageNum}`);
+  if (!wrap || renderedPages.has(pageNum)) return;
+
+  const page = await pdf.getPage(pageNum);
+  const vp = page.getViewport({ scale: zoom });
+
+  // Store real viewport for this page
+  pageViewports[pageNum] = { width: vp.width, height: vp.height, vp };
+
+  // Correct wrap + overlay to exact page dimensions (may differ from shell estimate)
+  wrap.style.width  = vp.width + 'px';
+  wrap.style.height = vp.height + 'px';
+
+  let ov = wrap.querySelector('.aoverlay');
+  ov.style.width  = vp.width + 'px';
+  ov.style.height = vp.height + 'px';
+
+  // Attach drawing events with the real viewport on first render of this page
+  if (ov._pendingAttach) {
+    ov._pendingAttach = false;
+    attachEvents(ov, pageNum, vp);
+    syncAnnotsOnOverlay(ov, pageNum);
+  }
+
+  // Remove existing canvas if any
+  wrap.querySelector('canvas')?.remove();
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = vp.width;
+  canvas.height = vp.height;
+  canvas.style.cssText = `width:${vp.width}px;height:${vp.height}px;display:block`;
+
+  ov = wrap.querySelector('.aoverlay');
+  wrap.insertBefore(canvas, ov);
+
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+
+  wrap.classList.remove('unrendered');
+  renderedPages.add(pageNum);
+}
+
+async function rerenderAll() {
+  renderedPages.clear();
+  renderQueue.clear();
+  // Rebuild shells then re-render visible range
+  const savedPg = curPg;
+  await buildPageShells();
+  syncAnnots();
+  scheduleRender();
+  // Restore scroll position
+  requestAnimationFrame(() => {
+    const el = document.getElementById(`pw-${savedPg}`);
+    if (el) el.scrollIntoView({ block: 'start' });
+  });
+}
+
+document.getElementById('viewer').addEventListener('scroll', () => {
+  scheduleRender();
+  if (!pdf) return;
+  const viewerRect = document.getElementById('viewer').getBoundingClientRect();
+  let best = 1, bestVis = 0;
+  for (let i = 1; i <= nPages; i++) {
+    const el = document.getElementById(`pw-${i}`);
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    const vis = Math.min(r.bottom, viewerRect.bottom) - Math.max(r.top, viewerRect.top);
+    if (vis > bestVis) { bestVis = vis; best = i; }
+  }
+  if (best !== curPg) {
+    curPg = best;
+    document.getElementById('pgi').value = best;
+    document.querySelectorAll('.titem').forEach(t =>
+      t.classList.toggle('active', parseInt(t.dataset.page) === best));
+  }
+}, { passive: true });
+
+/* ═══════════════════════════════════════════════
+   THUMBNAILS (lazy too, via IntersectionObserver)
+═══════════════════════════════════════════════ */
+async function buildThumbs() {
+  const panel = document.getElementById('sp-pages');
+  panel.innerHTML = '';
+  const limit = Math.min(nPages, 300); // Thumbnail cap for very large docs
+
+  for (let i = 1; i <= limit; i++) {
+    const item = document.createElement('div');
+    item.className = 'titem' + (i === 1 ? ' active' : '');
+    item.dataset.page = i;
+    item.onclick = () => scrollToPage(i);
+
+    const wrap = document.createElement('div'); wrap.className = 'tcwrap';
+    const tc = document.createElement('canvas');
     wrap.appendChild(tc);
-    const lbl=document.createElement('div'); lbl.className='tlbl'; lbl.textContent=i;
+
+    const lbl = document.createElement('div'); lbl.className = 'tlbl'; lbl.textContent = i;
     item.appendChild(wrap); item.appendChild(lbl); panel.appendChild(item);
   }
+
+  // Lazy-render thumbnails via IntersectionObserver
+  const obs = new IntersectionObserver(async entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const item = entry.target;
+      const pgNum = parseInt(item.dataset.page);
+      const tc = item.querySelector('canvas');
+      if (tc.width > 0) continue; // already rendered
+      obs.unobserve(item);
+      try {
+        const p = await pdf.getPage(pgNum);
+        const tv = p.getViewport({ scale: 0.12 });
+        tc.width = tv.width; tc.height = tv.height;
+        await p.render({ canvasContext: tc.getContext('2d'), viewport: tv }).promise;
+      } catch(e) { /* page may not be available yet */ }
+    }
+  }, { root: panel, rootMargin: '100px' });
+
+  panel.querySelectorAll('.titem').forEach(item => obs.observe(item));
 }
 
-/* ──────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════
    NAVIGATION
-────────────────────────────────────────────────── */
-function scrollTo(n){
-  const el=document.getElementById(`pw-${n}`); if(!el) return;
-  el.scrollIntoView({behavior:'smooth',block:'start'});
-  curPg=n; document.getElementById('pgi').value=n;
-  document.querySelectorAll('.titem').forEach(t=>
-    t.classList.toggle('active',parseInt(t.dataset.page)===n));
+═══════════════════════════════════════════════ */
+function scrollToPage(n) {
+  const el = document.getElementById(`pw-${n}`); if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  curPg = n; document.getElementById('pgi').value = n;
+  document.querySelectorAll('.titem').forEach(t =>
+    t.classList.toggle('active', parseInt(t.dataset.page) === n));
 }
-function changePage(d){scrollTo(Math.max(1,Math.min(nPages,curPg+d)))}
-function jumpTo(v){const p=parseInt(v);if(p>=1&&p<=nPages)scrollTo(p)}
+function changePage(d) { scrollToPage(Math.max(1, Math.min(nPages, curPg + d))); }
+function jumpTo(v) { const p = parseInt(v); if (p >= 1 && p <= nPages) scrollToPage(p); }
 
-async function applyZoom(val){
-  if(!pdf) return;
-  if(val==='fit'){
-    const w=document.getElementById('viewer').clientWidth-64;
-    zoom=w/(await pdf.getPage(1)).getViewport({scale:1}).width;
-  } else zoom=parseFloat(val);
-  document.getElementById('sb-zoom').innerHTML=`<div class="sbdot b"></div>${Math.round(zoom*100)}%`;
-  const s=curPg; await renderAll(); syncAnnots(); scrollTo(s);
-}
-
-/* ──────────────────────────────────────────────────
-   TOOL / COLOR SELECTION
-────────────────────────────────────────────────── */
-function setTool(t){
-  tool=t;
-  document.querySelectorAll('[id^="t-"]').forEach(b=>{
-    b.classList.remove('active');
-    if(b.id==='t-erase') b.classList.add('eraser-active');
-  });
-  const btn=document.getElementById('t-'+t);
-  if(btn){
-    if(t==='erase'){ btn.classList.remove('eraser-active'); btn.classList.add('active'); }
-    else btn.classList.add('active');
+async function applyZoom(val) {
+  if (!pdf) return;
+  if (val === 'fit') {
+    const w = document.getElementById('viewer').clientWidth - 64;
+    zoom = w / (await pdf.getPage(1)).getViewport({ scale: 1 }).width;
+  } else {
+    zoom = parseFloat(val);
   }
-  // restore eraser default style on other tools
-  const erBtn=document.getElementById('t-erase');
-  if(erBtn && t!=='erase') erBtn.classList.add('eraser-active');
+  document.getElementById('sb-zoom').innerHTML =
+    `<div class="sbdot b"></div>${Math.round(zoom * 100)}%`;
+  await rerenderAll();
+}
 
-  document.getElementById('sb-tool').textContent=typeLabels[t]||t;
+/* ═══════════════════════════════════════════════
+   TOOL / COLOR SELECTION
+═══════════════════════════════════════════════ */
+function setTool(t) {
+  tool = t;
+  document.querySelectorAll('[id^="t-"]').forEach(b => {
+    b.classList.remove('active');
+    b.classList.remove('eraser-active');
+  });
+  const erBtn = document.getElementById('t-erase');
+  if (t === 'erase') {
+    erBtn.classList.add('active');
+  } else {
+    erBtn.classList.add('eraser-active');
+    document.getElementById('t-' + t)?.classList.add('active');
+  }
 
-  // update cursors on all overlays
-  document.querySelectorAll('.aoverlay').forEach(o=>{
-    o.className='aoverlay active';
-    if(['highlight','rect','strike','pen','arrow'].includes(t)) o.classList.add('cur-cross');
-    else if(t==='note') o.classList.add('cur-cell');
-    else if(t==='text') o.classList.add('cur-text');
-    else if(t==='erase') o.classList.add('cur-erase');
+  document.getElementById('sb-tool').textContent = typeLabels[t] || t;
+
+  // All tools keep overlay active so it receives mouse events.
+  // Pan uses those events for drag-scroll (handled in attachEvents).
+  document.querySelectorAll('.aoverlay').forEach(o => {
+    o.className = 'aoverlay active';
+    if (['highlight','rect','strike','pen','arrow','measure','texthighlight'].includes(t)) o.classList.add('cur-cross');
+    else if (t === 'note')  o.classList.add('cur-cell');
+    else if (t === 'text')  o.classList.add('cur-text');
+    else if (t === 'erase') o.classList.add('cur-erase');
+    else if (t === 'pan')   o.classList.add('cur-pan');
+  });
+
+  refreshAnnotPointerEvents();
+}
+
+// Controls which annotation DOM elements accept pointer events.
+// Rules:
+//   pan   → everything is none (overlay itself is pass-through)
+//   erase → div-based annots: pointer-events:all
+//            SVG-based (pen/arrow): wrapper stays none; path/line gets pointer-events:stroke
+//            so only clicking the actual drawn line triggers deletion
+//   other → only notes/text labels need pointer-events for context menu
+function refreshAnnotPointerEvents() {
+  document.querySelectorAll('[data-aid]').forEach(el => {
+    const isSvgWrap = el.classList.contains('asvg-wrap');
+    if (tool === 'pan') {
+      // Notes and text labels remain clickable in pan mode for editing
+      if (!isSvgWrap) {
+        const editable = el.classList.contains('an') || el.classList.contains('atxt');
+        el.style.pointerEvents = editable ? 'all' : 'none';
+        if (editable) el.style.cursor = 'pointer';
+      } else {
+        el.style.pointerEvents = 'none';
+        el.querySelectorAll('path, line').forEach(s => s.style.pointerEvents = 'none');
+      }
+    } else if (tool === 'erase') {
+      if (isSvgWrap) {
+        el.style.pointerEvents = 'none';
+        el.querySelectorAll('path, line').forEach(s => {
+          s.style.pointerEvents = 'stroke';
+          s.style.cursor = 'crosshair';
+        });
+      } else {
+        el.style.pointerEvents = 'all';
+      }
+    } else {
+      if (isSvgWrap) {
+        el.style.pointerEvents = 'none';
+        el.querySelectorAll('path, line').forEach(s => s.style.pointerEvents = 'none');
+      } else {
+        const interactive = el.classList.contains('an') || el.classList.contains('atxt');
+        el.style.pointerEvents = interactive ? 'all' : 'none';
+      }
+    }
   });
 }
 
-function setColor(c){
-  color=c;
-  document.querySelectorAll('.csw').forEach(s=>s.classList.remove('active'));
-  ({yellow:'c-y',teal:'c-t',rose:'c-r'})[c] &&
-    document.getElementById(({yellow:'c-y',teal:'c-t',rose:'c-r'})[c]).classList.add('active');
+function setColor(c) {
+  color = c;
+  document.querySelectorAll('.csw').forEach(s => s.classList.remove('active'));
+  const map = { yellow: 'c-y', teal: 'c-t', rose: 'c-r' };
+  if (map[c]) document.getElementById(map[c]).classList.add('active');
 }
 
-/* ──────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════
    DRAWING EVENTS
-────────────────────────────────────────────────── */
-function attachEvents(ov, pageNum, vp){
-  /* ── mousedown ── */
-  ov.addEventListener('mousedown', e=>{
-    if(e.button!==0) return;
+═══════════════════════════════════════════════ */
+function attachEvents(ov, pageNum, vp) {
+  const viewer = document.getElementById('viewer');
+
+  ov.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
     hideCtx();
-    if(tool==='pan') return;
 
-    // ERASE: handled by click on element, not overlay drag
-    if(tool==='erase') return;
-
-    const r=ov.getBoundingClientRect();
-    const ox=e.clientX-r.left, oy=e.clientY-r.top;
-
-    // Point tools
-    if(tool==='note'){
-      const x=ox/vp.width*100, y=oy/vp.height*100;
-      const txt=prompt('Note text:'); if(!txt||!txt.trim()) return;
-      pushAnnot({id:nextId(),pageNum,type:'note',x,y,text:txt.trim(),color});
-      return;
-    }
-    if(tool==='text'){
-      const x=ox/vp.width*100, y=oy/vp.height*100;
-      const txt=prompt('Label text:'); if(!txt||!txt.trim()) return;
-      pushAnnot({id:nextId(),pageNum,type:'text',x,y,text:txt.trim(),color});
+    // ── PAN: drag-scroll the viewer ──
+    if (tool === 'pan') {
+      panDragging = true;
+      panStart = { x: e.clientX, y: e.clientY };
+      panScrollStart = { left: viewer.scrollLeft, top: viewer.scrollTop };
+      ov.classList.add('panning');
+      e.preventDefault();
       return;
     }
 
-    // Drag tools
-    drawing=true; origin={x:ox,y:oy};
+    if (tool === 'erase') return;
 
-    if(tool==='pen'){
-      penPoints=[{x:ox,y:oy}];
-      liveSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-      liveSvg.className='asvg';
-      liveSvg.style.cssText='position:absolute;top:0;left:0;overflow:visible;pointer-events:none';
-      liveSvg.setAttribute('width',vp.width); liveSvg.setAttribute('height',vp.height);
-      const path=document.createElementNS('http://www.w3.org/2000/svg','path');
-      path.setAttribute('d',`M${ox},${oy}`);
-      path.setAttribute('fill','none');
-      path.setAttribute('stroke',CHex[color]);
-      path.setAttribute('stroke-width',strokeW());
-      path.setAttribute('stroke-linecap','round');
-      path.setAttribute('stroke-linejoin','round');
+    const r = ov.getBoundingClientRect();
+    const ox = e.clientX - r.left, oy = e.clientY - r.top;
+
+    // ── NOTE / TEXT: show inline popover ──
+    if (tool === 'note' || tool === 'text') {
+      const x = ox / vp.width * 100, y = oy / vp.height * 100;
+      showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
+        pushAnnot({ id: nextId(), pageNum, type: tool, x, y, text: txt, color, ...emmaFields });
+      });
+      return;
+    }
+
+    // ── DRAG TOOLS ──
+    drawing = true; origin = { x: ox, y: oy };
+
+    if (tool === 'measure') {
+      // Live preview line SVG
+      liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      liveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
+      liveSvg.setAttribute('width', vp.width); liveSvg.setAttribute('height', vp.height);
+      const ml = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      ml.setAttribute('x1', ox); ml.setAttribute('y1', oy);
+      ml.setAttribute('x2', ox); ml.setAttribute('y2', oy);
+      ml.setAttribute('stroke', '#7c3aed'); ml.setAttribute('stroke-width', '2');
+      ml.setAttribute('stroke-dasharray', '6,3');
+      const mt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      mt.setAttribute('fill', '#7c3aed'); mt.setAttribute('font-size', '11');
+      mt.setAttribute('font-family', 'DM Mono, monospace'); mt.setAttribute('text-anchor', 'middle');
+      liveSvg.appendChild(ml); liveSvg.appendChild(mt);
+      ov.appendChild(liveSvg);
+      return;
+    }
+
+    if (tool === 'pen' || tool === 'texthighlight') {
+      penPoints = [{ x: ox, y: oy }];
+      liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      liveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
+      liveSvg.setAttribute('width', vp.width);
+      liveSvg.setAttribute('height', vp.height);
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M${ox},${oy}`);
+      path.setAttribute('fill', 'none');
+      if (tool === 'texthighlight') {
+        path.setAttribute('stroke', CVals[color] || CVals.yellow);
+        path.setAttribute('stroke-width', 14);
+        path.setAttribute('opacity', '0.6');
+        liveSvg.style.mixBlendMode = 'multiply';
+      } else {
+        path.setAttribute('stroke', CHex[color]);
+        path.setAttribute('stroke-width', strokeW());
+      }
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
       liveSvg.appendChild(path);
       ov.appendChild(liveSvg);
       return;
     }
 
-    // Box/line preview element
-    liveEl=document.createElement('div');
-    liveEl.style.cssText='position:absolute;pointer-events:none';
-    if(tool==='highlight'){
-      liveEl.className='ah';
-      liveEl.style.background=CVals[color];
-    } else if(tool==='rect'){
-      liveEl.className='ar';
-      liveEl.style.borderColor=CHex[color];
-    } else if(tool==='strike'||tool==='arrow'){
-      liveEl.style.cssText+='z-index:2';
+    liveEl = document.createElement('div');
+    liveEl.style.cssText = 'position:absolute;pointer-events:none;z-index:10';
+    if (tool === 'highlight') {
+      liveEl.className = 'ah';
+      liveEl.style.background = CVals[color];
+      liveEl.style.mixBlendMode = 'multiply';
+    } else if (tool === 'rect') {
+      liveEl.className = 'ar';
+      liveEl.style.borderColor = CHex[color];
+      liveEl.style.background = CHex[color] + '11';
     }
-    liveEl.style.left=ox+'px'; liveEl.style.top=oy+'px';
-    liveEl.style.width='0'; liveEl.style.height='0';
-    if(tool!=='pen') ov.appendChild(liveEl);
+    liveEl.style.left = ox + 'px'; liveEl.style.top = oy + 'px';
+    liveEl.style.width = '0'; liveEl.style.height = '0';
+    ov.appendChild(liveEl);
   });
 
-  /* ── mousemove ── */
-  ov.addEventListener('mousemove', e=>{
-    if(!drawing) return;
-    const r=ov.getBoundingClientRect();
-    const mx=e.clientX-r.left, my=e.clientY-r.top;
-
-    if(tool==='pen' && liveSvg){
-      penPoints.push({x:mx,y:my});
-      const d=penPoints.map((p,i)=>(i===0?'M':'L')+p.x+','+p.y).join(' ');
-      liveSvg.querySelector('path').setAttribute('d',d);
+  ov.addEventListener('mousemove', e => {
+    // Pan drag-scroll
+    if (tool === 'pan' && panDragging && panStart) {
+      viewer.scrollLeft = panScrollStart.left - (e.clientX - panStart.x);
+      viewer.scrollTop  = panScrollStart.top  - (e.clientY - panStart.y);
       return;
     }
-    if(!liveEl) return;
-    const lx=Math.min(mx,origin.x), ly=Math.min(my,origin.y);
-    const lw=Math.abs(mx-origin.x), lh=Math.abs(my-origin.y);
-    liveEl.style.left=lx+'px'; liveEl.style.top=ly+'px';
-    liveEl.style.width=lw+'px'; liveEl.style.height=lh+'px';
+    if (!drawing) return;
+    const r = ov.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+
+    if (tool === 'measure' && liveSvg) {
+      const pxDist = Math.hypot(mx - origin.x, my - origin.y);
+      const ml = liveSvg.querySelector('line');
+      const mt = liveSvg.querySelector('text');
+      ml.setAttribute('x2', mx); ml.setAttribute('y2', my);
+      const midX = (origin.x + mx) / 2, midY = (origin.y + my) / 2 - 6;
+      mt.setAttribute('x', midX); mt.setAttribute('y', midY);
+      const label = measureScale
+        ? `${(pxDist / measureScale.pxPerUnit / zoom).toFixed(2)} ${measureScale.unit}`
+        : `${Math.round(pxDist)} px`;
+      mt.textContent = label;
+      document.getElementById('sb-measure').textContent = '⬌ ' + label;
+      document.getElementById('sb-measure').classList.add('visible');
+      return;
+    }
+    if ((tool === 'pen' || tool === 'texthighlight') && liveSvg) {
+      penPoints.push({ x: mx, y: my });
+      const d = penPoints.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.y).join(' ');
+      liveSvg.querySelector('path').setAttribute('d', d);
+      return;
+    }
+    if (!liveEl) return;
+    const lx = Math.min(mx, origin.x), ly = Math.min(my, origin.y);
+    const lw = Math.abs(mx - origin.x), lh = Math.abs(my - origin.y);
+    liveEl.style.left = lx + 'px'; liveEl.style.top = ly + 'px';
+    liveEl.style.width = lw + 'px'; liveEl.style.height = lh + 'px';
   });
 
-  /* ── mouseup ── */
-  ov.addEventListener('mouseup', e=>{
-    if(!drawing) return; drawing=false;
-    const r=ov.getBoundingClientRect();
-    const mx=e.clientX-r.left, my=e.clientY-r.top;
-
-    if(tool==='pen' && liveSvg){
-      liveSvg.remove(); liveSvg=null;
-      if(penPoints.length<3) return;
-      // Normalize points to percentages
-      const pts=penPoints.map(p=>({x:p.x/vp.width*100,y:p.y/vp.height*100}));
-      pushAnnot({id:nextId(),pageNum,type:'pen',points:pts,color,sw:strokeW()});
-      penPoints=[]; return;
+  ov.addEventListener('mouseup', e => {
+    // End pan
+    if (tool === 'pan') {
+      panDragging = false; panStart = null; panScrollStart = null;
+      ov.classList.remove('panning');
+      return;
     }
-    if(liveEl){liveEl.remove();liveEl=null;}
+    if (!drawing) return; drawing = false;
+    const r = ov.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
 
-    const x=Math.min(mx,origin.x)/vp.width*100;
-    const y=Math.min(my,origin.y)/vp.height*100;
-    const w=Math.abs(mx-origin.x)/vp.width*100;
-    const h=Math.abs(my-origin.y)/vp.height*100;
-    const x1=origin.x/vp.width*100, y1=origin.y/vp.height*100;
-    const x2=mx/vp.width*100, y2=my/vp.height*100;
+    if (tool === 'measure' && liveSvg) {
+      liveSvg.remove(); liveSvg = null;
+      document.getElementById('sb-measure').classList.remove('visible');
+      const pxDist = Math.hypot(mx - origin.x, my - origin.y);
+      if (pxDist < 5) return;
+      // Store calibration pixel length for scale modal
+      lastMeasurePx = pxDist;
+      document.getElementById('scale-px').value = Math.round(pxDist);
+      const x1 = origin.x / vp.width * 100, y1 = origin.y / vp.height * 100;
+      const x2 = mx / vp.width * 100, y2 = my / vp.height * 100;
+      const label = measureScale
+        ? `${(pxDist / measureScale.pxPerUnit / zoom).toFixed(2)} ${measureScale.unit}`
+        : `${Math.round(pxDist)} px`;
+      pushAnnot({ id: nextId(), pageNum, type: 'measure', x1, y1, x2, y2, color, label,
+        pxDist, zoom: zoom, unit: measureScale?.unit || 'px' });
+      // If no scale set, prompt to calibrate
+      if (!measureScale) {
+        toast('Tip: click ⚖ Scale in the status bar to calibrate real-world units', 4000);
+      }
+      return;
+    }
 
-    if(tool==='arrow'){
-      if(Math.abs(mx-origin.x)<3&&Math.abs(my-origin.y)<3) return;
-      pushAnnot({id:nextId(),pageNum,type:'arrow',x1,y1,x2,y2,color,sw:strokeW()});
-    } else if(tool==='strike'){
-      if(w<0.5||h<0.5) return;
-      pushAnnot({id:nextId(),pageNum,type:'strike',x,y,w,h,color});
-    } else if(tool==='highlight'||tool==='rect'){
-      if(w<0.3||h<0.3) return;
-      pushAnnot({id:nextId(),pageNum,type:tool,x,y,w,h,color});
+    if ((tool === 'pen' || tool === 'texthighlight') && liveSvg) {
+      liveSvg.remove(); liveSvg = null;
+      if (penPoints.length < 3) { penPoints = []; return; }
+      pushAnnot({
+        id: nextId(), pageNum, type: tool,
+        points: penPoints.map(p => ({ x: p.x / vp.width, y: p.y / vp.height })),
+        color, sw: tool === 'texthighlight' ? 14 : strokeW(),
+        emmaExclude: tool === 'texthighlight' ? true : false
+      });
+      penPoints = [];
+      return;
+    }
+
+    if (liveEl) { liveEl.remove(); liveEl = null; }
+
+    const x  = Math.min(mx, origin.x) / vp.width  * 100;
+    const y  = Math.min(my, origin.y) / vp.height * 100;
+    const w  = Math.abs(mx - origin.x) / vp.width  * 100;
+    const h  = Math.abs(my - origin.y) / vp.height * 100;
+    const x1 = origin.x / vp.width  * 100;
+    const y1 = origin.y / vp.height * 100;
+    const x2 = mx / vp.width  * 100;
+    const y2 = my / vp.height * 100;
+
+    if (tool === 'arrow') {
+      if (Math.abs(mx - origin.x) < 3 && Math.abs(my - origin.y) < 3) return;
+      pushAnnot({ id: nextId(), pageNum, type: 'arrow', x1, y1, x2, y2, color, sw: strokeW() });
+    } else if (tool === 'strike') {
+      if (w < 0.5 || h < 0.5) return;
+      pushAnnot({ id: nextId(), pageNum, type: 'strike', x, y, w, h, color });
+    } else if (tool === 'highlight' || tool === 'rect') {
+      if (w < 0.3 || h < 0.3) return;
+      pushAnnot({ id: nextId(), pageNum, type: tool, x, y, w, h, color });
+    }
+  });
+
+  // Release pan if mouse leaves overlay
+  ov.addEventListener('mouseleave', () => {
+    if (panDragging) {
+      panDragging = false; panStart = null; panScrollStart = null;
+      ov.classList.remove('panning');
     }
   });
 }
 
-/* ──────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════
    ANNOTATION DATA MANAGEMENT
-────────────────────────────────────────────────── */
-function pushAnnot(a){
+═══════════════════════════════════════════════ */
+function pushAnnot(a) {
+  if (!a.author) a.author = currentAuthor || 'Unknown';
+  if (!a.ts) a.ts = new Date().toISOString();
   annots.push(a);
-  syncAnnots(); updateAnnotPanel(); updateStatusCount();
+  syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
 }
 
-function deleteAnnotById(id){
-  annots=annots.filter(a=>a.id!==id);
-  syncAnnots(); updateAnnotPanel(); updateStatusCount();
+function deleteAnnotById(id) {
+  delete emmaRows[id];
+  annots = annots.filter(a => a.id !== id);
+  syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
 }
 
-function undoLast(){
-  if(!annots.length){toast('Nothing to undo');return;}
+function undoLast() {
+  if (!annots.length) { toast('Nothing to undo'); return; }
   annots.pop(); syncAnnots(); updateAnnotPanel(); updateStatusCount();
   toast('Undone');
 }
 
-function clearPage(){
-  if(!pdf) return;
-  const before=annots.length;
-  annots=annots.filter(a=>a.pageNum!==curPg);
+function clearPage() {
+  if (!pdf) return;
+  const before = annots.length;
+  annots = annots.filter(a => a.pageNum !== curPg);
   syncAnnots(); updateAnnotPanel(); updateStatusCount();
-  if(before!==annots.length) toast(`Cleared page ${curPg}`);
+  if (before !== annots.length) toast(`Cleared page ${curPg}`);
 }
 
-function updateStatusCount(){
-  document.getElementById('sb-count').textContent=`${annots.length} annotation${annots.length!==1?'s':''}`;
+function updateStatusCount() {
+  document.getElementById('sb-count').textContent =
+    `${annots.length} annotation${annots.length !== 1 ? 's' : ''}`;
 }
 
-// keyboard shortcut
-document.addEventListener('keydown',e=>{
-  if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();undoLast();}
-  if(e.key==='Escape'){hideCtx();}
-  if(e.key==='Delete'||e.key==='Backspace'){
-    // delete selected in sidebar
-    const sel=document.querySelector('.aitem.selected');
-    if(sel){const id=parseInt(sel.dataset.id);if(id)deleteAnnotById(id);}
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undoLast(); }
+  if (e.key === 'Escape') { hideCtx(); txtPopCancel(); }
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    const sel = document.querySelector('.aitem.selected');
+    if (sel) { const id = parseInt(sel.dataset.id); if (id) deleteAnnotById(id); }
   }
 });
 
-/* ──────────────────────────────────────────────────
-   SYNC ANNOTATIONS TO DOM
-────────────────────────────────────────────────── */
-function syncAnnots(){
-  document.querySelectorAll('.aoverlay').forEach(ov=>{
-    const pn=parseInt(ov.dataset.page);
-    // remove previously rendered annots
-    ov.querySelectorAll('[data-aid]').forEach(el=>el.remove());
+// Global pan drag — continues even if mouse leaves the overlay
+document.addEventListener('mousemove', e => {
+  if (!panDragging || !panStart) return;
+  const viewer = document.getElementById('viewer');
+  viewer.scrollLeft = panScrollStart.left - (e.clientX - panStart.x);
+  viewer.scrollTop  = panScrollStart.top  - (e.clientY - panStart.y);
+});
+document.addEventListener('mouseup', () => {
+  if (panDragging) {
+    panDragging = false; panStart = null; panScrollStart = null;
+    document.querySelectorAll('.aoverlay.panning').forEach(o => o.classList.remove('panning'));
+  }
+});
 
-    annots.filter(a=>a.pageNum===pn).forEach(a=>{
-      const el=buildAnnotEl(a, ov);
-      if(!el) return;
-      el.dataset.aid=a.id;
-      // eraser hover + click
-      el.addEventListener('mouseenter',()=>{ if(tool==='erase') el.classList.add('annot-hover-del'); });
-      el.addEventListener('mouseleave',()=>el.classList.remove('annot-hover-del'));
-      el.addEventListener('click', ev=>{
-        if(tool==='erase'){ ev.stopPropagation(); deleteAnnotById(a.id); toast('Annotation removed'); return; }
-      });
-      // right-click context menu
-      el.addEventListener('contextmenu', ev=>{
-        ev.preventDefault(); ev.stopPropagation();
-        ctxAnnotId=a.id;
-        const editItem=document.getElementById('ctx-edit');
-        editItem.style.display=(a.type==='note'||a.type==='text')?'flex':'none';
-        const menu=document.getElementById('ctx-menu');
-        menu.style.left=ev.clientX+'px'; menu.style.top=ev.clientY+'px';
-        menu.classList.add('open');
-      });
+/* ═══════════════════════════════════════════════
+   SYNC ANNOTATIONS TO DOM
+   SVG paths use a viewBox="0 0 100 100" so all coordinates are in
+   0-100 space (matching our stored 0-1 fractions × 100).
+   vector-effect="non-scaling-stroke" keeps strokes visually consistent.
+═══════════════════════════════════════════════ */
+
+// Sync annotations only on a specific overlay (used after lazy render)
+function syncAnnotsOnOverlay(ov, pn) {
+  ov.querySelectorAll('[data-aid]').forEach(el => el.remove());
+  annots.filter(a => a.pageNum === pn).forEach(a => {
+    const el = buildAnnotEl(a);
+    if (!el) return;
+    el.dataset.aid = a.id;
+    attachAnnotListeners(el, a);
+    ov.appendChild(el);
+  });
+  refreshAnnotPointerEvents();
+}
+
+function syncAnnots() {
+  document.querySelectorAll('.aoverlay').forEach(ov => {
+    const pn = parseInt(ov.dataset.page);
+    ov.querySelectorAll('[data-aid]').forEach(el => el.remove());
+
+    annots.filter(a => a.pageNum === pn).forEach(a => {
+      const el = buildAnnotEl(a, ov);
+      if (!el) return;
+      el.dataset.aid = a.id;
+      attachAnnotListeners(el, a);
       ov.appendChild(el);
     });
   });
+  refreshAnnotPointerEvents();
 }
 
-function buildAnnotEl(a, ov){
-  let el;
-  if(a.type==='highlight'){
-    el=document.createElement('div'); el.className='ah';
-    el.style.cssText=`position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;background:${CVals[a.color]||CVals.yellow};mix-blend-mode:multiply`;
-  } else if(a.type==='rect'){
-    el=document.createElement('div'); el.className='ar';
-    el.style.cssText=`position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;border:2px solid ${CHex[a.color]||CHex.yellow};background:${CHex[a.color]||CHex.yellow}22`;
-  } else if(a.type==='strike'){
-    el=document.createElement('div'); el.className='astrike';
-    el.style.cssText=`position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;background:${CHex[a.color]||CHex.rose}55;border-top:2.5px solid ${CHex[a.color]||CHex.rose};border-bottom:2.5px solid ${CHex[a.color]||CHex.rose}`;
-  } else if(a.type==='note'){
-    el=document.createElement('div'); el.className='an';
-    el.style.cssText=`position:absolute;left:${a.x}%;top:${a.y}%`;
-    el.textContent=a.text; el.title=a.text;
-  } else if(a.type==='text'){
-    el=document.createElement('div'); el.className='atxt';
-    el.style.cssText=`position:absolute;left:${a.x}%;top:${a.y}%;color:${CHex[a.color]||CHex.yellow}`;
-    el.textContent=a.text;
-  } else if(a.type==='pen'||a.type==='arrow'){
-    el=buildSvgAnnot(a);
-  }
-  return el||null;
-}
+function attachAnnotListeners(el, a) {
+  const isSvgWrap = el.classList.contains('asvg-wrap');
+  const targets = isSvgWrap ? Array.from(el.querySelectorAll('path, line')) : [el];
 
-function buildSvgAnnot(a){
-  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-  svg.className='asvg';
-  svg.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible;pointer-events:none';
-  const c=CHex[a.color]||CHex.yellow;
+  targets.forEach(target => {
+    target.addEventListener('mouseenter', () => {
+      if (tool === 'erase') el.classList.add('annot-hover-del');
+    });
+    target.addEventListener('mouseleave', () => el.classList.remove('annot-hover-del'));
 
-  if(a.type==='pen'){
-    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
-    const d=a.points.map((p,i)=>(i===0?'M':'L')+(p.x)+'%,'+(p.y)+'%').join(' ');
-    // Convert percent-based paths properly via a wrapper approach
-    // Use a nested SVG with viewBox to handle % coordinates
-    path.setAttribute('vector-effect','non-scaling-stroke');
-    path.setAttribute('d',d);
-    path.setAttribute('fill','none');
-    path.setAttribute('stroke',c);
-    path.setAttribute('stroke-width',a.sw||2.5);
-    path.setAttribute('stroke-linecap','round');
-    path.setAttribute('stroke-linejoin','round');
-    svg.appendChild(path);
-    svg.style.pointerEvents='none';
-    // wrap in container that fills overlay
-    const wrap=document.createElement('div');
-    wrap.style.cssText='position:absolute;inset:0;pointer-events:none';
-    wrap.appendChild(svg);
-    return wrap;
+    target.addEventListener('mousedown', ev => {
+      if (tool !== 'erase') return;
+      ev.stopPropagation();
+      ev.preventDefault();
+      deleteAnnotById(a.id);
+      toast('Annotation removed');
+    });
+  });
+
+  // Pan/select tool: click on note or text to edit
+  if (a.type === 'note' || a.type === 'text') {
+    el.addEventListener('click', ev => {
+      if (tool !== 'pan') return;
+      ev.stopPropagation();
+      const r = el.getBoundingClientRect();
+      editAnnotById(a.id);
+    });
+    // Double-click always edits regardless of tool
+    el.addEventListener('dblclick', ev => {
+      ev.stopPropagation();
+      editAnnotById(a.id);
+    });
   }
 
-  if(a.type==='arrow'){
-    const markerId='arr-'+a.id;
-    const defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
-    const marker=document.createElementNS('http://www.w3.org/2000/svg','marker');
-    marker.setAttribute('id',markerId);
-    marker.setAttribute('viewBox','0 0 10 10');
-    marker.setAttribute('refX','9');marker.setAttribute('refY','5');
-    marker.setAttribute('markerWidth','6');marker.setAttribute('markerHeight','6');
-    marker.setAttribute('orient','auto-start-reverse');
-    const arrowPath=document.createElementNS('http://www.w3.org/2000/svg','path');
-    arrowPath.setAttribute('d','M 0 0 L 10 5 L 0 10 z');
-    arrowPath.setAttribute('fill',c);
-    marker.appendChild(arrowPath); defs.appendChild(marker); svg.appendChild(defs);
-    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',a.x1+'%'); line.setAttribute('y1',a.y1+'%');
-    line.setAttribute('x2',a.x2+'%'); line.setAttribute('y2',a.y2+'%');
-    line.setAttribute('stroke',c); line.setAttribute('stroke-width',a.sw||2.5);
-    line.setAttribute('marker-end',`url(#${markerId})`);
-    line.setAttribute('vector-effect','non-scaling-stroke');
-    svg.appendChild(line);
-    const wrap=document.createElement('div');
-    wrap.style.cssText='position:absolute;inset:0;pointer-events:none';
-    wrap.appendChild(svg);
-    return wrap;
-  }
-  return null;
-}
-
-/* ──────────────────────────────────────────────────
-   ANNOTATION PANEL (SIDEBAR)
-────────────────────────────────────────────────── */
-function updateAnnotPanel(){
-  const panel=document.getElementById('sp-notes');
-  panel.querySelectorAll('.aitem').forEach(el=>el.remove());
-  const empty=document.getElementById('aempty');
-  if(!annots.length){empty.classList.remove('hidden');return;}
-  empty.classList.add('hidden');
-  // newest first
-  [...annots].reverse().forEach((a)=>{
-    const item=document.createElement('div');
-    item.className='aitem'; item.dataset.id=a.id;
-    const preview=a.text||(typeLabels[a.type]||a.type);
-    item.innerHTML=`
-      <button class="adel" title="Delete">✕</button>
-      <div class="atype"><span class="adot" style="background:${CHex[a.color]}"></span>${typeLabels[a.type]||a.type}</div>
-      <div class="apreview">${preview}</div>
-      <div class="apg">Page ${a.pageNum}</div>`;
-    item.querySelector('.adel').onclick=ev=>{ev.stopPropagation();deleteAnnotById(a.id);};
-    item.onclick=()=>{
-      document.querySelectorAll('.aitem').forEach(i=>i.classList.remove('selected'));
-      item.classList.add('selected');
-      scrollTo(a.pageNum);
-    };
-    panel.insertBefore(item,empty);
+  el.addEventListener('contextmenu', ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    ctxAnnotId = a.id;
+    document.getElementById('ctx-edit').style.display =
+      (a.type === 'note' || a.type === 'text') ? 'flex' : 'none';
+    const menu = document.getElementById('ctx-menu');
+    menu.style.left = ev.clientX + 'px';
+    menu.style.top  = ev.clientY + 'px';
+    menu.classList.add('open');
   });
 }
 
-/* ──────────────────────────────────────────────────
-   CONTEXT MENU ACTIONS
-────────────────────────────────────────────────── */
-function ctxDelete(){
-  if(ctxAnnotId!=null){deleteAnnotById(ctxAnnotId);toast('Annotation deleted');}
-  hideCtx(); ctxAnnotId=null;
-}
-function ctxEdit(){
-  if(ctxAnnotId==null){hideCtx();return;}
-  const a=annots.find(x=>x.id===ctxAnnotId);
-  if(a&&(a.type==='note'||a.type==='text')){
-    const newTxt=prompt('Edit text:',a.text);
-    if(newTxt!==null&&newTxt.trim()){
-      a.text=newTxt.trim(); syncAnnots(); updateAnnotPanel();
+function buildAnnotEl(a) {
+  let el;
+  if (a.type === 'highlight') {
+    el = document.createElement('div'); el.className = 'ah';
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;background:${CVals[a.color] || CVals.yellow};mix-blend-mode:multiply`;
+  } else if (a.type === 'rect') {
+    el = document.createElement('div'); el.className = 'ar';
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;border:2px solid ${CHex[a.color] || CHex.yellow};background:${CHex[a.color] || CHex.yellow}22`;
+  } else if (a.type === 'strike') {
+    el = document.createElement('div'); el.className = 'astrike';
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;background:${CHex[a.color] || CHex.rose}55;border-top:2.5px solid ${CHex[a.color] || CHex.rose};border-bottom:2.5px solid ${CHex[a.color] || CHex.rose}`;
+  } else if (a.type === 'note') {
+    el = document.createElement('div'); el.className = 'an';
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%`;
+    el.textContent = a.text; el.title = a.text;
+    if (a.emmaExclude) {
+      const tag = document.createElement('span');
+      tag.style.cssText = 'display:inline-block;font-size:8px;background:#f1f5f9;color:#94a3b8;border-radius:2px;padding:0 3px;margin-left:4px;vertical-align:middle;font-family:var(--mono)';
+      tag.textContent = '⊘ EMMA';
+      el.appendChild(tag);
     }
+  } else if (a.type === 'text') {
+    el = document.createElement('div'); el.className = 'atxt';
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;color:${CHex[a.color] || CHex.yellow}`;
+    el.textContent = a.text;
+    if (a.emmaExclude) {
+      const tag = document.createElement('span');
+      tag.style.cssText = 'display:inline-block;font-size:8px;background:rgba(0,0,0,0.08);color:#888;border-radius:2px;padding:0 3px;margin-left:4px;vertical-align:middle;font-family:var(--mono)';
+      tag.textContent = '⊘';
+      el.appendChild(tag);
+    }
+  } else if (a.type === 'pen' || a.type === 'texthighlight') {
+    el = buildPenAnnotEl(a);
+  } else if (a.type === 'arrow') {
+    el = buildArrowAnnotEl(a);
+  } else if (a.type === 'measure') {
+    el = buildMeasureAnnotEl(a);
   }
-  hideCtx(); ctxAnnotId=null;
+  return el || null;
 }
-document.addEventListener('click',e=>{
-  if(!document.getElementById('ctx-menu').contains(e.target)) hideCtx();
+
+/* ── PEN: use viewBox="0 0 100 100" on an SVG that fills the overlay.
+       Points stored as 0-1 fractions → multiply by 100 for viewBox coords.
+       This is the correct fix: SVG path 'd' attribute doesn't support '%'. ── */
+function buildPenAnnotEl(a) {
+  const wrap = document.createElement('div');
+  wrap.className = 'asvg-wrap';
+  wrap.style.cssText = 'position:absolute;inset:0;overflow:visible';
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
+
+  const d = a.points.map((p, i) => (i === 0 ? 'M' : 'L') + (p.x * 100).toFixed(3) + ',' + (p.y * 100).toFixed(3)).join(' ');
+
+  // Fat invisible ghost path — wide hitbox for eraser (20px via non-scaling-stroke)
+  const ghost = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  ghost.setAttribute('d', d);
+  ghost.setAttribute('fill', 'none');
+  ghost.setAttribute('stroke', 'transparent');
+  ghost.setAttribute('stroke-width', 20);
+  ghost.setAttribute('vector-effect', 'non-scaling-stroke');
+  ghost.setAttribute('stroke-linecap', 'round');
+  ghost.setAttribute('stroke-linejoin', 'round');
+  ghost.dataset.ghost = '1';
+
+  // Visible path
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill', 'none');
+  if (a.type === 'texthighlight') {
+    // Semi-transparent highlight stroke — use raw colour values for multiply blend
+    path.setAttribute('stroke', CHex[a.color] || CHex.yellow);
+    path.setAttribute('stroke-width', a.sw || 14);
+    path.setAttribute('opacity', '0.45');
+    svg.style.mixBlendMode = 'multiply';
+  } else {
+    path.setAttribute('stroke', CHex[a.color] || CHex.yellow);
+    path.setAttribute('stroke-width', a.sw || 4);
+  }
+  path.setAttribute('vector-effect', 'non-scaling-stroke');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+
+  svg.appendChild(ghost);
+  svg.appendChild(path);
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+function buildArrowAnnotEl(a) {
+  const wrap = document.createElement('div');
+  wrap.className = 'asvg-wrap';
+  wrap.style.cssText = 'position:absolute;inset:0;overflow:visible';
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
+
+  const c = CHex[a.color] || CHex.yellow;
+  const markerId = 'arr-' + a.id;
+
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  marker.setAttribute('id', markerId);
+  marker.setAttribute('viewBox', '0 0 10 10');
+  marker.setAttribute('refX', '9'); marker.setAttribute('refY', '5');
+  marker.setAttribute('markerWidth', '6'); marker.setAttribute('markerHeight', '6');
+  marker.setAttribute('orient', 'auto-start-reverse');
+  const arrowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  arrowPath.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+  arrowPath.setAttribute('fill', c);
+  marker.appendChild(arrowPath); defs.appendChild(marker); svg.appendChild(defs);
+
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', a.x1); line.setAttribute('y1', a.y1);
+  line.setAttribute('x2', a.x2); line.setAttribute('y2', a.y2);
+  line.setAttribute('stroke', c);
+  line.setAttribute('stroke-width', a.sw || 3);
+  line.setAttribute('vector-effect', 'non-scaling-stroke');
+  line.setAttribute('marker-end', `url(#${markerId})`);
+
+  // Fat ghost line for eraser hitbox
+  const ghostLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  ghostLine.setAttribute('x1', a.x1); ghostLine.setAttribute('y1', a.y1);
+  ghostLine.setAttribute('x2', a.x2); ghostLine.setAttribute('y2', a.y2);
+  ghostLine.setAttribute('stroke', 'transparent');
+  ghostLine.setAttribute('stroke-width', 20);
+  ghostLine.setAttribute('vector-effect', 'non-scaling-stroke');
+  ghostLine.dataset.ghost = '1';
+
+  svg.appendChild(ghostLine);
+  svg.appendChild(line);
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+function buildMeasureAnnotEl(a) {
+  const wrap = document.createElement('div');
+  wrap.className = 'asvg-wrap';
+  wrap.style.cssText = 'position:absolute;inset:0;overflow:visible';
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
+
+  // Ghost for eraser hitbox
+  const ghost = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  ghost.setAttribute('x1', a.x1); ghost.setAttribute('y1', a.y1);
+  ghost.setAttribute('x2', a.x2); ghost.setAttribute('y2', a.y2);
+  ghost.setAttribute('stroke', 'transparent'); ghost.setAttribute('stroke-width', 20);
+  ghost.setAttribute('vector-effect', 'non-scaling-stroke'); ghost.dataset.ghost = '1';
+
+  // Dashed measure line
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', a.x1); line.setAttribute('y1', a.y1);
+  line.setAttribute('x2', a.x2); line.setAttribute('y2', a.y2);
+  line.setAttribute('stroke', '#7c3aed'); line.setAttribute('stroke-width', 2);
+  line.setAttribute('vector-effect', 'non-scaling-stroke');
+  line.setAttribute('stroke-dasharray', '5,3');
+
+  // End tick marks (perpendicular to line)
+  const dx = a.x2 - a.x1, dy = a.y2 - a.y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len * 1.5, ny = dx / len * 1.5; // perpendicular, 1.5 viewBox units
+  const mkTick = (px, py) => {
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    t.setAttribute('x1', px - nx); t.setAttribute('y1', py - ny);
+    t.setAttribute('x2', px + nx); t.setAttribute('y2', py + ny);
+    t.setAttribute('stroke', '#7c3aed'); t.setAttribute('stroke-width', 2);
+    t.setAttribute('vector-effect', 'non-scaling-stroke');
+    return t;
+  };
+
+  // Label background + text
+  const midX = (a.x1 + a.x2) / 2, midY = (a.y1 + a.y2) / 2;
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  const labelStr = a.label || `${a.unit || 'px'}`;
+  const charW = labelStr.length * 1.5 + 2;
+  bg.setAttribute('x', midX - charW / 2); bg.setAttribute('y', midY - 4.5);
+  bg.setAttribute('width', charW); bg.setAttribute('height', 5.5);
+  bg.setAttribute('rx', '1'); bg.setAttribute('fill', 'rgba(255,255,255,0.88)');
+
+  const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  txt.setAttribute('x', midX); txt.setAttribute('y', midY);
+  txt.setAttribute('text-anchor', 'middle'); txt.setAttribute('dominant-baseline', 'middle');
+  txt.setAttribute('fill', '#7c3aed'); txt.setAttribute('font-size', '3.2');
+  txt.setAttribute('font-family', 'DM Mono, monospace'); txt.setAttribute('font-weight', '500');
+  txt.textContent = labelStr;
+
+  svg.appendChild(ghost); svg.appendChild(line);
+  svg.appendChild(mkTick(a.x1, a.y1)); svg.appendChild(mkTick(a.x2, a.y2));
+  svg.appendChild(bg); svg.appendChild(txt);
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+/* ═══════════════════════════════════════════════
+   ANNOTATION PANEL (SIDEBAR)
+═══════════════════════════════════════════════ */
+function updateAnnotPanel() {
+  const panel = document.getElementById('sp-notes');
+  panel.querySelectorAll('.aitem').forEach(el => el.remove());
+  const empty = document.getElementById('aempty');
+  if (!annots.length) { empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+
+  [...annots].reverse().forEach(a => {
+    const item = document.createElement('div');
+    item.className = 'aitem'; item.dataset.id = a.id;
+    const preview = a.text || (typeLabels[a.type] || a.type);
+    const tsStr = a.ts ? new Date(a.ts).toLocaleString(undefined, {dateStyle:'short',timeStyle:'short'}) : '';
+    const canEdit = a.type === 'note' || a.type === 'text';
+    item.innerHTML = `
+      <button class="adel" title="Delete">✕</button>
+      <div class="atype"><span class="adot" style="background:${CHex[a.color]}"></span>${typeLabels[a.type] || a.type}</div>
+      <div class="apreview">${preview}</div>
+      <div class="aauthor">● ${a.author || 'Unknown'}</div>
+      <div class="ats">${tsStr} · Pg ${a.pageNum}</div>
+      ${canEdit ? `<button class="aedit-btn" title="Edit text" onclick="event.stopPropagation();editAnnotById(${a.id})">Edit</button>` : ''}`;
+    item.querySelector('.adel').onclick = ev => { ev.stopPropagation(); deleteAnnotById(a.id); };
+    item.onclick = () => {
+      document.querySelectorAll('.aitem').forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+      scrollToPage(a.pageNum);
+    };
+    panel.insertBefore(item, empty);
+  });
+}
+
+function editAnnotById(id) {
+  const a = annots.find(x => x.id === id);
+  if (!a || (a.type !== 'note' && a.type !== 'text')) return;
+  const el = document.querySelector(`[data-aid="${id}"]`);
+  let sx = window.innerWidth / 2, sy = window.innerHeight / 2;
+  if (el) { const r = el.getBoundingClientRect(); sx = r.left; sy = r.bottom; }
+  const emmaData = {
+    discipline: a.discipline, priority: a.priority,
+    gridRef: a.gridRef, action: a.action,
+    emmaExclude: a.emmaExclude || false
+  };
+  showTxtPop(sx, sy, (txt, emmaFields) => {
+    a.text = txt;
+    Object.assign(a, emmaFields);
+    syncAnnots(); updateAnnotPanel(); updateEmmaRegister();
+    toast('Annotation updated');
+  }, a.text, emmaData);
+}
+
+/* ═══════════════════════════════════════════════
+   CONTEXT MENU
+═══════════════════════════════════════════════ */
+function ctxDelete() {
+  if (ctxAnnotId != null) { deleteAnnotById(ctxAnnotId); toast('Annotation deleted'); }
+  hideCtx(); ctxAnnotId = null;
+}
+function ctxEdit() {
+  if (ctxAnnotId == null) { hideCtx(); return; }
+  editAnnotById(ctxAnnotId);
+  hideCtx(); ctxAnnotId = null;
+}
+document.addEventListener('click', e => {
+  if (!document.getElementById('ctx-menu').contains(e.target)) hideCtx();
 });
 
-/* ──────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════
    SIDEBAR TABS
-────────────────────────────────────────────────── */
-function switchTab(tab,btn){
-  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
-  document.getElementById('sp-pages').classList.toggle('hidden',tab!=='pages');
-  document.getElementById('sp-notes').classList.toggle('hidden',tab!=='notes');
+═══════════════════════════════════════════════ */
+function switchTab(tab, btn) {
+  document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('sp-pages').classList.toggle('hidden', tab !== 'pages');
+  document.getElementById('sp-notes').classList.toggle('hidden', tab !== 'notes');
+  const emmaPanel = document.getElementById('sp-emma');
+  emmaPanel.classList.toggle('visible', tab === 'emma');
+  document.getElementById('sidebar').classList.toggle('emma-open', tab === 'emma');
 }
 
-/* ──────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════
    MERGE / SPLIT
-────────────────────────────────────────────────── */
-function onMergeFiles(e){
-  mergeFiles=Array.from(e.target.files);
-  document.getElementById('mfl').innerHTML=mergeFiles.map((f,i)=>`<div class="frow">${i+1}. ${f.name}</div>`).join('');
+═══════════════════════════════════════════════ */
+function onMergeFiles(e) {
+  mergeFiles = Array.from(e.target.files);
+  document.getElementById('mfl').innerHTML =
+    mergeFiles.map((f, i) => `<div class="frow">${i + 1}. ${f.name}</div>`).join('');
 }
 
-async function loadPdfLib(){
-  if(window.PDFLib) return;
-  await new Promise((res,rej)=>{
-    const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
-    s.onload=res; s.onerror=rej; document.head.appendChild(s);
+async function loadPdfLib() {
+  if (window.PDFLib) return;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+    s.onload = res; s.onerror = rej; document.head.appendChild(s);
   });
 }
 
-async function doMerge(){
-  if(mergeFiles.length<2){toast('Select at least 2 PDF files');return;}
+async function doMerge() {
+  if (mergeFiles.length < 2) { toast('Select at least 2 PDF files'); return; }
   toast('Merging…');
-  try{
+  try {
     await loadPdfLib();
-    const {PDFDocument}=PDFLib;
-    const merged=await PDFDocument.create();
-    for(const f of mergeFiles){
-      const src=await PDFDocument.load(await f.arrayBuffer());
-      const pages=await merged.copyPages(src,src.getPageIndices());
-      pages.forEach(p=>merged.addPage(p));
+    const { PDFDocument } = PDFLib;
+    const merged = await PDFDocument.create();
+    for (const f of mergeFiles) {
+      const src = await PDFDocument.load(await f.arrayBuffer());
+      const pages = await merged.copyPages(src, src.getPageIndices());
+      pages.forEach(p => merged.addPage(p));
     }
-    dl(await merged.save(),document.getElementById('mfn').value||'merged.pdf');
+    dl(await merged.save(), document.getElementById('mfn').value || 'merged.pdf');
     closeM('mm'); toast(`✓ Merged ${mergeFiles.length} files`);
-  }catch(e){toast('Merge failed: '+e.message);}
+  } catch(e) { toast('Merge failed: ' + e.message); }
 }
 
-async function doSplit(){
-  if(!pdfBytes){toast('Open a PDF first');return;}
-  const ranges=document.getElementById('sranges').value.trim();
-  const prefix=document.getElementById('sprefix').value.trim()||'drawing';
-  if(!ranges){toast('Enter page ranges');return;}
-  try{
+async function doSplit() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  const ranges = document.getElementById('sranges').value.trim();
+  const prefix = document.getElementById('sprefix').value.trim() || 'drawing';
+  if (!ranges) { toast('Enter page ranges'); return; }
+  try {
     await loadPdfLib();
-    const {PDFDocument}=PDFLib;
-    const src=await PDFDocument.load(pdfBytes.slice(0));
-    let count=0;
-    for(const r of ranges.split(',').map(s=>s.trim()).filter(Boolean)){
-      const pages=parseR(r,nPages); if(!pages.length) continue;
-      const out=await PDFDocument.create();
-      const cp=await out.copyPages(src,pages.map(p=>p-1));
-      cp.forEach(p=>out.addPage(p)); dl(await out.save(),`${prefix}_${r.replace(/\s/g,'')}.pdf`);
-      count++; await new Promise(r=>setTimeout(r,250));
+    const { PDFDocument } = PDFLib;
+    const src = await PDFDocument.load(pdfBytes.slice(0));
+    let count = 0;
+    for (const r of ranges.split(',').map(s => s.trim()).filter(Boolean)) {
+      const pages = parseR(r, nPages); if (!pages.length) continue;
+      const out = await PDFDocument.create();
+      const cp = await out.copyPages(src, pages.map(p => p - 1));
+      cp.forEach(p => out.addPage(p));
+      dl(await out.save(), `${prefix}_${r.replace(/\s/g,'')}.pdf`);
+      count++;
+      await new Promise(r => setTimeout(r, 250));
     }
-    closeM('ms'); toast(`✓ Created ${count} file${count!==1?'s':''}`);
-  }catch(e){toast('Split failed: '+e.message);}
+    closeM('ms'); toast(`✓ Created ${count} file${count !== 1 ? 's' : ''}`);
+  } catch(e) { toast('Split failed: ' + e.message); }
 }
 
-function parseR(r,max){
-  const pages=[];
-  if(r.includes('-')){ const[a,b]=r.split('-').map(Number); for(let i=a;i<=Math.min(b,max);i++)pages.push(i); }
-  else{ const n=parseInt(r); if(n>=1&&n<=max)pages.push(n); }
+function parseR(r, max) {
+  const pages = [];
+  if (r.includes('-')) {
+    const [a, b] = r.split('-').map(Number);
+    for (let i = a; i <= Math.min(b, max); i++) pages.push(i);
+  } else {
+    const n = parseInt(r); if (n >= 1 && n <= max) pages.push(n);
+  }
   return pages;
 }
-function dl(bytes,name){
-  const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
-  const a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
+
+function dl(bytes, name) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
 }
 
-/* ──────────────────────────────────────────────────
-   SCROLL SPY
-────────────────────────────────────────────────── */
-document.getElementById('viewer').addEventListener('scroll',()=>{
-  if(!pdf) return;
-  const vr=document.getElementById('viewer').getBoundingClientRect();
-  let best=1,bestV=0;
-  for(let i=1;i<=nPages;i++){
-    const el=document.getElementById(`pw-${i}`); if(!el) continue;
-    const r=el.getBoundingClientRect();
-    const vis=Math.min(r.bottom,vr.bottom)-Math.max(r.top,vr.top);
-    if(vis>bestV){bestV=vis;best=i;}
-  }
-  if(best!==curPg){
-    curPg=best; document.getElementById('pgi').value=best;
-    document.querySelectorAll('.titem').forEach(t=>
-      t.classList.toggle('active',parseInt(t.dataset.page)===best));
-  }
-});
+/* ═══════════════════════════════════════════════
+   SCALE CALIBRATION
+═══════════════════════════════════════════════ */
+function applyScale() {
+  const px   = parseFloat(document.getElementById('scale-px').value);
+  const real = parseFloat(document.getElementById('scale-real').value);
+  const unit = document.getElementById('scale-unit').value;
+  if (!px || !real || px <= 0 || real <= 0) { toast('Enter valid values'); return; }
+  // pxPerUnit = screen pixels per unit at zoom=1
+  measureScale = { pxPerUnit: (px / zoom) / real, unit };
+  localStorage.setItem('engdoc_scale', JSON.stringify(measureScale));
+  document.getElementById('sb-scale').textContent = `⚖ 1 ${unit} = ${(px/real).toFixed(1)} px`;
+  closeM('mscale');
+  toast(`Scale set: 1 ${unit} = ${(px/real).toFixed(1)} px at current zoom`);
+}
 
-// initialise tool state
+/* ═══════════════════════════════════════════════
+   SAVE / LOAD SESSION (.engdoc)
+═══════════════════════════════════════════════ */
+function saveSession() {
+  if (!pdfName && !annots.length) { toast('Nothing to save'); return; }
+  const data = { v: 2, pdfName, annotIdSeq, measureScale, annots, emmaRows };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
+  a.click(); URL.revokeObjectURL(url);
+  toast(`✓ Session saved — ${annots.length} annotation${annots.length !== 1 ? 's' : ''}`);
+}
+
+async function loadSession(e) {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data.annots) throw new Error('Invalid session file');
+    annots = data.annots;
+    emmaRows = data.emmaRows || {};
+    annotIdSeq = data.annotIdSeq || annots.reduce((m,a) => Math.max(m, a.id||0), 0);
+    if (data.measureScale) {
+      measureScale = data.measureScale;
+      document.getElementById('sb-scale').textContent =
+        `⚖ Scale: 1 ${measureScale.unit} = ${(measureScale.pxPerUnit).toFixed(1)} px`;
+    }
+    syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
+    toast(`✓ Loaded session: ${annots.length} annotation${annots.length !== 1 ? 's' : ''}`);
+  } catch(err) { toast('Failed to load session: ' + err.message); }
+  e.target.value = '';
+}
+
+/* ═══════════════════════════════════════════════
+   SHEETJS LOADER
+═══════════════════════════════════════════════ */
+async function loadSheetJs() {
+  if (window.XLSX) return;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   EMMA LIVE REGISTER
+   emmaRows mirrors annots but holds the extra
+   Checking Review fields (cat, type, reply, etc.)
+   Keyed by annot.id so they stay in sync.
+═══════════════════════════════════════════════ */
+let emmaRows = {};      // { annotId: { cat, commentType, accepted, reply, closedOut, notes, docNo, rev } }
+let emmaEditId = null;  // annotId being edited in the modal
+let emmaTemplateBuf = null; // ArrayBuffer of loaded .xlsm template
+
+function emmaRowForAnnot(a) {
+  if (!emmaRows[a.id]) emmaRows[a.id] = { cat:'', commentType:'', accepted:'', reply:'', closedOut:'No', notes:'',
+    docNo: document.getElementById('emma-doc-no').value || '',
+    rev:   document.getElementById('emma-rev-no').value || '' };
+  return emmaRows[a.id];
+}
+
+function updateEmmaRegister() {
+  const register = document.getElementById('emma-register');
+  const empty    = document.getElementById('emma-empty');
+  // Only note/text/measure annotations that aren't excluded go into EMMA
+  const emmaAnnots = annots.filter(a =>
+    (a.type === 'note' || a.type === 'text' || a.type === 'measure') && !a.emmaExclude
+  );
+
+  // Remove existing rows (not the empty message)
+  register.querySelectorAll('.emma-row').forEach(el => el.remove());
+
+  document.getElementById('emma-count-label').textContent = `${emmaAnnots.length} comment${emmaAnnots.length !== 1 ? 's' : ''}`;
+
+  if (!emmaAnnots.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  emmaAnnots.forEach((a, i) => {
+    const row = emmaRowForAnnot(a);
+    const div = document.createElement('div');
+    div.className = 'emma-row'; div.dataset.id = a.id;
+
+    const catClass = `emma-cat-${row.cat || ''}`;
+    const stClass  = row.closedOut === 'Yes' ? 'emma-closed-st' : 'emma-open-st';
+    const stLabel  = row.closedOut === 'Yes' ? 'Closed' : 'Open';
+
+    div.innerHTML = `
+      <div class="emma-row-num">${i + 1}</div>
+      <div>
+        <div class="emma-row-comment">${a.text || (a.type === 'measure' ? a.label || '—' : '—')}</div>
+        <div class="emma-row-doc">Pg ${a.pageNum} · ${a.author || '—'}</div>
+      </div>
+      <div><span class="emma-cat-badge ${catClass}">${row.cat || '—'}</span></div>
+      <div style="font-size:9px;color:var(--gray-500);padding-top:3px">${row.commentType || '—'}</div>
+      <div><span class="emma-status ${stClass}">${stLabel}</span></div>`;
+
+    div.addEventListener('click', () => openEmmaRowEdit(a.id));
+    register.insertBefore(div, empty);
+  });
+}
+
+function openEmmaRowEdit(annotId) {
+  emmaEditId = annotId;
+  const a   = annots.find(x => x.id === annotId); if (!a) return;
+  const row = emmaRowForAnnot(a);
+
+  document.getElementById('er-comment').value  = a.text || (a.type === 'measure' ? a.label || '' : '');
+  document.getElementById('er-docno').value    = row.docNo || document.getElementById('emma-doc-no').value || '';
+  document.getElementById('er-rev').value      = row.rev   || document.getElementById('emma-rev-no').value  || '';
+  document.getElementById('er-cat').value      = row.cat      || '';
+  document.getElementById('er-type').value     = row.commentType || '';
+  document.getElementById('er-accepted').value = row.accepted   || '';
+  document.getElementById('er-closed').value   = row.closedOut  || 'No';
+  document.getElementById('er-reply').value    = row.reply  || '';
+  document.getElementById('er-notes').value    = row.notes  || '';
+  openM('memma-row');
+}
+
+function saveEmmaRow() {
+  if (emmaEditId == null) { closeM('memma-row'); return; }
+  const a = annots.find(x => x.id === emmaEditId); if (!a) { closeM('memma-row'); return; }
+
+  // Update comment text
+  const newText = document.getElementById('er-comment').value.trim();
+  if (newText && (a.type === 'note' || a.type === 'text')) { a.text = newText; syncAnnots(); updateAnnotPanel(); }
+
+  // Save EMMA fields
+  emmaRows[emmaEditId] = {
+    docNo:       document.getElementById('er-docno').value.trim(),
+    rev:         document.getElementById('er-rev').value.trim(),
+    cat:         document.getElementById('er-cat').value,
+    commentType: document.getElementById('er-type').value,
+    accepted:    document.getElementById('er-accepted').value,
+    closedOut:   document.getElementById('er-closed').value,
+    reply:       document.getElementById('er-reply').value.trim(),
+    notes:       document.getElementById('er-notes').value.trim(),
+  };
+
+  closeM('memma-row');
+  updateEmmaRegister();
+  toast('EMMA row updated');
+}
+
+/* ── Load existing .xlsm template to pre-fill project info ── */
+async function loadEmmaTemplate(e) {
+  const file = e.target.files[0]; if (!file) return;
+  emmaTemplateBuf = await file.arrayBuffer();
+  // Try to read project info using SheetJS
+  try {
+    await loadSheetJs();
+    const wb = XLSX.read(emmaTemplateBuf, { type: 'array' });
+    const ws = wb.Sheets['Document Check Sheet'];
+    if (ws) {
+      const g = (cell) => ws[cell] ? (ws[cell].v ?? '') : '';
+      // D5 = Specific Design, C4 = Project Title, D6 = Discipline, K5 = Rev, K6 = CheckSheetNo
+      const specDesign = g('D5');
+      const projTitle  = g('C4') || g('D4') || '';
+      const discipline = g('D6');
+      const rev        = g('K5');
+      const chkNo      = g('K6');
+
+      if (specDesign) document.getElementById('emma-specific').value   = specDesign;
+      if (projTitle)  document.getElementById('emma-proj-title').value = projTitle;
+      if (discipline) document.getElementById('emma-discipline').value = discipline;
+      if (rev)        document.getElementById('emma-rev-no').value     = typeof rev === 'string' ? rev : String(rev);
+      if (chkNo)      document.getElementById('emma-chk-no').value     = chkNo;
+    }
+    const ws2 = wb.Sheets['Checking Review'];
+    if (ws2) {
+      const g = (cell) => ws2[cell] ? (ws2[cell].v ?? '') : '';
+      const projNo = g('D3');
+      const projNm = g('D4');
+      if (projNo && projNo !== 0) document.getElementById('emma-proj-no').value    = String(projNo);
+      if (projNm && projNm !== 0) document.getElementById('emma-proj-title').value = String(projNm);
+    }
+    toast('✓ Template loaded — project info imported');
+  } catch(err) {
+    toast('Could not read template metadata: ' + err.message);
+  }
+  e.target.value = '';
+}
+
+/* ── Export into real .xlsm template ── */
+async function exportEmma() {
+  const emmaAnnots = annots.filter(a =>
+    (a.type === 'note' || a.type === 'text' || a.type === 'measure') && !a.emmaExclude
+  );
+  if (!emmaAnnots.length) { toast('No EMMA comments to export'); return; }
+
+  const docTitle   = document.getElementById('emma-proj-title').value.trim();
+  const projNo     = document.getElementById('emma-proj-no').value.trim();
+  const discipline = document.getElementById('emma-discipline').value;
+  const docNo      = document.getElementById('emma-doc-no').value.trim();
+  const rev        = document.getElementById('emma-rev-no').value.trim();
+  const specific   = document.getElementById('emma-specific').value.trim();
+  const chkNo      = document.getElementById('emma-chk-no').value.trim();
+
+  closeM('memma');
+  toast('Building EMMA Checksheet…');
+
+  try {
+    await loadSheetJs();
+
+    let wb;
+    if (emmaTemplateBuf) {
+      // Write into the real template
+      wb = XLSX.read(emmaTemplateBuf, { type: 'array', cellStyles: true, bookVBA: true });
+    } else {
+      // Build fresh workbook that mirrors the template structure
+      wb = XLSX.utils.book_new();
+    }
+
+    // ── Populate Document Check Sheet ──
+    if (wb.Sheets['Document Check Sheet']) {
+      const ws = wb.Sheets['Document Check Sheet'];
+      const set = (cell, val) => { if (ws[cell]) ws[cell].v = val; else ws[cell] = { t:'s', v: val }; };
+      if (docTitle)   set('C4', docTitle);
+      if (projNo)     set('I4', projNo);
+      if (specific)   set('D5', specific);
+      if (rev)        set('K5', rev);
+      if (discipline) set('D6', discipline);
+      if (chkNo)      set('K6', chkNo);
+      const today = new Date();
+      set('G5', today);
+      if (ws['G5']) ws['G5'].t = 'd';
+    }
+
+    // ── Populate Checking Review ──
+    const getOrCreateSheet = (name) => {
+      if (wb.Sheets[name]) return wb.Sheets[name];
+      const newWs = {}; XLSX.utils.book_append_sheet(wb, newWs, name); return newWs;
+    };
+    const ws = getOrCreateSheet('Checking Review');
+
+    // Populate header fields (rows 3-7)
+    const setCell = (cell, val, type='s') => { ws[cell] = { t: type, v: val }; };
+    if (projNo)   setCell('D3', projNo,   isNaN(projNo) ? 's' : 'n');
+    if (docTitle) setCell('D4', docTitle);
+    if (discipline) setCell('D5', discipline);
+    if (chkNo)    setCell('D6', chkNo);
+    if (specific) setCell('D7', specific);
+
+    // Data rows start at row 11, columns B–N
+    // B=Item No, C=Doc No, D=Rev, E=Date, F=Designer Name, G=Checker Name,
+    // H=Checker Cat, I=Comment, J=Comment Type, K=Accepted, L=Reply, M=Closed, N=Notes
+    const colLetters = ['B','C','D','E','F','G','H','I','J','K','L','M','N'];
+    const today = new Date();
+
+    emmaAnnots.forEach((a, idx) => {
+      const rowNum = 11 + idx;
+      const row = emmaRowForAnnot(a);
+      const comment = a.text || (a.type === 'measure' ? a.label || '' : '');
+
+      ws[`B${rowNum}`] = { t:'n', v: idx + 1 };
+      ws[`C${rowNum}`] = { t:'s', v: row.docNo || docNo || '' };
+      ws[`D${rowNum}`] = { t:'s', v: row.rev   || rev   || '' };
+      ws[`E${rowNum}`] = { t:'d', v: a.ts ? new Date(a.ts) : today };
+      ws[`F${rowNum}`] = { t:'s', v: a.author || currentAuthor || '' };
+      ws[`G${rowNum}`] = { t:'s', v: currentAuthor || '' };
+      ws[`H${rowNum}`] = { t:'s', v: row.cat         || '' };
+      ws[`I${rowNum}`] = { t:'s', v: comment };
+      ws[`J${rowNum}`] = { t:'s', v: row.commentType || '' };
+      ws[`K${rowNum}`] = { t:'s', v: row.accepted    || '' };
+      ws[`L${rowNum}`] = { t:'s', v: row.reply       || '' };
+      ws[`M${rowNum}`] = { t:'s', v: row.closedOut   || 'No' };
+      ws[`N${rowNum}`] = { t:'s', v: row.notes       || '' };
+    });
+
+    // Update sheet ref
+    const lastRow = 10 + emmaAnnots.length;
+    ws['!ref'] = `A1:N${Math.max(lastRow, 499)}`;
+
+    // Download
+    const fname = (chkNo || (docNo ? docNo.replace(/[^\w-]/g,'_') : 'EMMA')) + '_Checksheet.xlsm';
+    XLSX.writeFile(wb, fname, { bookType: 'xlsm', bookVBA: true });
+    toast(`✓ EMMA Checksheet exported — ${emmaAnnots.length} comment${emmaAnnots.length !== 1 ? 's' : ''}`);
+  } catch(err) {
+    console.error(err);
+    toast('Export failed: ' + err.message);
+  }
+}
+
+function openEmmaExport() {
+  const emmaAnnots = annots.filter(a =>
+    (a.type === 'note' || a.type === 'text' || a.type === 'measure') && !a.emmaExclude
+  );
+  if (!emmaAnnots.length) {
+    toast('No EMMA comments to export — add Notes or Text annotations (with EMMA checked) first'); return;
+  }
+  const projTitle  = document.getElementById('emma-proj-title').value.trim() || '(not set)';
+  const docNo      = document.getElementById('emma-doc-no').value.trim()     || '(not set)';
+  const rev        = document.getElementById('emma-rev-no').value.trim()     || '(not set)';
+  const chkNo      = document.getElementById('emma-chk-no').value.trim()     || '(not set)';
+  const openCount  = emmaAnnots.filter(a => (emmaRows[a.id]?.closedOut || 'No') !== 'Yes').length;
+  const closedCount = emmaAnnots.length - openCount;
+  document.getElementById('emma-export-summary').innerHTML =
+    `Project: ${projTitle}<br>Doc No: ${docNo} · Rev: ${rev}<br>Check Sheet: ${chkNo}<br>` +
+    `Comments: ${emmaAnnots.length} total (${openCount} open, ${closedCount} closed)<br>` +
+    `Template: ${emmaTemplateBuf ? '✓ Loaded' : 'None — will create fresh'}`;
+  openM('memma');
+}
+
+// Keep old function name as alias in case called anywhere
+const exportXlsx = openEmmaExport;
+
+// Init
+initAuthor();
+// Restore saved scale
+try {
+  const saved = localStorage.getItem('engdoc_scale');
+  if (saved) {
+    measureScale = JSON.parse(saved);
+    document.getElementById('sb-scale').textContent =
+      `⚖ 1 ${measureScale.unit} = ${measureScale.pxPerUnit.toFixed(1)} px`;
+  }
+} catch(e) {}
+// Ctrl+S save
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveSession(); }
+});
 setTool('highlight');
 </script>
 </body>

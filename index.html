@@ -132,8 +132,8 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   width:20px;height:20px;border-radius:3px;font-size:10px;font-weight:700;
   font-family:var(--mono);margin-top:1px}
 .emma-cat-1{background:#fee2e2;color:#b91c1c}   /* Cat 1 = Critical — red */
-.emma-cat-2{background:#ffedd5;color:#c2410c}   /* Cat 2 = Major — amber */
-.emma-cat-3{background:#fef9c3;color:#854d0e}   /* Cat 3 = Minor — yellow */
+.emma-cat-2{background:#fef9c3;color:#854d0e}   /* Cat 2 = Minor — yellow */
+.emma-cat-3{background:#ffedd5;color:#c2410c}   /* Cat 3 = Major — amber */
 .emma-cat-bp{background:#dbeafe;color:#1d4ed8}  /* BP = Best Practice — blue */
 .emma-cat-{background:var(--gray-100);color:var(--gray-500)}
 .emma-status{font-size:9px;padding:2px 5px;border-radius:3px;font-weight:600;margin-top:2px}
@@ -141,6 +141,15 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 .emma-closed-st{background:#dcfce7;color:#15803d}
 .emma-empty{text-align:center;color:var(--gray-400);font-size:12px;
   padding:28px 16px;line-height:1.8}
+
+/* Search results */
+.sresult{padding:7px 9px;border-radius:var(--radius-sm);margin-bottom:3px;
+  cursor:pointer;border:1px solid var(--gray-200);background:var(--white);
+  transition:all .1s}
+.sresult:hover{border-color:var(--blue-200,#93c5fd);background:var(--blue-50)}
+.sresult-text{font-size:12px;color:var(--gray-800);line-height:1.4;word-break:break-word}
+.sresult-text mark{background:#fef08a;color:inherit;border-radius:2px;padding:0 1px}
+.sresult-pg{font-size:10px;color:var(--gray-400);font-family:var(--mono);margin-top:2px}
 .emma-toolbar{display:flex;align-items:center;gap:6px;padding:7px 10px;
   border-bottom:1px solid var(--gray-200);background:var(--white)}
 .emma-toolbar span{font-size:11px;color:var(--gray-600)}
@@ -534,10 +543,19 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       <button class="stab active" id="stab-pages" onclick="switchTab('pages',this)">Pages</button>
       <button class="stab" id="stab-notes" onclick="switchTab('notes',this)">Markup</button>
       <button class="stab emma" id="stab-emma" onclick="switchTab('emma',this)">EMMA</button>
+      <button class="stab" id="stab-search" onclick="switchTab('search',this)">Search</button>
     </div>
     <div class="spanel" id="sp-pages"></div>
     <div class="spanel hidden" id="sp-notes">
       <div class="aempty" id="aempty">No annotations yet.<br>Use the tools above<br>to start marking.</div>
+    </div>
+    <!-- SEARCH PANEL -->
+    <div class="spanel hidden" id="sp-search">
+      <div style="margin-bottom:8px">
+        <input id="search-input" class="finput" placeholder="Search drawing text…" style="margin-bottom:4px" oninput="onSearchInput(this.value)">
+        <div id="search-status" style="font-size:10px;color:var(--gray-400);font-family:var(--mono)">Open a PDF to search its text</div>
+      </div>
+      <div id="search-results"></div>
     </div>
 
     <!-- EMMA LIVE PANEL -->
@@ -724,9 +742,9 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
           <label class="flabel">Checker Cat</label>
           <select class="finput fselect" id="er-cat" style="padding:5px 8px;margin-bottom:0">
             <option value="">—</option>
-            <option value="1">Cat 1 — Critical (safety/must fix)</option>
-            <option value="2">Cat 2 — Major (technical, should fix)</option>
-            <option value="3">Cat 3 — Minor (consider fixing)</option>
+            <option value="1">Cat 1 — Critical (safety / must fix)</option>
+            <option value="2">Cat 2 — Minor (consider fixing)</option>
+            <option value="3">Cat 3 — Major (technical, should fix)</option>
             <option value="BP">BP — Best Practice</option>
           </select>
         </div>
@@ -952,6 +970,18 @@ const typeLabels = { highlight:'Highlight', rect:'Rectangle', strike:'Strikethro
 let measureScale = null; // { pxPerUnit, unit } — null = uncalibrated
 let lastMeasurePx = null; // screen px length of last calibration line
 
+// Measure click-click-drag state machine
+// 'idle' → click p1 → 'firstSet' → click p2 → 'secondSet' → drag label → commit
+let measureState = 'idle';
+let measureP1 = null;   // {x, y} in overlay pixels on page
+let measureP2 = null;
+let measurePageNum = null;
+let measureVp = null;   // viewport at time of measurement
+let measureLiveSvg = null; // persistent SVG on overlay during 2-click flow
+
+// PDF text content cache — { pageNum: [{str, x, y, w, h, fontSize}] }
+const pdfTextContent = {};
+
 function nextId() { return ++annotIdSeq; }
 function strokeW() { return parseFloat(document.getElementById('stroke-w').value) || 2.5; }
 
@@ -1047,10 +1077,10 @@ async function loadPDF(file) {
   pdfName = file.name;
   pdfBytes = await file.arrayBuffer();
 
-  // Use a streaming-friendly load; no size limit
   pdf = await pdfjsLib.getDocument({ data: pdfBytes.slice(0), disableRange: false, disableStream: false }).promise;
-  nPages = pdf.numPages; curPg = 1; annots = [];
+  nPages = pdf.numPages; curPg = 1; annots = []; emmaRows = {};
   renderedPages.clear(); renderQueue.clear();
+  Object.keys(pdfTextContent).forEach(k => delete pdfTextContent[k]);
 
   document.getElementById('doc-name').textContent = file.name;
   document.getElementById('pgt').textContent = nPages;
@@ -1063,7 +1093,270 @@ async function loadPDF(file) {
   syncAnnots();
   updateAnnotPanel();
   scheduleRender();
+
+  // Extract text in background — don't block rendering
+  extractPdfText().then(() => autoDetectTitleBlock());
   toast(`Opened: ${file.name} — ${nPages} page${nPages !== 1 ? 's' : ''}`);
+}
+
+/* Extract text content from all pages using pdf.js */
+async function extractPdfText() {
+  for (let i = 1; i <= nPages; i++) {
+    try {
+      const page = await pdf.getPage(i);
+      const tc = await page.getTextContent();
+      const vp = page.getViewport({ scale: 1 }); // Use scale 1 for normalised coords
+      pdfTextContent[i] = tc.items
+        .filter(item => item.str && item.str.trim())
+        .map(item => {
+          // pdf.js transform: [scaleX, skewX, skewY, scaleY, tx, ty] in PDF coords (bottom-left origin)
+          const [, , , scaleY, tx, ty] = item.transform;
+          return {
+            str: item.str.trim(),
+            x: tx / vp.width,                       // normalised 0-1
+            y: 1 - (ty / vp.height),                // flip Y — PDF origin is bottom-left
+            fontSize: Math.abs(scaleY) / vp.height,  // normalised font size
+            width: item.width / vp.width,
+          };
+        });
+    } catch(e) { /* skip page if extraction fails */ }
+  }
+}
+
+/* Try to detect common title block fields from page 1 text.
+   
+   Title block convention (NR / TRU / standard CAD):
+   - Small label text (e.g. "Drawing Number") in top-left of a cell
+   - Larger value text immediately below it in the same cell
+   - Both share roughly the same x position (left edge of cell)
+   
+   Strategy:
+   1. Find the label item (small font, matches pattern)
+   2. Look for a value directly below it (larger font, same x band, within ~3 line-heights)
+   3. Fall back to right-of-label only if nothing found below
+   4. For multi-line values (e.g. Drawing Title), concatenate consecutive lines
+*/
+function autoDetectTitleBlock() {
+  const items = pdfTextContent[1];
+  if (!items || !items.length) return;
+
+  // Sort by y then x for predictable order
+  const sorted = [...items].sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x);
+
+  // Estimate typical label font size (small items) and value font size (large items)
+  const fontSizes = sorted.map(it => it.fontSize).filter(f => f > 0).sort((a,b) => a-b);
+  const medianFont = fontSizes[Math.floor(fontSizes.length / 2)] || 0.01;
+
+  // A "label" is small-font text — values are checked inline with fontSize comparisons
+  const isLabel = (it) => it.fontSize <= medianFont * 1.4;
+
+  /* Main lookup: find a SMALL-FONT label matching the pattern, then get the LARGER value below it */
+  const find = (patterns, multiLine = false) => {
+    for (const pat of patterns) {
+      const re = new RegExp(pat, 'i');
+      // Only match small-font items as labels (labels are always small in title blocks)
+      const label = sorted.find(it =>
+        re.test(it.str.trim()) &&
+        it.str.trim().length < 50 &&
+        isLabel(it)                 // ← must be small font
+      );
+      if (!label) continue;
+
+      // Look for value directly below — must be in the same cell column (tight x-band)
+      // and larger font than the label
+      const below = sorted.filter(it =>
+        it !== label &&
+        it.y > label.y &&
+        it.y <= label.y + 0.07 &&
+        it.x >= label.x - 0.02 &&          // tight: value starts at roughly same x
+        it.x <= label.x + 0.45 &&
+        it.str.trim().length >= 1 &&
+        it.fontSize >= label.fontSize * 1.1 // value is larger than label
+      ).sort((a, b) => a.y - b.y || a.x - b.x);
+
+      if (below.length) {
+        if (!multiLine) return below[0].str.trim();
+        // Multi-line: collect consecutive value lines in the same cell
+        const firstY = below[0].y;
+        const lines = sorted.filter(it =>
+          it !== label &&
+          it.y >= firstY - 0.002 &&
+          it.y <= firstY + 0.15 &&
+          it.x >= label.x - 0.02 &&
+          it.x <= label.x + 0.45 &&
+          it.fontSize >= label.fontSize * 1.1 &&
+          it.str.trim().length > 0
+        ).sort((a, b) => a.y - b.y || a.x - b.x);
+
+        const result = [];
+        let lastY = -999;
+        for (const it of lines) {
+          // Stop if we hit another small label (next cell)
+          if (isLabel(it) && it.y > firstY + 0.005 && it.fontSize < label.fontSize * 1.5) break;
+          if (Math.abs(it.y - lastY) < 0.003) {
+            // Same line — append with space
+            result[result.length - 1] += ' ' + it.str.trim();
+          } else {
+            result.push(it.str.trim());
+            lastY = it.y;
+          }
+        }
+        return result.filter(Boolean).join(' ').trim() || below[0].str.trim();
+      }
+
+      // No value below — try same line to the right (some title blocks are horizontal)
+      const right = sorted.filter(it =>
+        it !== label &&
+        Math.abs(it.y - label.y) < 0.01 &&
+        it.x > label.x + label.width + 0.01 &&
+        it.str.trim().length >= 1 &&
+        it.fontSize >= label.fontSize
+      ).sort((a, b) => a.x - b.x);
+      if (right.length) return right[0].str.trim();
+    }
+    return null;
+  };
+
+  // ── Field extraction — ordered by priority; more specific patterns first ──
+  // Drawing Number (bottom of title block, longest ref string)
+  const drawingNo = find([
+    'drawing\\s*number', 'drg\\s*no\\.?$', 'dwg\\s*no\\.?$',
+    'document\\s*number', 'doc\\s*no\\.?$', 'drawing\\s*no\\.?$'
+  ]);
+  // Revision
+  const revision = find([
+    '^revision$', '^rev\\.?$', 'revision\\s*no', 'issue\\s*no', 'issue\\s*status'
+  ]);
+  // Contract / Project numbers
+  const contractNo = find([
+    'contract\\s*no\\.?', 'contract\\s*number', 'job\\s*no', 'project\\s*no\\.?(?!t)', 'proj\\s*no'
+  ]);
+  // Contract Title
+  const contractTitle = find(['contract\\s*title'], true);
+  // Project name
+  const projTitle = find(['^project$', 'project\\s*title', 'project\\s*name'], true);
+  // Drawing Title
+  const drawingTitle = find(['drawing\\s*title', 'document\\s*title', 'sheet\\s*title', '^title$'], true);
+  // Location
+  const location = find(['^location$', 'location\\s*[:/]?$', 'site\\s*location']);
+  // Contractor / Organisation
+  const contractor = find(['^contractor', 'contractor\\s*[:(]', '^organisation$']);
+  // Type / Role → Discipline
+  const typeField = find(['^type$']);
+  const roleField = find(['^role$']);
+  const drawn  = find(['^drawn$', '^drawn\\s*by$', 'designed\\s*by$', 'prepared\\s*by$']);
+  const scale  = find(['^scale', '^scales?$']);
+
+  let detected = 0;
+  const set = (id, val) => {
+    if (!val || val.length < 1 || val.length > 300) return;
+    const el = document.getElementById(id);
+    if (el && !el.value) { el.value = val.trim(); detected++; }
+  };
+
+  // Map to EMMA panel fields
+  set('emma-doc-no',      drawingNo);
+  set('emma-rev-no',      revision);
+  set('emma-proj-no',     contractNo);
+  // Project title: prefer contract title, then location, then project name
+  set('emma-proj-title',  contractTitle || location || projTitle || contractor);
+  // Specific design: drawing title is most specific
+  set('emma-specific',    drawingTitle || contractTitle);
+
+  // Discipline from type/role fields
+  const discRaw = typeField || roleField;
+  if (discRaw) {
+    const discEl = document.getElementById('emma-discipline');
+    const discMap = [
+      ['civil', 'Civils'], ['drainage', 'Drainage'],
+      ['track', 'Track'], ['rail engineering', 'Civils'],
+      ['electrical', 'Electrical Power'], ['power', 'Electrical Power'],
+      ['signal', 'Signalling'], ['telecoms', 'Telecoms'], ['telecom', 'Telecoms'],
+      ['geotech', 'Geotechnical'], ['geo', 'Geotechnical'],
+      ['ole', 'OLE'], ['overhead', 'OLE'],
+      ['environ', 'Environmental'], ['bim', 'BIM'], ['survey', 'Survey'],
+      ['project management', 'Project Management'], ['engineering management', 'Engineering Management'],
+    ];
+    const lc = discRaw.toLowerCase();
+    for (const [key, val] of discMap) {
+      if (lc.includes(key)) { discEl.value = val; detected++; break; }
+    }
+  }
+
+  // Pre-fill author name from drawn field
+  if (drawn && drawn.length < 40 && drawn !== drawingNo) {
+    const authEl = document.getElementById('author-input');
+    if (authEl && !authEl.value) authEl.value = drawn.trim();
+  }
+
+  if (detected > 0) {
+    toast(`✓ Title block: ${detected} field${detected !== 1 ? 's' : ''} auto-filled — check EMMA panel`, 4500);
+  } else {
+    toast('Title block fields not detected — fill EMMA panel manually', 3000);
+  }
+
+  console.log('[EngDoc] Title block:', { drawingNo, revision, contractNo, contractTitle, projTitle, drawingTitle, location, contractor, typeField, roleField, drawn });
+  buildSearchIndex();
+}
+
+/* ─── PDF SEARCH ─── */
+let searchIndex = []; // [{pageNum, str, x, y}]
+
+function buildSearchIndex() {
+  searchIndex = [];
+  for (const [pgStr, items] of Object.entries(pdfTextContent)) {
+    const pg = parseInt(pgStr);
+    items.forEach(it => { if (it.str.length > 1) searchIndex.push({ pageNum: pg, ...it }); });
+  }
+}
+
+function searchPdf(query) {
+  if (!query || !searchIndex.length) return [];
+  const q = query.toLowerCase();
+  return searchIndex.filter(it => it.str.toLowerCase().includes(q)).slice(0, 50);
+}
+
+function onSearchInput(query) {
+  const status = document.getElementById('search-status');
+  const results = document.getElementById('search-results');
+  results.innerHTML = '';
+  if (!query.trim()) { status.textContent = `${searchIndex.length} text items indexed`; return; }
+  const hits = searchPdf(query.trim());
+  status.textContent = `${hits.length} result${hits.length !== 1 ? 's' : ''}${hits.length === 50 ? ' (showing first 50)' : ''}`;
+  const esc = s => s.replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const hi  = (str, q) => esc(str).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi'), m => `<mark>${m}</mark>`);
+  hits.forEach(hit => {
+    const div = document.createElement('div'); div.className = 'sresult';
+    div.innerHTML = `<div class="sresult-text">${hi(hit.str, query.trim())}</div><div class="sresult-pg">Page ${hit.pageNum}</div>`;
+    div.addEventListener('click', () => {
+      highlightSearchHit(hit);
+    });
+    results.appendChild(div);
+  });
+}
+
+function highlightSearchHit(hit) {
+  // Scroll to page first, then flash after a short delay so page is visible
+  scrollToPage(hit.pageNum);
+  setTimeout(() => {
+    const ov = document.querySelector(`.aoverlay[data-page="${hit.pageNum}"]`);
+    if (!ov) return;
+    const flash = document.createElement('div');
+    flash.style.cssText =
+      `position:absolute;left:${hit.x * 100}%;top:${hit.y * 100}%;` +
+      `width:${Math.max(hit.width * 100, 4)}%;height:${Math.max(hit.fontSize * 100 * 1.6, 1.5)}%;` +
+      `background:#fef08a;border-radius:2px;pointer-events:none;z-index:20;` +
+      `opacity:0;transition:opacity 0.25s ease`;
+    ov.appendChild(flash);
+    // Fade in
+    requestAnimationFrame(() => requestAnimationFrame(() => { flash.style.opacity = '0.75'; }));
+    // Hold then fade out
+    setTimeout(() => {
+      flash.style.transition = 'opacity 0.8s ease';
+      flash.style.opacity = '0';
+      setTimeout(() => flash.remove(), 900);
+    }, 2000);
+  }, 350);
 }
 
 /* ═══════════════════════════════════════════════
@@ -1437,23 +1730,110 @@ function attachEvents(ov, pageNum, vp) {
       return;
     }
 
+    // ── MEASURE: click-click-click state machine (intercept before drag setup) ──
+    if (tool === 'measure') {
+      const cx = ox, cy = oy;
+      if (measureState === 'idle' || measurePageNum !== pageNum) {
+        // First click — set P1
+        measureState = 'firstSet';
+        measureP1 = { x: cx, y: cy };
+        measurePageNum = pageNum;
+        measureVp = vp;
+        if (measureLiveSvg) { measureLiveSvg.remove(); measureLiveSvg = null; }
+        measureLiveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        measureLiveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
+        measureLiveSvg.setAttribute('width', vp.width); measureLiveSvg.setAttribute('height', vp.height);
+        const dot1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot1.setAttribute('cx', cx); dot1.setAttribute('cy', cy); dot1.setAttribute('r', 4);
+        dot1.setAttribute('fill', '#7c3aed'); dot1.setAttribute('stroke', '#fff'); dot1.setAttribute('stroke-width', 1.5);
+        const ml = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        ml.id = 'mline';
+        ml.setAttribute('x1', cx); ml.setAttribute('y1', cy); ml.setAttribute('x2', cx); ml.setAttribute('y2', cy);
+        ml.setAttribute('stroke', '#7c3aed'); ml.setAttribute('stroke-width', 1.5); ml.setAttribute('stroke-dasharray', '5,3');
+        const dot2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot2.id = 'mdot2';
+        dot2.setAttribute('cx', cx); dot2.setAttribute('cy', cy); dot2.setAttribute('r', 4);
+        dot2.setAttribute('fill', '#7c3aed'); dot2.setAttribute('stroke', '#fff'); dot2.setAttribute('stroke-width', 1.5);
+        dot2.setAttribute('visibility', 'hidden');
+        const mt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        mt.id = 'mlabel';
+        mt.setAttribute('fill', '#7c3aed'); mt.setAttribute('font-size', '11');
+        mt.setAttribute('font-family', 'DM Mono, monospace'); mt.setAttribute('text-anchor', 'middle');
+        measureLiveSvg.appendChild(ml); measureLiveSvg.appendChild(dot1);
+        measureLiveSvg.appendChild(dot2); measureLiveSvg.appendChild(mt);
+        ov.appendChild(measureLiveSvg);
+        toast('Click second point to set end of measurement', 2200);
+        e.stopPropagation(); return;
+      }
+      if (measureState === 'firstSet') {
+        // Second click — lock P2, prompt for third click to commit
+        measureState = 'secondSet';
+        measureP2 = { x: cx, y: cy };
+        const ml2 = measureLiveSvg.querySelector('#mline, line');
+        if (ml2) { ml2.setAttribute('x2', cx); ml2.setAttribute('y2', cy); ml2.setAttribute('stroke-dasharray', 'none'); }
+        const d2 = measureLiveSvg.querySelector('#mdot2');
+        if (d2) { d2.setAttribute('cx', cx); d2.setAttribute('cy', cy); d2.setAttribute('visibility', 'visible'); }
+        const pxDist = Math.hypot(cx - measureP1.x, cy - measureP1.y);
+        const label = measureScale
+          ? `${(pxDist / measureScale.pxPerUnit / zoom).toFixed(2)} ${measureScale.unit}`
+          : `${Math.round(pxDist)} px`;
+        const lbl = measureLiveSvg.querySelector('#mlabel, text');
+        if (lbl) {
+          lbl.setAttribute('x', (measureP1.x + cx) / 2);
+          lbl.setAttribute('y', (measureP1.y + cy) / 2 - 8);
+          lbl.textContent = label;
+        }
+        document.getElementById('sb-measure').textContent = '⬌ ' + label;
+        document.getElementById('sb-measure').classList.add('visible');
+        toast('Click once more to place measurement', 2200);
+        e.stopPropagation(); return;
+      }
+      if (measureState === 'secondSet') {
+        // Third click — commit
+        if (measureLiveSvg) { measureLiveSvg.remove(); measureLiveSvg = null; }
+        document.getElementById('sb-measure').classList.remove('visible');
+        const pxDist = Math.hypot(measureP2.x - measureP1.x, measureP2.y - measureP1.y);
+        lastMeasurePx = pxDist;
+        document.getElementById('scale-px').value = Math.round(pxDist);
+        const label = measureScale
+          ? `${(pxDist / measureScale.pxPerUnit / zoom).toFixed(2)} ${measureScale.unit}`
+          : `${Math.round(pxDist)} px`;
+        const x1 = measureP1.x / vp.width * 100, y1 = measureP1.y / vp.height * 100;
+        const x2 = measureP2.x / vp.width * 100, y2 = measureP2.y / vp.height * 100;
+        pushAnnot({ id: nextId(), pageNum, type: 'measure', x1, y1, x2, y2, color, label,
+          pxDist, zoom, unit: measureScale?.unit || 'px' });
+        measureState = 'idle'; measureP1 = null; measureP2 = null; measurePageNum = null;
+        if (!measureScale) toast('Tip: click ⚖ Scale to calibrate real-world units', 4000);
+        e.stopPropagation(); return;
+      }
+      return;
+    }
+
     // ── DRAG TOOLS ──
     drawing = true; origin = { x: ox, y: oy };
 
-    if (tool === 'measure') {
-      // Live preview line SVG
+    // ── ARROW: live SVG preview ──
+    if (tool === 'arrow') {
       liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       liveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
       liveSvg.setAttribute('width', vp.width); liveSvg.setAttribute('height', vp.height);
-      const ml = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      ml.setAttribute('x1', ox); ml.setAttribute('y1', oy);
-      ml.setAttribute('x2', ox); ml.setAttribute('y2', oy);
-      ml.setAttribute('stroke', '#7c3aed'); ml.setAttribute('stroke-width', '2');
-      ml.setAttribute('stroke-dasharray', '6,3');
-      const mt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-      mt.setAttribute('fill', '#7c3aed'); mt.setAttribute('font-size', '11');
-      mt.setAttribute('font-family', 'DM Mono, monospace'); mt.setAttribute('text-anchor', 'middle');
-      liveSvg.appendChild(ml); liveSvg.appendChild(mt);
+      const c = CHex[color] || CHex.yellow;
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+      marker.setAttribute('id', `live-arr-${pageNum}`); marker.setAttribute('viewBox', '0 0 10 10');
+      marker.setAttribute('refX', '9'); marker.setAttribute('refY', '5');
+      marker.setAttribute('markerWidth', '6'); marker.setAttribute('markerHeight', '6');
+      marker.setAttribute('orient', 'auto-start-reverse');
+      const ap = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      ap.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z'); ap.setAttribute('fill', c);
+      marker.appendChild(ap); defs.appendChild(marker); liveSvg.appendChild(defs);
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', ox); line.setAttribute('y1', oy);
+      line.setAttribute('x2', ox + 1); line.setAttribute('y2', oy);
+      line.setAttribute('stroke', c); line.setAttribute('stroke-width', strokeW());
+      line.setAttribute('vector-effect', 'non-scaling-stroke');
+      line.setAttribute('marker-end', `url(#live-arr-${pageNum})`);
+      liveSvg.appendChild(line);
       ov.appendChild(liveSvg);
       return;
     }
@@ -1506,23 +1886,35 @@ function attachEvents(ov, pageNum, vp) {
       viewer.scrollTop  = panScrollStart.top  - (e.clientY - panStart.y);
       return;
     }
-    if (!drawing) return;
+
     const r = ov.getBoundingClientRect();
     const mx = e.clientX - r.left, my = e.clientY - r.top;
 
-    if (tool === 'measure' && liveSvg) {
-      const pxDist = Math.hypot(mx - origin.x, my - origin.y);
-      const ml = liveSvg.querySelector('line');
-      const mt = liveSvg.querySelector('text');
-      ml.setAttribute('x2', mx); ml.setAttribute('y2', my);
-      const midX = (origin.x + mx) / 2, midY = (origin.y + my) / 2 - 6;
-      mt.setAttribute('x', midX); mt.setAttribute('y', midY);
+    // Measure rubber-band — runs regardless of 'drawing' flag (measure uses clicks not drag)
+    if (tool === 'measure' && measureLiveSvg && measureState === 'firstSet') {
+      const ml2 = measureLiveSvg.querySelector('line');
+      if (ml2) { ml2.setAttribute('x2', mx); ml2.setAttribute('y2', my); }
+      const pxDist = Math.hypot(mx - measureP1.x, my - measureP1.y);
       const label = measureScale
         ? `${(pxDist / measureScale.pxPerUnit / zoom).toFixed(2)} ${measureScale.unit}`
         : `${Math.round(pxDist)} px`;
-      mt.textContent = label;
+      const lbl = measureLiveSvg.querySelector('text');
+      if (lbl) {
+        lbl.setAttribute('x', (measureP1.x + mx) / 2);
+        lbl.setAttribute('y', (measureP1.y + my) / 2 - 8);
+        lbl.textContent = label;
+      }
       document.getElementById('sb-measure').textContent = '⬌ ' + label;
       document.getElementById('sb-measure').classList.add('visible');
+      return;
+    }
+
+    if (!drawing) return;
+
+    // Arrow: update live preview line
+    if (tool === 'arrow' && liveSvg && drawing) {
+      const line = liveSvg.querySelector('line');
+      if (line) { line.setAttribute('x2', mx); line.setAttribute('y2', my); }
       return;
     }
     if ((tool === 'pen' || tool === 'texthighlight') && liveSvg) {
@@ -1549,25 +1941,13 @@ function attachEvents(ov, pageNum, vp) {
     const r = ov.getBoundingClientRect();
     const mx = e.clientX - r.left, my = e.clientY - r.top;
 
-    if (tool === 'measure' && liveSvg) {
+    // Arrow: commit on mouseup
+    if (tool === 'arrow' && liveSvg) {
       liveSvg.remove(); liveSvg = null;
-      document.getElementById('sb-measure').classList.remove('visible');
-      const pxDist = Math.hypot(mx - origin.x, my - origin.y);
-      if (pxDist < 5) return;
-      // Store calibration pixel length for scale modal
-      lastMeasurePx = pxDist;
-      document.getElementById('scale-px').value = Math.round(pxDist);
+      if (Math.abs(mx - origin.x) < 3 && Math.abs(my - origin.y) < 3) return;
       const x1 = origin.x / vp.width * 100, y1 = origin.y / vp.height * 100;
       const x2 = mx / vp.width * 100, y2 = my / vp.height * 100;
-      const label = measureScale
-        ? `${(pxDist / measureScale.pxPerUnit / zoom).toFixed(2)} ${measureScale.unit}`
-        : `${Math.round(pxDist)} px`;
-      pushAnnot({ id: nextId(), pageNum, type: 'measure', x1, y1, x2, y2, color, label,
-        pxDist, zoom: zoom, unit: measureScale?.unit || 'px' });
-      // If no scale set, prompt to calibrate
-      if (!measureScale) {
-        toast('Tip: click ⚖ Scale in the status bar to calibrate real-world units', 4000);
-      }
+      pushAnnot({ id: nextId(), pageNum, type: 'arrow', x1, y1, x2, y2, color, sw: strokeW() });
       return;
     }
 
@@ -1595,10 +1975,7 @@ function attachEvents(ov, pageNum, vp) {
     const x2 = mx / vp.width  * 100;
     const y2 = my / vp.height * 100;
 
-    if (tool === 'arrow') {
-      if (Math.abs(mx - origin.x) < 3 && Math.abs(my - origin.y) < 3) return;
-      pushAnnot({ id: nextId(), pageNum, type: 'arrow', x1, y1, x2, y2, color, sw: strokeW() });
-    } else if (tool === 'strike') {
+    if (tool === 'strike') {
       if (w < 0.5 || h < 0.5) return;
       pushAnnot({ id: nextId(), pageNum, type: 'strike', x, y, w, h, color });
     } else if (tool === 'highlight' || tool === 'rect') {
@@ -1653,7 +2030,16 @@ function updateStatusCount() {
 
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undoLast(); }
-  if (e.key === 'Escape') { hideCtx(); txtPopCancel(); }
+  if (e.key === 'Escape') {
+    hideCtx(); txtPopCancel();
+    // Cancel in-progress measure
+    if (measureState !== 'idle') {
+      if (measureLiveSvg) { measureLiveSvg.remove(); measureLiveSvg = null; }
+      measureState = 'idle'; measureP1 = null; measureP2 = null; measurePageNum = null;
+      document.getElementById('sb-measure').classList.remove('visible');
+      toast('Measure cancelled');
+    }
+  }
   if (e.key === 'Delete' || e.key === 'Backspace') {
     const sel = document.querySelector('.aitem.selected');
     if (sel) { const id = parseInt(sel.dataset.id); if (id) deleteAnnotById(id); }
@@ -2032,9 +2418,11 @@ function switchTab(tab, btn) {
   btn.classList.add('active');
   document.getElementById('sp-pages').classList.toggle('hidden', tab !== 'pages');
   document.getElementById('sp-notes').classList.toggle('hidden', tab !== 'notes');
+  document.getElementById('sp-search').classList.toggle('hidden', tab !== 'search');
   const emmaPanel = document.getElementById('sp-emma');
   emmaPanel.classList.toggle('visible', tab === 'emma');
   document.getElementById('sidebar').classList.toggle('emma-open', tab === 'emma');
+  if (tab === 'search') setTimeout(() => document.getElementById('search-input').focus(), 50);
 }
 
 /* ═══════════════════════════════════════════════

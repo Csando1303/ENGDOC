@@ -96,14 +96,41 @@ body.dark select, body.dark input { color-scheme: dark; }
   border:1px solid var(--gray-300);border-radius:3px;cursor:pointer;color:var(--gray-600);
   white-space:nowrap;flex-shrink:0; }
 .check-add-one:hover { border-color:var(--blue-500);color:var(--blue-600);background:var(--blue-50); }
+/* Designer reply in EMMA register */
+.emma-row-reply { font-size:10.5px;color:var(--blue-600);margin-top:3px;line-height:1.4;
+  font-style:italic;padding-left:12px;border-left:2px solid var(--blue-200); }
+/* Author colour dots for multi-user */
+.author-dot { display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle;flex-shrink:0; }
+/* Comparison overlay */
+#compare-overlay { position:absolute;inset:0;pointer-events:none;z-index:15;border-radius:2px; }
+/* Snap indicator */
+.snap-ring { position:fixed;width:14px;height:14px;border:2px solid #7c3aed;border-radius:50%;
+  pointer-events:none;z-index:500;transform:translate(-50%,-50%);display:none; }
+/* Drawing set list */
+.set-item { display:flex;align-items:center;gap:10px;padding:9px 16px;
+  border-bottom:1px solid var(--gray-100);cursor:pointer;transition:background .1s; }
+.set-item:hover { background:var(--gray-50); }
+.set-item.active { background:var(--blue-50); }
+.set-item-name { font-size:12px;font-weight:500;color:var(--gray-800);flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.set-item-status { font-size:10px;font-family:var(--mono);padding:2px 7px;border-radius:10px; }
+.set-status-outstanding { background:#fee2e2;color:#b91c1c; }
+.set-status-inprogress  { background:#fef9c3;color:#854d0e; }
+.set-status-complete    { background:#dcfce7;color:#166534; }
+.set-item-pages { font-family:var(--mono);font-size:10px;color:var(--gray-400); }
+/* Template list in popover */
+.tpl-item { padding:5px 10px;font-size:11.5px;color:var(--gray-700);cursor:pointer;
+  border-bottom:1px solid var(--gray-100);line-height:1.4; }
+.tpl-item:hover { background:var(--blue-50);color:var(--blue-700); }
+.tpl-item:last-child { border-bottom:none; }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:14px;
   -webkit-font-smoothing:antialiased}
 
 /* ── HEADER ─────────────────────── */
-#header{height:56px;background:var(--white);border-bottom:1px solid var(--gray-200);
-  display:flex;align-items:center;padding:0 20px;flex-shrink:0;
+#header{height:42px;background:var(--white);border-bottom:1px solid var(--gray-200);
+  display:flex;align-items:center;padding:0 16px;flex-shrink:0;
   box-shadow:var(--shadow-sm);z-index:10;gap:0}
 .logo-wrap{display:flex;align-items:baseline;gap:8px;margin-right:28px}
 .logo-name{font-family:var(--display);font-weight:600;font-size:19px;color:var(--gray-900);letter-spacing:-.3px}
@@ -123,42 +150,228 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ── TOOLBAR ─────────────────────── */
-#toolbar{height:44px;background:var(--white);border-bottom:1px solid var(--gray-200);
-  display:flex;align-items:center;padding:0 12px;gap:1px;flex-shrink:0}
-.tg{display:flex;align-items:center;gap:1px;padding:0 4px;position:relative}
-.tg+.tg::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
-  width:1px;height:22px;background:var(--gray-200)}
-.tbtn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;
-  background:transparent;border:1px solid transparent;border-radius:var(--radius-sm);
-  color:var(--gray-600);cursor:pointer;transition:all .12s;position:relative}
-.tbtn:hover{background:var(--gray-100);color:var(--gray-800)}
-.tbtn.active{background:var(--blue-50);border-color:var(--blue-100);color:var(--blue-600)}
-.tbtn.eraser-active{background:var(--red-50);border-color:#fca5a5;color:var(--red-500)}
-.tbtn svg{width:16px;height:16px;pointer-events:none}
-.tbtn[data-tip]:hover::after{content:attr(data-tip);position:absolute;top:calc(100% + 7px);
-  left:50%;transform:translateX(-50%);background:var(--gray-900);color:#fff;
-  font-size:11px;padding:3px 8px;border-radius:3px;white-space:nowrap;
-  pointer-events:none;z-index:200;font-family:var(--font)}
-.tglabel{font-family:var(--mono);font-size:9px;color:var(--gray-400);text-transform:uppercase;
-  letter-spacing:.5px;padding:0 4px 0 2px;white-space:nowrap}
-.csw{width:18px;height:18px;border-radius:50%;border:2px solid transparent;cursor:pointer;
-  transition:transform .12s,border-color .12s;flex-shrink:0}
-.csw:hover{transform:scale(1.2)}
-.csw.active{border-color:var(--gray-700)}
-.csw.cy{background:#fbbf24}.csw.ct{background:#2dd4bf}.csw.cr{background:#fb7185}
-.sw-select{font-family:var(--mono);font-size:11px;background:var(--gray-50);
-  border:1px solid var(--gray-300);border-radius:var(--radius-sm);color:var(--gray-700);
-  padding:3px 6px;cursor:pointer}
-.sw-select:focus{outline:none;border-color:var(--blue-500)}
-.page-nav{display:flex;align-items:center;gap:5px;color:var(--gray-600);font-size:13px}
-.page-nav input{width:40px;text-align:center;font-family:var(--mono);font-size:12px;
-  background:var(--gray-50);border:1px solid var(--gray-300);border-radius:var(--radius-sm);
-  color:var(--gray-800);padding:3px 4px}
-.page-nav input:focus{outline:none;border-color:var(--blue-500)}
-.page-nav .of{color:var(--gray-400);font-size:12px}
-.zoom-sel{font-family:var(--mono);font-size:12px;background:var(--gray-50);
-  border:1px solid var(--gray-300);border-radius:var(--radius-sm);color:var(--gray-800);padding:4px 8px;cursor:pointer}
-.zoom-sel:focus{outline:none;border-color:var(--blue-500)}
+/* ── RIBBON ─────────────────────────────────────────────── */
+#ribbon {
+  background:var(--white);
+  border-bottom:1px solid var(--gray-200);
+  flex-shrink:0;
+  display:flex;
+  flex-direction:column;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);
+  z-index:9;
+}
+
+/* Tab bar */
+#ribbon-tabs {
+  display:flex;
+  align-items:stretch;
+  height:34px;
+  border-bottom:1px solid var(--gray-200);
+  padding:0 8px;
+  gap:2px;
+  background:var(--gray-50);
+}
+.rtab {
+  display:flex;align-items:center;gap:5px;
+  padding:0 14px;
+  font-size:11.5px;font-weight:600;
+  font-family:var(--font);
+  color:var(--gray-500);
+  border:none;background:transparent;
+  cursor:pointer;
+  border-bottom:2px solid transparent;
+  transition:color .12s,border-color .12s;
+  white-space:nowrap;
+  position:relative;
+  top:1px;
+}
+.rtab svg { width:13px;height:13px;flex-shrink:0; }
+.rtab:hover { color:var(--gray-800); }
+.rtab.active {
+  color:var(--blue-600);
+  border-bottom-color:var(--blue-500);
+  background:var(--white);
+}
+
+/* Ribbon body — panels */
+#ribbon-body {
+  display:flex;
+  align-items:stretch;
+  min-height:68px;
+  padding:0 4px;
+  overflow-x:auto;
+  overflow-y:hidden;
+}
+#ribbon-body::-webkit-scrollbar { height:3px; }
+#ribbon-body::-webkit-scrollbar-thumb { background:var(--gray-300);border-radius:2px; }
+
+.rpanel { display:none; align-items:stretch; }
+.rpanel.active { display:flex; }
+
+/* Ribbon group */
+.rgroup {
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  padding:4px 8px 0;
+  position:relative;
+  min-width:fit-content;
+}
+.rgroup + .rgroup::before {
+  content:'';
+  position:absolute;left:0;top:8px;bottom:8px;
+  width:1px;background:var(--gray-200);
+}
+.rgroup-label {
+  font-family:var(--mono);
+  font-size:8.5px;color:var(--gray-400);
+  text-transform:uppercase;letter-spacing:.6px;
+  text-align:center;
+  margin-top:auto;
+  padding:3px 0 3px;
+}
+.rgroup-btns {
+  display:flex;
+  align-items:center;
+  gap:2px;
+  flex:1;
+}
+
+/* Ribbon button variants */
+.rbtn {
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:3px;
+  padding:5px 7px;
+  min-width:46px;
+  height:44px;
+  background:transparent;
+  border:1px solid transparent;
+  border-radius:5px;
+  color:var(--gray-600);
+  cursor:pointer;
+  transition:all .12s;
+  position:relative;
+  font-family:var(--font);
+}
+.rbtn:hover { background:var(--gray-100);color:var(--gray-800); }
+.rbtn.active {
+  background:var(--blue-50);
+  border-color:var(--blue-200);
+  color:var(--blue-700);
+}
+.rbtn.eraser-active {
+  background:var(--red-50);
+  border-color:#fca5a5;
+  color:var(--red-500);
+}
+.rbtn svg { width:18px;height:18px;flex-shrink:0;pointer-events:none; }
+.rbtn-label {
+  font-size:9.5px;font-weight:500;
+  line-height:1;white-space:nowrap;
+  pointer-events:none;
+}
+/* Large ribbon button (icon-only, 2-row layout) */
+.rbtn.lg {
+  min-width:52px;height:52px;padding:6px 8px;gap:4px;
+}
+.rbtn.lg svg { width:22px;height:22px; }
+/* Small inline ribbon button */
+.rbtn.sm {
+  min-width:32px;height:32px;padding:0;
+  flex-direction:row;gap:0;
+}
+.rbtn.sm svg { width:15px;height:15px; }
+.rbtn.sm .rbtn-label { display:none; }
+
+/* Tooltip */
+.rbtn[data-tip]:hover::after {
+  content:attr(data-tip);
+  position:absolute;top:calc(100% + 6px);
+  left:50%;transform:translateX(-50%);
+  background:var(--gray-900);color:#fff;
+  font-size:11px;padding:3px 8px;border-radius:3px;
+  white-space:nowrap;pointer-events:none;z-index:300;
+  font-family:var(--font);
+}
+
+/* Colour swatches in ribbon */
+.rcsw {
+  width:20px;height:20px;border-radius:50%;
+  border:2.5px solid transparent;cursor:pointer;
+  transition:transform .12s,border-color .12s;flex-shrink:0;
+}
+.rcsw:hover { transform:scale(1.18); }
+.rcsw.active { border-color:var(--gray-700); }
+.rcsw.cy{background:#fbbf24}
+.rcsw.ct{background:#2dd4bf}
+.rcsw.cr{background:#fb7185}
+
+/* Stroke width picker */
+.rsw {
+  display:flex;flex-direction:column;gap:4px;
+  padding:4px 0;justify-content:center;
+}
+.rsw-opt {
+  display:flex;align-items:center;gap:6px;cursor:pointer;padding:2px 4px;
+  border-radius:3px;transition:background .1s;
+}
+.rsw-opt:hover { background:var(--gray-100); }
+.rsw-opt.active .rsw-line { background:var(--blue-600); }
+.rsw-line { background:var(--gray-500);border-radius:2px;flex-shrink:0; }
+.rsw-lbl { font-size:9px;font-family:var(--mono);color:var(--gray-500);width:28px; }
+
+/* Page controls in ribbon */
+.page-nav-r {
+  display:flex;align-items:center;gap:3px;
+  font-size:12px;color:var(--gray-600);
+}
+.page-nav-r input {
+  width:36px;text-align:center;
+  font-family:var(--mono);font-size:12px;
+  background:var(--gray-50);
+  border:1px solid var(--gray-300);
+  border-radius:var(--radius-sm);
+  color:var(--gray-800);padding:3px 2px;
+}
+.page-nav-r input:focus { outline:none;border-color:var(--blue-500); }
+.page-nav-r .of { color:var(--gray-400);font-size:11px; }
+
+/* Zoom select */
+.rzoom {
+  font-family:var(--mono);font-size:11px;
+  background:var(--gray-50);
+  border:1px solid var(--gray-300);
+  border-radius:var(--radius-sm);
+  color:var(--gray-800);padding:4px 6px;cursor:pointer;
+  width:72px;
+}
+.rzoom:focus { outline:none;border-color:var(--blue-500); }
+
+/* Active tool indicator strip — bottom of ribbon */
+#ribbon-activetool {
+  height:24px;
+  background:var(--gray-50);
+  border-top:1px solid var(--gray-100);
+  display:flex;align-items:center;
+  padding:0 12px;gap:8px;
+  font-size:11px;color:var(--gray-500);
+}
+#rat-name {
+  font-weight:600;color:var(--blue-600);
+  font-family:var(--mono);font-size:10.5px;
+}
+.rat-hint { color:var(--gray-400);font-size:10px; }
+
+/* Backward compatibility — keep old .tbtn for any code that references it */
+.tbtn { display:none; }
+.tg   { display:none; }
+.tglabel { display:none; }
+.csw  { display:none; }
+.sw-select { display:none; }
+.zoom-sel { display:none; }
+.page-nav { display:none; }
+#toolbar { display:none; }
 
 /* ── LAYOUT ─────────────────────── */
 #body{flex:1;display:flex;overflow:hidden}
@@ -487,166 +700,292 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
     <span class="logo-name">EngDoc</span>
     <span class="logo-tag">PDF Suite</span>
   </div>
-  <div class="hdiv"></div>
-  <button class="hbtn primary" onclick="document.getElementById('fopen').click()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12H3l9-9 9 9h-2M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>
-    Open PDF
-  </button>
-  <div style="width:6px"></div>
-  <button class="hbtn outline" onclick="saveSession()" title="Save annotations (Ctrl+S)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-    Save
-  </button>
-  <div style="width:4px"></div>
-  <button class="hbtn outline" onclick="document.getElementById('fsession').click()" title="Load saved session">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-    Load
-  </button>
-  <input type="file" id="fsession" accept=".engdoc" style="display:none" onchange="loadSession(event)">
-  <div style="width:4px"></div>
-  <button class="hbtn outline" onclick="openM('mm')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-3M15 3h-6v4h6V3z"/></svg>
-    Merge
-  </button>
-  <div style="width:4px"></div>
-  <button class="hbtn outline" onclick="openM('ms')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8l-4-4-4 4M8 16l4 4 4-4M12 4v16"/></svg>
-    Split
-  </button>
-  <div style="width:4px"></div>
-  <button class="hbtn outline" onclick="openEmmaExport()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
-    EMMA Sheet
-  </button>
-  <div style="width:4px"></div>
-  <button class="hbtn outline" onclick="runStandardsCheck()" title="Check drawing against NR standards">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-    Check
-  </button>
-  <div style="width:4px"></div>
-  <button class="hbtn outline" onclick="openM('mau')" style="gap:5px">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-    <span id="hdr-author">Set Name</span>
-  </button>
-  <div style="width:6px"></div>
-  <button class="dark-toggle" id="dark-btn" onclick="toggleDark()" title="Toggle dark mode">
-    <svg id="dark-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-    <svg id="dark-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-  </button>
   <div style="flex:1"></div>
   <div style="display:flex;align-items:center;gap:6px">
     <div id="autosave-dot" title="Auto-saved"></div>
     <div id="doc-name">No document open</div>
   </div>
+  <!-- Hidden file inputs referenced by ribbon buttons -->
   <input type="file" id="fopen" accept=".pdf" style="display:none" onchange="openFile(event)">
+  <input type="file" id="fsession" accept=".engdoc" style="display:none" onchange="loadSession(event)">
+  <input type="file" id="fmergesession" accept=".engdoc" style="display:none" onchange="mergeSession(event)">
 </div>
 
-<!-- TOOLBAR -->
-<div id="toolbar">
-  <div class="tg">
-    <span class="tglabel">Select</span>
-    <button class="tbtn" id="t-pan" data-tip="Pan / Select" onclick="setTool('pan')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 00-4 0M14 10V4a2 2 0 00-4 0v2M10 10.5V6a2 2 0 00-4 0v8"/><path d="M6 14a3 3 0 00-3 3c0 2 1 3 2 4h9c1-1 2-2 2-4v-2a2 2 0 00-2-2h-1"/></svg>
+<!-- RIBBON -->
+<div id="ribbon">
+
+  <!-- Tab bar -->
+  <div id="ribbon-tabs">
+    <button class="rtab active" id="rtab-file" onclick="switchRibbon('file',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      File
     </button>
-    <button class="tbtn eraser-active" id="t-erase" data-tip="Eraser — click annotation to delete" onclick="setTool('erase')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l11-11 6 6-3.5 3.5"/><path d="M6 17l-3-3"/></svg>
-    </button>
-  </div>
-  <div class="tg">
-    <span class="tglabel">Markup</span>
-    <button class="tbtn active" id="t-highlight" data-tip="Box highlight" onclick="setTool('highlight')">
+    <button class="rtab" id="rtab-markup" onclick="switchRibbon('markup',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+      Markup
     </button>
-    <button class="tbtn" id="t-texthighlight" data-tip="Text highlighter — swipe across text" onclick="setTool('texthighlight')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 17h4l9.5-9.5a2.121 2.121 0 00-3-3L4 14v3z" fill="currentColor" fill-opacity="0.15" stroke="currentColor"/><line x1="2" y1="20" x2="22" y2="20" stroke-width="2" stroke-linecap="round"/></svg>
-    </button>
-    <button class="tbtn" id="t-rect" data-tip="Rectangle markup" onclick="setTool('rect')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-    </button>
-    <button class="tbtn" id="t-strike" data-tip="Strikethrough region" onclick="setTool('strike')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5"/><path d="M6 6h12M6 18h12" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
+    <button class="rtab" id="rtab-review" onclick="switchRibbon('review',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      Review
     </button>
   </div>
-  <div class="tg">
-    <span class="tglabel">Draw</span>
-    <button class="tbtn" id="t-pen" data-tip="Freehand pen" onclick="setTool('pen')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-    </button>
-    <button class="tbtn" id="t-arrow" data-tip="Arrow" onclick="setTool('arrow')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
-    </button>
-    <button class="tbtn" id="t-cloud" data-tip="Cloud / revision bubble markup" onclick="setTool('cloud')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
-    </button>
-    <button class="tbtn" id="t-area" data-tip="Area measurement — click points, double-click to close" onclick="setTool('area')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3,21 12,3 21,21"/><line x1="3" y1="21" x2="21" y2="21"/></svg>
-    </button>
-    <button class="tbtn" id="t-measure" data-tip="Measure distance (Shift=orthogonal)" onclick="setTool('measure')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/><line x1="8" y1="9" x2="8" y2="15" stroke-width="1.5"/><line x1="12" y1="7" x2="12" y2="17" stroke-width="1.5"/><line x1="16" y1="9" x2="16" y2="15" stroke-width="1.5"/></svg>
-    </button>
+
+  <div id="ribbon-body">
+
+    <!-- MARKUP tab: all annotation tools -->
+    <div class="rpanel" id="rpanel-markup">
+
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn" id="t-pan" data-tip="Pan / scroll (V · hold Space)" onclick="setTool('pan')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 00-4 0M14 10V4a2 2 0 00-4 0v2M10 10.5V6a2 2 0 00-4 0v8"/><path d="M6 14a3 3 0 00-3 3c0 2 1 3 2 4h9c1-1 2-2 2-4v-2a2 2 0 00-2-2h-1"/></svg>
+            <span class="rbtn-label">Pan</span>
+          </button>
+          <div style="display:flex;flex-direction:column;gap:3px;padding:2px 0">
+            <div style="display:flex;align-items:center;gap:3px">
+              <button class="rbtn sm" data-tip="Previous page" onclick="changePage(-1)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div class="page-nav-r">
+                <input type="number" id="pgi" value="1" min="1" onchange="jumpTo(this.value)">
+                <span class="of">/<span id="pgt">&mdash;</span></span>
+              </div>
+              <button class="rbtn sm" data-tip="Next page" onclick="changePage(1)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+            <select class="rzoom" id="zsel" onchange="applyZoom(this.value)">
+              <option value="0.5">50%</option><option value="0.75">75%</option>
+              <option value="1" selected>100%</option><option value="1.25">125%</option>
+              <option value="1.5">150%</option><option value="2">200%</option>
+              <option value="fit">Fit Width</option>
+            </select>
+          </div>
+        </div>
+        <div class="rgroup-label">Navigate</div>
+      </div>
+
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn active" id="t-highlight" data-tip="Box highlight (H)" onclick="setTool('highlight')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+            <span class="rbtn-label">Highlight</span>
+          </button>
+          <button class="rbtn" id="t-texthighlight" data-tip="Text highlighter — swipe over text (M)" onclick="setTool('texthighlight')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 17h4l9.5-9.5a2.121 2.121 0 00-3-3L4 14v3z" fill="currentColor" fill-opacity="0.15"/><line x1="2" y1="20" x2="22" y2="20" stroke-linecap="round"/></svg>
+            <span class="rbtn-label">Text Hi.</span>
+          </button>
+          <button class="rbtn" id="t-strike" data-tip="Strikethrough" onclick="setTool('strike')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5"/><path d="M6 6h12M6 18h12" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
+            <span class="rbtn-label">Strike</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Highlight</div>
+      </div>
+
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn" id="t-rect" data-tip="Rectangle markup (R)" onclick="setTool('rect')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+            <span class="rbtn-label">Rect</span>
+          </button>
+          <button class="rbtn" id="t-cloud" data-tip="Cloud / revision bubble (C)" onclick="setTool('cloud')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+            <span class="rbtn-label">Cloud</span>
+          </button>
+          <button class="rbtn" id="t-arrow" data-tip="Arrow (A)" onclick="setTool('arrow')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
+            <span class="rbtn-label">Arrow</span>
+          </button>
+          <button class="rbtn" id="t-pen" data-tip="Freehand pen (P)" onclick="setTool('pen')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+            <span class="rbtn-label">Freehand</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Shapes &amp; Draw</div>
+      </div>
+
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn" id="t-note" data-tip="Sticky note — EMMA register (N)" onclick="setTool('note')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            <span class="rbtn-label">Note</span>
+          </button>
+          <button class="rbtn" id="t-text" data-tip="Text label (T)" onclick="setTool('text')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+            <span class="rbtn-label">Text</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Annotate</div>
+      </div>
+
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn" id="t-measure" data-tip="Distance — click·click·click (D) · Shift=ortho" onclick="setTool('measure')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20"/><line x1="8" y1="8" x2="8" y2="16" stroke-width="1.5"/><line x1="12" y1="6" x2="12" y2="18" stroke-width="1.5"/><line x1="16" y1="8" x2="16" y2="16" stroke-width="1.5"/><path d="M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/></svg>
+            <span class="rbtn-label">Distance</span>
+          </button>
+          <button class="rbtn" id="t-area" data-tip="Area — click points, dbl-click close (G)" onclick="setTool('area')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3,21 12,3 21,21"/><line x1="3" y1="21" x2="21" y2="21"/></svg>
+            <span class="rbtn-label">Area</span>
+          </button>
+          <button class="rbtn" onclick="openM('mscale')" data-tip="Calibrate scale for real-world units">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span class="rbtn-label">Calibrate</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Measure</div>
+      </div>
+
+      <div class="rgroup">
+        <div class="rgroup-btns" style="gap:8px;padding:4px">
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
+            <div style="display:flex;gap:6px">
+              <div class="rcsw cy active" id="c-y" onclick="setColor('yellow')" title="Yellow (1)"></div>
+              <div class="rcsw ct" id="c-t" onclick="setColor('teal')" title="Teal (2)"></div>
+              <div class="rcsw cr" id="c-r" onclick="setColor('rose')" title="Rose (3)"></div>
+            </div>
+            <div style="font-size:8.5px;font-family:var(--mono);color:var(--gray-400)">Colour 1&middot;2&middot;3</div>
+          </div>
+          <div class="rsw">
+            <div class="rsw-opt" onclick="setStrokeW(2,this)"><div class="rsw-line" style="width:26px;height:1.5px"></div><span class="rsw-lbl">Fine</span></div>
+            <div class="rsw-opt active" onclick="setStrokeW(4,this)"><div class="rsw-line" style="width:26px;height:3px"></div><span class="rsw-lbl">Med</span></div>
+            <div class="rsw-opt" onclick="setStrokeW(8,this)"><div class="rsw-line" style="width:26px;height:5px"></div><span class="rsw-lbl">Thick</span></div>
+            <div class="rsw-opt" onclick="setStrokeW(14,this)"><div class="rsw-line" style="width:26px;height:8px"></div><span class="rsw-lbl">Bold</span></div>
+          </div>
+        </div>
+        <div class="rgroup-label">Style</div>
+      </div>
+
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn eraser-active" id="t-erase" data-tip="Eraser — click annotation to delete (E)" onclick="setTool('erase')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l11-11 6 6-3.5 3.5"/><path d="M6 17l-3-3"/></svg>
+            <span class="rbtn-label">Erase</span>
+          </button>
+          <button class="rbtn" data-tip="Undo (Ctrl+Z)" onclick="undoLast()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13A9 9 0 1 0 6 6.7L3 9"/></svg>
+            <span class="rbtn-label">Undo</span>
+          </button>
+          <button class="rbtn" id="redo-btn" data-tip="Redo (Ctrl+Y)" onclick="redoLast()" style="opacity:0.4">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M21 13A9 9 0 1 1 18 6.7L21 9"/></svg>
+            <span class="rbtn-label">Redo</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Edit</div>
+      </div>
+
+    </div><!-- /markup -->
+
+    <!-- REVIEW tab -->
+    <div class="rpanel" id="rpanel-review">
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn lg" onclick="runStandardsCheck()" data-tip="Run NR drawing standards check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            <span class="rbtn-label">Standards<br>Check</span>
+          </button>
+          <button class="rbtn lg" onclick="openM('mcompare')" data-tip="Compare two PDF revisions pixel-by-pixel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="9" height="18" rx="1"/><rect x="13" y="3" width="9" height="18" rx="1"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
+            <span class="rbtn-label">Compare<br>Revisions</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Check</div>
+      </div>
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn lg" onclick="openEmmaExport()" data-tip="Export to EMMA Checksheet.xlsm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+            <span class="rbtn-label">EMMA<br>Export</span>
+          </button>
+          <button class="rbtn lg" onclick="document.getElementById('fmergesession').click()" data-tip="Merge another reviewer's session">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><circle cx="12" cy="18" r="3"/><path d="M8 11v2a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4v-2"/></svg>
+            <span class="rbtn-label">Merge<br>Session</span>
+          </button>
+        </div>
+        <div class="rgroup-label">EMMA &amp; Collaborate</div>
+      </div>
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn lg" onclick="openM('mset')" data-tip="Drawing set register">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></svg>
+            <span class="rbtn-label">Drawing<br>Set</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Register</div>
+      </div>
+    </div><!-- /review -->
+
+    <!-- FILE tab -->
+    <div class="rpanel active" id="rpanel-file">
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn lg" onclick="saveSession()" data-tip="Save session (Ctrl+S)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span class="rbtn-label">Save<br>Session</span>
+          </button>
+          <button class="rbtn lg" onclick="document.getElementById('fsession').click()" data-tip="Load a saved session">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            <span class="rbtn-label">Load<br>Session</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Session</div>
+      </div>
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn lg" onclick="openM('mm')" data-tip="Merge multiple PDFs into one">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-3M15 3h-6v4h6V3z"/></svg>
+            <span class="rbtn-label">Merge<br>PDF</span>
+          </button>
+          <button class="rbtn lg" onclick="openM('ms')" data-tip="Split a PDF into separate files">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8l-4-4-4 4M8 16l4 4 4-4M12 4v16"/></svg>
+            <span class="rbtn-label">Split<br>PDF</span>
+          </button>
+        </div>
+        <div class="rgroup-label">PDF Tools</div>
+      </div>
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn" onclick="openM('mau')" data-tip="Set your reviewer name">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            <span class="rbtn-label" id="hdr-author-r">Set Name</span>
+          </button>
+          <button class="rbtn" id="dark-btn" onclick="toggleDark()" data-tip="Toggle dark mode">
+            <svg id="dark-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            <svg id="dark-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+            <span class="rbtn-label">Dark</span>
+          </button>
+          <button class="rbtn" onclick="openM('mkeys')" data-tip="Keyboard shortcuts (?)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 16h8"/></svg>
+            <span class="rbtn-label">Shortcuts</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Settings</div>
+      </div>
+    </div><!-- /file -->
+
+  </div><!-- /ribbon-body -->
+
+  <!-- Active tool strip -->
+  <div id="ribbon-activetool">
+    <span id="rat-name">Highlight</span>
+    <span class="rat-hint" id="rat-hint">Drag to highlight a region &middot; colour and weight in Style group</span>
+    <div style="flex:1"></div>
+    <span id="sb-zoom" class="rat-hint"><span id="sb-zoom-val">100%</span></span>
+    <span class="rat-hint" style="margin:0 5px">&middot;</span>
+    <span class="rat-hint" id="sb-count">0 annotations</span>
+    <span class="rat-hint" style="margin:0 5px">&middot;</span>
+    <span class="rat-hint" id="sb-pos">&mdash;</span>
+    <span class="rat-hint" style="margin:0 5px">&middot;</span>
+    <span id="sb-measure" class="rat-hint" style="color:#7c3aed;font-weight:600"></span>
+    <span class="rat-hint" style="margin:0 5px">&middot;</span>
+    <span id="sb-scale" class="rat-hint" style="cursor:pointer;color:var(--blue-500)" onclick="openM('mscale')">&#9878; Scale: unset</span>
+    <div id="autosave-dot" title="Auto-saved" style="margin-left:8px"></div>
   </div>
-  <div class="tg">
-    <span class="tglabel">Annotate</span>
-    <button class="tbtn" id="t-note" data-tip="Sticky note" onclick="setTool('note')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-    </button>
-    <button class="tbtn" id="t-text" data-tip="Text label" onclick="setTool('text')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-    </button>
-  </div>
-  <div class="tg">
-    <span class="tglabel">Style</span>
-    <div class="csw cy active" id="c-y" onclick="setColor('yellow')" title="Yellow"></div>
-    <div style="width:3px"></div>
-    <div class="csw ct" id="c-t" onclick="setColor('teal')" title="Teal"></div>
-    <div style="width:3px"></div>
-    <div class="csw cr" id="c-r" onclick="setColor('rose')" title="Rose"></div>
-    <div style="width:8px"></div>
-    <select class="sw-select" id="stroke-w" title="Stroke width">
-      <option value="2">Fine</option>
-      <option value="4" selected>Medium</option>
-      <option value="8">Thick</option>
-      <option value="14">Bold</option>
-      <option value="12">Heavy</option>
-    </select>
-  </div>
-  <div class="tg">
-    <button class="tbtn" data-tip="Previous page" onclick="changePage(-1)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-    </button>
-    <div class="page-nav">
-      <input type="number" id="pgi" value="1" min="1" onchange="jumpTo(this.value)">
-      <span class="of">/ <span id="pgt">—</span></span>
-    </div>
-    <button class="tbtn" data-tip="Next page" onclick="changePage(1)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-    </button>
-  </div>
-  <div class="tg">
-    <select class="zoom-sel" id="zsel" onchange="applyZoom(this.value)">
-      <option value="0.5">50%</option>
-      <option value="0.75">75%</option>
-      <option value="1" selected>100%</option>
-      <option value="1.25">125%</option>
-      <option value="1.5">150%</option>
-      <option value="2">200%</option>
-      <option value="fit">Fit Width</option>
-    </select>
-  </div>
-  <div style="flex:1"></div>
-  <div class="tg">
-    <button class="tbtn" data-tip="Undo (Ctrl+Z)" onclick="undoLast()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13A9 9 0 1 0 6 6.7L3 9"/></svg>
-    </button>
-    <button class="tbtn" data-tip="Redo (Ctrl+Y)" onclick="redoLast()" id="redo-btn" style="opacity:0.4">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M21 13A9 9 0 1 1 18 6.7L21 9"/></svg>
-    </button>
-    <button class="tbtn" data-tip="Clear all annotations on this page" onclick="clearPage()" style="color:var(--gray-500)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m5 0V4a1 1 0 011-1h2a1 1 0 011 1v2"/></svg>
-    </button>
-    <button class="tbtn" data-tip="Keyboard shortcuts (?)" onclick="openM('mkeys')" style="font-size:15px;font-weight:700;color:var(--gray-500)">?</button>
-  </div>
+
 </div>
+<select id="stroke-w" style="display:none"><option value="4" selected>4</option></select>
+<span id="hdr-author" style="display:none">Set Name</span>
 
 <!-- BODY -->
 <div id="body">
@@ -960,6 +1299,72 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   </div>
 </div>
 
+<!-- REVISION COMPARISON MODAL -->
+<div class="overlay" id="mcompare">
+  <div class="modal" style="width:540px">
+    <div class="mhead">
+      <span class="mtitle">Revision Comparison</span>
+      <button class="mclose" onclick="closeM('mcompare')">✕</button>
+    </div>
+    <div class="mbody">
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:16px">Load a second revision of this drawing. Changed areas will be highlighted in red on the current view.</p>
+      <label class="flabel">Second revision PDF</label>
+      <div class="fdrop" onclick="document.getElementById('fcompare').click()">
+        <input type="file" id="fcompare" accept=".pdf" style="display:none" onchange="onCompareFileSelect(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="22" height="22" style="margin-bottom:6px;color:var(--gray-400)"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <div id="compare-filename">Click to select comparison PDF</div>
+      </div>
+      <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label class="flabel">Compare page</label>
+          <input class="finput" id="compare-page" type="number" value="1" min="1" style="margin-bottom:0">
+        </div>
+        <div>
+          <label class="flabel">Sensitivity</label>
+          <select class="finput fselect" id="compare-thresh" style="margin-bottom:0;padding:8px">
+            <option value="15">Low (minor differences)</option>
+            <option value="30" selected>Medium (standard)</option>
+            <option value="60">High (major changes only)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="clearComparison(); closeM('mcompare')">Clear overlay</button>
+      <button class="hbtn outline" onclick="closeM('mcompare')">Cancel</button>
+      <button class="hbtn primary" onclick="runComparison()">Compare</button>
+    </div>
+  </div>
+</div>
+
+<!-- DRAWING SET MODAL -->
+<div class="overlay" id="mset">
+  <div class="modal" style="width:560px">
+    <div class="mhead">
+      <span class="mtitle">Drawing Set Register</span>
+      <button class="mclose" onclick="closeM('mset')">✕</button>
+    </div>
+    <div class="mbody" style="padding:0">
+      <div style="padding:16px 20px 10px;border-bottom:1px solid var(--gray-200);display:flex;gap:8px;align-items:center">
+        <button class="hbtn outline" onclick="document.getElementById('fsetadd').click()" style="font-size:12px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add PDF(s)
+        </button>
+        <input type="file" id="fsetadd" accept=".pdf" multiple style="display:none" onchange="addToDrawingSet(event)">
+        <button class="hbtn outline" onclick="clearDrawingSet()" style="font-size:12px">Clear set</button>
+        <span style="flex:1"></span>
+        <span id="set-count" style="font-size:12px;color:var(--gray-500)">0 drawings</span>
+      </div>
+      <div id="set-list" style="max-height:50vh;overflow-y:auto">
+        <div id="set-empty" style="padding:28px;text-align:center;color:var(--gray-400);font-size:13px">
+          No drawings in set.<br>Add PDFs to build a register.
+        </div>
+      </div>
+    </div>
+    <div class="mfoot"><button class="hbtn primary" onclick="closeM('mset')">Done</button></div>
+  </div>
+</div>
+
 <!-- STANDARDS CHECKER MODAL -->
 <div class="overlay" id="mcheck">
   <div class="modal" style="width:580px;max-width:96vw">
@@ -1056,7 +1461,26 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 
 <!-- TEXT INPUT POPOVER (replaces prompt() for note/text tools) -->
 <div id="txt-pop">
-  <textarea id="txt-pop-input" placeholder="Enter comment…"></textarea>
+  <div style="display:flex;gap:4px;margin-bottom:5px">
+    <textarea id="txt-pop-input" placeholder="Enter comment…" style="flex:1"></textarea>
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <button onclick="showTemplates()" title="Discipline templates" style="width:28px;height:28px;background:var(--gray-100);border:1px solid var(--gray-300);border-radius:3px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">📋</button>
+    </div>
+  </div>
+  <div id="template-picker" style="display:none;background:var(--white);border:1px solid var(--gray-200);border-radius:4px;margin-bottom:6px;max-height:180px;overflow-y:auto">
+    <div style="padding:4px 8px;font-size:9px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--gray-100)">
+      Templates — <select id="tpl-disc" onchange="renderTemplates()" style="font-size:10px;border:none;background:transparent;color:var(--gray-600);cursor:pointer">
+        <option value="general">General</option>
+        <option value="civils">Civils</option>
+        <option value="track">Track</option>
+        <option value="signalling">Signalling</option>
+        <option value="ole">OLE</option>
+        <option value="drainage">Drainage</option>
+        <option value="cdm">CDM / Safety</option>
+      </select>
+    </div>
+    <div id="tpl-list" style="padding:4px 0"></div>
+  </div>
   <div id="emma-fields" style="display:none;margin-top:6px;border-top:1px solid var(--gray-200);padding-top:8px">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
       <div>
@@ -1100,6 +1524,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 </div>
 
 <div id="toast"></div>
+<div class="snap-ring" id="snap-ring"></div>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1122,7 +1547,11 @@ function saveAuthor() {
   if (!val) { toast('Please enter a name'); return; }
   currentAuthor = val;
   localStorage.setItem('engdoc_author', val);
-  document.getElementById('hdr-author').textContent = val;
+  // Update both the hidden compat span and the ribbon File tab button
+  const hdr = document.getElementById('hdr-author');
+  if (hdr) hdr.textContent = val;
+  const hdrR = document.getElementById('hdr-author-r');
+  if (hdrR) hdrR.textContent = val;
   closeM('mau');
   toast(`Name set to "${val}"`);
 }
@@ -2990,6 +3419,7 @@ function updateEmmaRegister() {
       <div>
         <div class="emma-row-comment">${a.text || (a.type === 'measure' ? a.label || '—' : '—')}</div>
         <div class="emma-row-doc">Pg ${a.pageNum} · ${a.author || '—'}</div>
+        ${row.reply ? `<div class="emma-row-reply"><span style="color:var(--blue-500);font-weight:600">↩ </span>${row.reply}</div>` : ''}
       </div>
       <div><span class="emma-cat-badge ${catClass}">${row.cat || '—'}</span></div>
       <div style="font-size:9px;color:var(--gray-500);padding-top:3px">${row.commentType || '—'}</div>
@@ -4115,7 +4545,705 @@ document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveSession(); }
 });
 
-setTool('highlight');
+// ═══════════════════════════════════════════════
+//  AUTHOR COLOUR-CODING (multi-user sessions)
+// ═══════════════════════════════════════════════
+const AUTHOR_PALETTE = ['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#0891b2','#be185d','#65a30d'];
+const authorColours = {}; // name → hex colour
+let authorColourIdx = 0;
+
+function getAuthorColour(name) {
+  if (!name) return '#6b7280';
+  if (!authorColours[name]) {
+    authorColours[name] = AUTHOR_PALETTE[authorColourIdx % AUTHOR_PALETTE.length];
+    authorColourIdx++;
+  }
+  return authorColours[name];
+}
+
+// ═══════════════════════════════════════════════
+//  MERGE SESSION (multi-user)
+// ═══════════════════════════════════════════════
+async function mergeSession(e) {
+  const file = e.target.files[0]; if (!file) return;
+  e.target.value = '';
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data.annots) { toast('Invalid .engdoc file'); return; }
+
+    let added = 0, skipped = 0;
+    const existingIds = new Set(annots.map(a => a.id));
+
+    data.annots.forEach(a => {
+      // Skip if exact same id already exists (own session)
+      if (existingIds.has(a.id)) { skipped++; return; }
+      // Assign a new local id to avoid conflicts
+      const newId = nextId();
+      const merged = { ...a, id: newId, mergedFrom: a.author || 'Unknown' };
+      annots.push(merged);
+      // Carry EMMA row data if present
+      if (data.emmaRows && data.emmaRows[a.id]) {
+        emmaRows[newId] = { ...data.emmaRows[a.id] };
+      }
+      added++;
+    });
+
+    // Record all new authors for colour palette
+    data.annots.forEach(a => { if (a.author) getAuthorColour(a.author); });
+
+    syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister(); updateEmmaDash();
+    toast(`✓ Merged ${added} annotation${added !== 1 ? 's' : ''} from "${data.pdfName || file.name}"${skipped ? ` (${skipped} duplicates skipped)` : ''}`);
+  } catch(err) {
+    toast('Merge failed: ' + err.message);
+  }
+}
+
+// Override buildAnnotEl to add author colour stripe on merged annotations
+const _buildAnnotElBase = buildAnnotEl;
+buildAnnotEl = function(a) {
+  const el = _buildAnnotElBase(a);
+  if (el && a.mergedFrom && a.author) {
+    const c = getAuthorColour(a.author);
+    if (el.style) {
+      el.style.outline = `2px solid ${c}`;
+      el.style.outlineOffset = '1px';
+    }
+  }
+  return el;
+};
+
+// ═══════════════════════════════════════════════
+//  REVISION COMPARISON
+// ═══════════════════════════════════════════════
+let comparePdfBytes = null;
+let comparisonActive = false;
+
+function onCompareFileSelect(e) {
+  const file = e.target.files[0]; if (!file) return;
+  file.arrayBuffer().then(buf => {
+    comparePdfBytes = buf;
+    document.getElementById('compare-filename').textContent = file.name;
+  });
+}
+
+async function runComparison() {
+  if (!pdf) { toast('Open a base PDF first'); return; }
+  if (!comparePdfBytes) { toast('Select a comparison PDF'); return; }
+
+  const pageNum = parseInt(document.getElementById('compare-page').value) || 1;
+  const thresh  = parseInt(document.getElementById('compare-thresh').value) || 30;
+
+  toast('Comparing revisions…', 4000);
+  closeM('mcompare');
+
+  try {
+    // Load comparison PDF
+    const compPdf = await pdfjsLib.getDocument({ data: comparePdfBytes.slice(0) }).promise;
+    const compPage = await compPdf.getPage(Math.min(pageNum, compPdf.numPages));
+    const basePage = await pdf.getPage(Math.min(pageNum, nPages));
+
+    // Render both pages to offscreen canvases at a fixed scale for comparison
+    const COMP_SCALE = 1.0;
+    const baseVp = basePage.getViewport({ scale: COMP_SCALE });
+    const compVp = compPage.getViewport({ scale: COMP_SCALE });
+
+    const baseCanvas = document.createElement('canvas');
+    baseCanvas.width = baseVp.width; baseCanvas.height = baseVp.height;
+    await basePage.render({ canvasContext: baseCanvas.getContext('2d'), viewport: baseVp }).promise;
+
+    const compCanvas = document.createElement('canvas');
+    compCanvas.width = compVp.width; compCanvas.height = compVp.height;
+    await compPage.render({ canvasContext: compCanvas.getContext('2d'), viewport: compVp }).promise;
+
+    // Pixel diff
+    const w = Math.min(baseVp.width, compVp.width);
+    const h = Math.min(baseVp.height, compVp.height);
+    const baseData = baseCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+    const compData = compCanvas.getContext('2d').getImageData(0, 0, w, h).data;
+
+    // Build diff canvas
+    const diffCanvas = document.createElement('canvas');
+    diffCanvas.width = w; diffCanvas.height = h;
+    const diffCtx = diffCanvas.getContext('2d');
+    const diffImage = diffCtx.createImageData(w, h);
+    const diffPx = diffImage.data;
+
+    let changedPixels = 0;
+    for (let i = 0; i < w * h * 4; i += 4) {
+      const dr = Math.abs(baseData[i]   - compData[i]);
+      const dg = Math.abs(baseData[i+1] - compData[i+1]);
+      const db = Math.abs(baseData[i+2] - compData[i+2]);
+      const diff = (dr + dg + db) / 3;
+      if (diff > thresh) {
+        diffPx[i]   = 220;  // R
+        diffPx[i+1] = 38;   // G
+        diffPx[i+2] = 38;   // B
+        diffPx[i+3] = Math.min(255, Math.round(diff * 2)); // alpha proportional to diff
+        changedPixels++;
+      }
+    }
+    diffCtx.putImageData(diffImage, 0, 0);
+
+    // Place diff overlay on the page wrapper
+    const wrap = document.getElementById(`pw-${pageNum}`);
+    if (!wrap) { toast('Page not rendered yet — scroll to it first'); return; }
+
+    clearComparison();
+
+    const overlay = document.createElement('canvas');
+    overlay.id = 'compare-overlay';
+    overlay.width = w; overlay.height = h;
+    overlay.style.cssText = `position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:15;border-radius:2px;opacity:0.7`;
+    overlay.getContext('2d').drawImage(diffCanvas, 0, 0);
+    wrap.appendChild(overlay);
+    comparisonActive = true;
+
+    const pct = ((changedPixels / (w * h)) * 100).toFixed(1);
+    toast(`✓ Comparison complete — ${pct}% of page changed (red = differences)`, 5000);
+  } catch(err) {
+    toast('Comparison failed: ' + err.message);
+  }
+}
+
+function clearComparison() {
+  document.querySelectorAll('#compare-overlay').forEach(el => el.remove());
+  comparisonActive = false;
+}
+
+// ═══════════════════════════════════════════════
+//  DRAWING SET REGISTER
+// ═══════════════════════════════════════════════
+let drawingSet = []; // [{name, bytes, pages, status, annotCount}]
+
+async function addToDrawingSet(e) {
+  const files = Array.from(e.target.files); if (!files.length) return;
+  e.target.value = '';
+  for (const file of files) {
+    // Avoid duplicates
+    if (drawingSet.find(d => d.name === file.name)) continue;
+    const bytes = await file.arrayBuffer();
+    let pages = '?';
+    try {
+      const tmpPdf = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
+      pages = tmpPdf.numPages;
+    } catch(e) {}
+    drawingSet.push({
+      name: file.name,
+      bytes,
+      pages,
+      status: 'outstanding',
+      annotCount: 0
+    });
+  }
+  renderDrawingSet();
+  toast(`Added ${files.length} drawing${files.length !== 1 ? 's' : ''} to set`);
+}
+
+function clearDrawingSet() {
+  drawingSet = [];
+  renderDrawingSet();
+}
+
+function renderDrawingSet() {
+  const list = document.getElementById('set-list');
+  const empty = document.getElementById('set-empty');
+  const count = document.getElementById('set-count');
+  list.querySelectorAll('.set-item').forEach(el => el.remove());
+  count.textContent = `${drawingSet.length} drawing${drawingSet.length !== 1 ? 's' : ''}`;
+
+  if (!drawingSet.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  const statusLabels = { outstanding:'Outstanding', inprogress:'In Progress', complete:'Complete' };
+  const statusClasses = { outstanding:'set-status-outstanding', inprogress:'set-status-inprogress', complete:'set-status-complete' };
+
+  drawingSet.forEach((d, i) => {
+    const item = document.createElement('div');
+    item.className = 'set-item' + (pdfName === d.name ? ' active' : '');
+    item.innerHTML = `
+      <div class="set-item-name" title="${d.name}">${d.name.replace('.pdf','')}</div>
+      <span class="set-item-pages">${d.pages}p</span>
+      <select class="set-item-status ${statusClasses[d.status]}" data-idx="${i}"
+        onclick="event.stopPropagation()" onchange="setDrawingStatus(${i}, this.value)"
+        style="font-size:10px;font-family:var(--mono);border:none;border-radius:10px;padding:2px 6px;cursor:pointer">
+        ${Object.entries(statusLabels).map(([v,l]) =>
+          `<option value="${v}" ${d.status===v?'selected':''}>${l}</option>`).join('')}
+      </select>
+      <button onclick="loadDrawingFromSet(${i})" style="padding:3px 8px;font-size:11px;background:none;border:1px solid var(--gray-300);border-radius:3px;cursor:pointer;color:var(--gray-600)" title="Open this drawing">Open</button>`;
+    list.insertBefore(item, empty);
+  });
+}
+
+function setDrawingStatus(idx, status) {
+  if (drawingSet[idx]) {
+    drawingSet[idx].status = status;
+    renderDrawingSet();
+  }
+}
+
+async function loadDrawingFromSet(idx) {
+  const d = drawingSet[idx]; if (!d) return;
+  const file = new File([d.bytes], d.name, { type: 'application/pdf' });
+  closeM('mset');
+  await loadPDF(file);
+  // Mark in-progress automatically
+  if (d.status === 'outstanding') { d.status = 'inprogress'; renderDrawingSet(); }
+}
+
+// ═══════════════════════════════════════════════
+//  DISCIPLINE COMMENT TEMPLATES
+// ═══════════════════════════════════════════════
+const TEMPLATES = {
+  general: [
+    'Detail requires clarification — please revise and reissue.',
+    'Dimension/specification inconsistency — verify against design intent.',
+    'Cross-reference missing — add reference to relevant document.',
+    'General arrangement does not match detail drawing — coordinate.',
+    'Title block incomplete — ensure all mandatory fields are populated.',
+    'Drawing not to NR standard format — revise before issue.',
+    'Notes are ambiguous — clarify intent with specific requirement.',
+    'No revision cloud shown for changes — add in accordance with procedure.',
+  ],
+  civils: [
+    'Reinforcement layout not compliant with BS 8666 — revise bar schedule.',
+    'Foundation bearing pressure not stated — confirm against ground investigation report.',
+    'No construction joint positions shown — add to drawing.',
+    'Waterproofing detail not shown at basement/retaining wall junction.',
+    'Structural element dimensions insufficient — add clear overall and setting-out dims.',
+    'Movement joint spacing exceeds recommended maximum — review.',
+    'Fencing/barrier shown does not meet NR lineside specification.',
+    'Drainage falls not indicated — add gradient notation.',
+    'Cover to reinforcement not stated — confirm adequacy for exposure class.',
+    'No reference to geotechnical/ground investigation report — add note.',
+  ],
+  track: [
+    'Track geometry not shown — add cant, gradient, and curvature data.',
+    'Buffer stop specification not detailed — confirm type and energy absorption.',
+    'Crossing angle/geometry not stated — confirm against permanent way standard.',
+    'No sleeper spacing indicated — confirm to RT/CE/S/049.',
+    'Rail section not specified — confirm type and weight per metre.',
+    'Clearance envelope not shown — confirm compliance with NR/L2/TRK/3200.',
+    'Switch and crossing details incomplete — reference TDS/D/SW/number.',
+    'Level crossing surface specification missing — confirm type to NR/L3/TRK/2049.',
+  ],
+  signalling: [
+    'Signal sighting distance not shown — check against Rule Book requirements.',
+    'Cable route not indicated — confirm to functional design spec.',
+    'Equipment room layout conflicts with proposed civil arrangement.',
+    'Location case position not dimensioned from track centreline.',
+    'Bonding and earthing arrangement not shown — add to drawing.',
+    'No reference to EMC/interference assessment — confirm compliance.',
+    'Signal aspect sequence not detailed — add to functional specification.',
+    'Power supply arrangement for location cases not shown.',
+  ],
+  ole: [
+    'OLE stagger/height not dimensioned at this location.',
+    'Safe working distance from OLE not indicated — add exclusion zone note.',
+    'Isolation section boundary not shown — confirm with OLE designer.',
+    'Mast/support positions conflict with civil arrangement — coordinate.',
+    'Uplift force at registration arm not calculated — check against wire tension.',
+    'Earth continuity conductor not shown — add to drawing.',
+    'Sectioning arrangement at neutral section not detailed.',
+    'Wire height at structure gauge check point not confirmed.',
+  ],
+  drainage: [
+    'Invert levels not shown — add to all drainage runs.',
+    'Pipe gradient insufficient for self-cleansing velocity — review to Sewers for Adoption.',
+    'Manhole/inspection chamber specification not stated.',
+    'No outfall details shown — add discharge point and consent reference.',
+    'Catchment area calculation not referenced — attach or cross-reference.',
+    'Attenuation volume not confirmed against drainage strategy.',
+    'Pipe bedding class not specified — confirm to BS EN 1610.',
+    'Connection to existing sewer not shown in context.',
+  ],
+  cdm: [
+    'CDM hazard triangle not shown — add for this construction activity.',
+    'Residual risk not documented on drawing — add H&S note.',
+    'Confined space present — add permit to enter note and reference CPP.',
+    'Overhead live OLE within working area — add exclusion zone and isolation procedure reference.',
+    'Buried services present — note requirement to consult LSBUD / Dial Before You Dig.',
+    'Contaminated land indicated — add reference to Phase II ESA and remediation strategy.',
+    'Temporary works requirement not identified — flag for Temporary Works Engineer.',
+    'Working at height — add reference to work at height risk assessment.',
+  ],
+};
+
+function showTemplates() {
+  const picker = document.getElementById('template-picker');
+  picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+  if (picker.style.display === 'block') renderTemplates();
+}
+
+function renderTemplates() {
+  const disc = document.getElementById('tpl-disc').value;
+  const list = document.getElementById('tpl-list');
+  const items = TEMPLATES[disc] || TEMPLATES.general;
+  list.innerHTML = items.map(t =>
+    `<div class="tpl-item" onclick="insertTemplate(${JSON.stringify(t)})">${t}</div>`
+  ).join('');
+}
+
+function insertTemplate(text) {
+  const input = document.getElementById('txt-pop-input');
+  if (input) {
+    input.value = text;
+    input.focus();
+    input.select();
+  }
+  document.getElementById('template-picker').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════
+//  SNAP TO EXISTING ANNOTATION
+//  When placing arrow/note endpoints, snap cursor
+//  to nearest annotation anchor within 20px
+// ═══════════════════════════════════════════════
+const SNAP_RADIUS = 20; // px screen distance to trigger snap
+
+function getAnnotAnchors(pageNum, vp) {
+  // Returns [{screenX, screenY, annotId}] for all annotations on this page
+  return annots
+    .filter(a => a.pageNum === pageNum)
+    .flatMap(a => {
+      const ax = []; // anchor points in overlay px
+      if (a.x !== undefined && a.y !== undefined) {
+        ax.push({ sx: a.x / 100 * vp.width, sy: a.y / 100 * vp.height, id: a.id });
+      }
+      if (a.x2 !== undefined) {
+        ax.push({ sx: a.x2 / 100 * vp.width, sy: a.y2 / 100 * vp.height, id: a.id });
+      }
+      if (a.x1 !== undefined) {
+        ax.push({ sx: a.x1 / 100 * vp.width, sy: a.y1 / 100 * vp.height, id: a.id });
+      }
+      return ax;
+    });
+}
+
+function findSnapPoint(mx, my, pageNum, vp) {
+  const anchors = getAnnotAnchors(pageNum, vp);
+  let best = null, bestDist = SNAP_RADIUS;
+  anchors.forEach(a => {
+    const d = Math.hypot(mx - a.sx, my - a.sy);
+    if (d < bestDist) { bestDist = d; best = a; }
+  });
+  return best; // null if nothing within snap radius
+}
+
+function updateSnapRing(screenX, screenY, visible) {
+  const ring = document.getElementById('snap-ring');
+  if (!ring) return;
+  if (visible) {
+    ring.style.display = 'block';
+    ring.style.left = screenX + 'px';
+    ring.style.top = screenY + 'px';
+  } else {
+    ring.style.display = 'none';
+  }
+}
+
+// Patch attachEvents to add snap behaviour on arrow/note mousemove and mousedown
+const _origAttachEvents = attachEvents;
+attachEvents = function(ov, pageNum, vp) {
+  _origAttachEvents(ov, pageNum, vp);
+
+  // Global mousemove for snap ring display
+  ov.addEventListener('mousemove', e => {
+    if (!['arrow', 'note', 'text', 'measure'].includes(tool)) {
+      updateSnapRing(0, 0, false); return;
+    }
+    const r = ov.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const snap = findSnapPoint(mx, my, pageNum, vp);
+    if (snap) {
+      updateSnapRing(e.clientX, e.clientY, true);
+    } else {
+      updateSnapRing(0, 0, false);
+    }
+  });
+
+  ov.addEventListener('mouseleave', () => updateSnapRing(0, 0, false));
+};
+
+// Patch mousedown in attachEvents to snap coordinates
+// We intercept by hooking the overlay's existing mousedown before it fires
+// via a capturing listener added here
+document.addEventListener('mousedown', e => {
+  if (!['arrow', 'note', 'text', 'measure'].includes(tool)) return;
+  const ov = e.target.closest('.aoverlay');
+  if (!ov) return;
+  const pageNum = parseInt(ov.dataset.page);
+  const vp = pageViewports[pageNum];
+  if (!vp) return;
+  const r = ov.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const snap = findSnapPoint(mx, my, pageNum, vp);
+  if (snap) {
+    // Override clientX/Y on the event — not possible, but we store the snapped coord
+    // The actual tool handlers use e.clientX - r.left, so we signal via a property
+    e._snapX = snap.sx + r.left;
+    e._snapY = snap.sy + r.top;
+    updateSnapRing(0, 0, false);
+  }
+}, true); // capturing — fires before the overlay's mousedown
+
+// ═══════════════════════════════════════════════
+//  ZOOM-AWARE MEASUREMENT LABEL RECALCULATION
+//  After zoom changes, update all measure annotation
+//  labels based on stored pxDist and current zoom
+// ═══════════════════════════════════════════════
+const _origApplyZoom = applyZoom;
+applyZoom = async function(val) {
+  await _origApplyZoom(val);
+  recalcMeasureLabels();
+};
+
+function recalcMeasureLabels() {
+  annots.forEach(a => {
+    if (a.type !== 'measure' && a.type !== 'area') return;
+    if (a.type === 'measure' && a.pxDist) {
+      const label = measureScale
+        ? `${(a.pxDist / measureScale.pxPerUnit / zoom).toFixed(2)} ${measureScale.unit}`
+        : `${Math.round(a.pxDist)} px`;
+      a.label = label;
+    }
+    if (a.type === 'area' && a.areaPx) {
+      const label = measureScale
+        ? `${(a.areaPx / (measureScale.pxPerUnit * measureScale.pxPerUnit)).toFixed(2)} ${measureScale.unit}²`
+        : `${Math.round(a.areaPx)} px²`;
+      a.label = label;
+    }
+  });
+  syncAnnots();
+}
+
+// ═══════════════════════════════════════════════
+//  WEB WORKER TEXT EXTRACTION
+//  Moves PDF.js getTextContent off the main thread
+//  using an inline Worker blob so there's no
+//  separate .js file required
+// ═══════════════════════════════════════════════
+const WORKER_SRC = `
+self.onmessage = async function(e) {
+  const { pageData, pageNum, width, height } = e.data;
+  // We receive pre-extracted text items from the main thread
+  // (pdf.js can't run in a worker without its own worker setup)
+  // Instead we do the coordinate normalisation here
+  const items = pageData.map(item => {
+    const [,,,scaleY,tx,ty] = item.transform;
+    return {
+      str: item.str.trim(),
+      x: tx / width,
+      y: 1 - (ty / height),
+      fontSize: Math.abs(scaleY) / height,
+      width: item.width / width,
+    };
+  }).filter(it => it.str.length > 0);
+  self.postMessage({ pageNum, items });
+};
+`;
+
+let textWorker = null;
+function getTextWorker() {
+  if (!textWorker) {
+    const blob = new Blob([WORKER_SRC], { type: 'application/javascript' });
+    textWorker = new Worker(URL.createObjectURL(blob));
+  }
+  return textWorker;
+}
+
+// Override extractPdfText to use the worker for coordinate normalisation
+async function extractPdfText() {
+  const worker = getTextWorker();
+  const promises = [];
+
+  for (let i = 1; i <= nPages; i++) {
+    promises.push((async (pg) => {
+      try {
+        const page = await pdf.getPage(pg);
+        const tc   = await page.getTextContent();
+        const vp   = page.getViewport({ scale: 1 });
+
+        return new Promise(res => {
+          const handler = e => {
+            if (e.data.pageNum === pg) {
+              worker.removeEventListener('message', handler);
+              pdfTextContent[pg] = e.data.items;
+              res();
+            }
+          };
+          worker.addEventListener('message', handler);
+          worker.postMessage({
+            pageNum: pg,
+            pageData: tc.items.filter(it => it.str?.trim()),
+            width: vp.width,
+            height: vp.height
+          });
+        });
+      } catch(e) { /* skip page */ }
+    })(i));
+  }
+  // Process in batches of 4 to avoid overwhelming the worker
+  for (let i = 0; i < promises.length; i += 4) {
+    await Promise.all(promises.slice(i, i + 4));
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  RIBBON CONTROLLER
+// ═══════════════════════════════════════════════
+
+const TOOL_HINTS = {
+  pan:          'Click and drag to scroll · Space to temporarily pan from any tool',
+  erase:        'Click any annotation to delete it · works on all annotation types',
+  highlight:    'Drag to highlight a region · colour set in Home tab',
+  texthighlight:'Swipe across text like a physical highlighter pen',
+  rect:         'Drag to draw a rectangle markup box',
+  strike:       'Drag to add a strikethrough over text or a region',
+  cloud:        'Drag to draw a revision cloud bubble — standard NR markup convention',
+  note:         'Click to place a sticky note · adds to EMMA register automatically',
+  text:         'Click to place a text label on the drawing',
+  pen:          'Click and drag to draw freehand · release to commit',
+  arrow:        'Drag to draw an arrow with arrowhead · snap to annotations nearby',
+  measure:      'Click 1 → set start · Click 2 → set end · Click 3 → commit · Shift = orthogonal snap',
+  area:         'Click to add polygon points · double-click to close and calculate area',
+};
+
+const TOOL_TABS = {
+  pan:'markup', erase:'markup',
+  highlight:'markup', texthighlight:'markup', rect:'markup', strike:'markup',
+  note:'markup', text:'markup',
+  pen:'markup', arrow:'markup', cloud:'markup',
+  measure:'markup', area:'markup',
+};
+
+function switchRibbon(tab, btn) {
+  document.querySelectorAll('.rtab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.rpanel').forEach(p => p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const panel = document.getElementById(`rpanel-${tab}`);
+  if (panel) panel.classList.add('active');
+  // If no btn passed, also activate the tab button
+  if (!btn) {
+    const tabBtn = document.getElementById(`rtab-${tab}`);
+    if (tabBtn) tabBtn.classList.add('active');
+  }
+}
+
+// Ribbon-aware setStrokeW (replaces old select)
+let _strokeW = 4;
+function strokeW() { return _strokeW; }
+function setStrokeW(val, optEl) {
+  _strokeW = val;
+  document.querySelectorAll('.rsw-opt').forEach(o => o.classList.remove('active'));
+  if (optEl) optEl.classList.add('active');
+  // Also keep hidden select in sync
+  const sel = document.getElementById('stroke-w');
+  if (sel) sel.value = val;
+}
+
+// Patch setTool to update ribbon active states and hint strip
+const _ribbonSetTool = setTool;
+setTool = function(t) {
+  _ribbonSetTool(t);
+
+  // Update ribbon button active states — clear all, set new
+  document.querySelectorAll('.rbtn').forEach(b => {
+    b.classList.remove('active');
+    if (b.id !== 't-erase') b.classList.remove('eraser-active');
+  });
+  const btn = document.getElementById('t-' + t);
+  if (btn) {
+    if (t === 'erase') btn.classList.add('active');
+    else btn.classList.add('active');
+  }
+  // Restore eraser passive style
+  const erBtn = document.getElementById('t-erase');
+  if (erBtn && t !== 'erase') {
+    erBtn.classList.remove('active');
+    erBtn.classList.add('eraser-active');
+  }
+
+  // Update active tool strip
+  const ratName = document.getElementById('rat-name');
+  const ratHint = document.getElementById('rat-hint');
+  if (ratName) ratName.textContent = typeLabels[t] || t;
+  if (ratHint) ratHint.textContent = TOOL_HINTS[t] || '';
+
+  // Auto-switch ribbon tab to match tool
+  const targetTab = TOOL_TABS[t];
+  if (targetTab) {
+    const tabBtn = document.getElementById(`rtab-${targetTab}`);
+    switchRibbon(targetTab, tabBtn);
+  }
+};
+
+// Patch setColor to update ribbon swatches
+const _ribbonSetColor = setColor;
+setColor = function(c) {
+  _ribbonSetColor(c);
+  document.querySelectorAll('.rcsw').forEach(s => s.classList.remove('active'));
+  const map = { yellow: 'c-y', teal: 'c-t', rose: 'c-r' };
+  if (map[c]) document.getElementById(map[c])?.classList.add('active');
+};
+
+// Number key colour shortcuts (1=yellow, 2=teal, 3=rose)
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input,textarea,select')) return;
+  if (e.key === '1') setColor('yellow');
+  if (e.key === '2') setColor('teal');
+  if (e.key === '3') setColor('rose');
+});
+
+// Patch zoom display to update ribbon indicator
+const _origApplyZoomRibbon = applyZoom;
+applyZoom = async function(val) {
+  await _origApplyZoomRibbon(val);
+  const pct = Math.round(zoom * 100);
+  const el = document.getElementById('sb-zoom-val');
+  if (el) el.textContent = pct + '%';
+  // Keep select in sync
+  const sel = document.getElementById('zsel');
+  if (sel && !isNaN(parseFloat(val))) sel.value = String(parseFloat(val));
+};
+
+// Patch updateStatusCount to also update ribbon indicator
+const _origUpdateStatusCount = updateStatusCount;
+updateStatusCount = function() {
+  _origUpdateStatusCount();
+  const el = document.getElementById('sb-count');
+  if (el) el.textContent = `${annots.length} annotation${annots.length !== 1 ? 's' : ''}`;
+};
+
+// Patch scale display to update ribbon measure tab
+const _origApplyScale = applyScale;
+applyScale = function() {
+  _origApplyScale();
+  updateRibbonScale();
+};
+function updateRibbonScale() {
+  const el = document.getElementById('sb-scale-r');
+  const sb = document.getElementById('sb-scale');
+  if (measureScale) {
+    const txt = `1:set (${measureScale.unit})`;
+    if (el) el.innerHTML = `<strong style="color:var(--blue-600)">${txt}</strong>`;
+    if (sb) sb.textContent = '⚖ ' + txt;
+  }
+}
+
+// Mouse position update for ribbon strip
+document.getElementById('viewer').addEventListener('mousemove', e => {
+  // sb-pos already handled in renderPageContent via wrap.addEventListener
+});
+
+// Initialise tool state without auto-switching ribbon tab
+_ribbonSetTool('highlight');
+const _hBtn = document.getElementById('t-highlight');
+if (_hBtn) _hBtn.classList.add('active');
+const _erBtn2 = document.getElementById('t-erase');
+if (_erBtn2) _erBtn2.classList.add('eraser-active');
+// Start on File tab
+switchRibbon('file', document.getElementById('rtab-file'));
 </script>
 </body>
 </html>

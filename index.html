@@ -920,16 +920,38 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
     <div class="rpanel active" id="rpanel-file">
       <div class="rgroup">
         <div class="rgroup-btns">
-          <button class="rbtn lg" onclick="saveSession()" data-tip="Save session (Ctrl+S)">
+          <button class="rbtn lg" onclick="document.getElementById('fopen').click()" data-tip="Open a PDF drawing">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12H3l9-9 9 9h-2M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>
+            <span class="rbtn-label">Open<br>PDF</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Open</div>
+      </div>
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn lg" onclick="saveSession()" data-tip="Save annotations only — small file (Ctrl+S)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
             <span class="rbtn-label">Save<br>Session</span>
           </button>
-          <button class="rbtn lg" onclick="document.getElementById('fsession').click()" data-tip="Load a saved session">
+          <button class="rbtn lg" onclick="saveSessionWithPdf()" data-tip="Save session + embedded PDF — fully portable, anyone can open it">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/><circle cx="18" cy="18" r="5" fill="none"/><line x1="18" y1="15" x2="18" y2="21"/><line x1="15" y1="18" x2="21" y2="18"/></svg>
+            <span class="rbtn-label">Save +<br>PDF</span>
+          </button>
+          <button class="rbtn lg" onclick="document.getElementById('fsession').click()" data-tip="Load a saved .engdoc session (with or without embedded PDF)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
             <span class="rbtn-label">Load<br>Session</span>
           </button>
         </div>
         <div class="rgroup-label">Session</div>
+      </div>
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn lg" onclick="exportAnnotatedPdf()" data-tip="Export PDF with annotations burned in — shareable with anyone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l2 2 4-4"/></svg>
+            <span class="rbtn-label">Export<br>Annotated PDF</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Export</div>
       </div>
       <div class="rgroup">
         <div class="rgroup-btns">
@@ -3327,36 +3349,321 @@ function applyScale() {
 /* ═══════════════════════════════════════════════
    SAVE / LOAD SESSION (.engdoc)
 ═══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   SAVE / LOAD SESSION (.engdoc)
+   v2  = annotations only  (small file)
+   v3  = annotations + embedded base64 PDF  (portable)
+═══════════════════════════════════════════════ */
 function saveSession() {
   if (!pdfName && !annots.length) { toast('Nothing to save'); return; }
   const data = { v: 2, pdfName, annotIdSeq, measureScale, annots, emmaRows };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  _downloadJSON(data, (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc');
+  toast(`✓ Session saved — ${annots.length} annotation${annots.length !== 1 ? 's' : ''}`);
+}
+
+async function saveSessionWithPdf() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  toast('Embedding PDF… (may take a moment for large files)', 3000);
+  // Convert ArrayBuffer → base64
+  const bytes = new Uint8Array(pdfBytes);
+  let binary = '';
+  const chunk = 8192;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  const b64 = btoa(binary);
+  const data = { v: 3, pdfName, annotIdSeq, measureScale, annots, emmaRows, pdfData: b64 };
+  _downloadJSON(data, (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc');
+  const sizeMb = (JSON.stringify(data).length / 1024 / 1024).toFixed(1);
+  toast(`✓ Saved with embedded PDF — ${sizeMb} MB`);
+}
+
+function _downloadJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
-  a.click(); URL.revokeObjectURL(url);
-  toast(`✓ Session saved — ${annots.length} annotation${annots.length !== 1 ? 's' : ''}`);
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function loadSession(e) {
   const file = e.target.files[0]; if (!file) return;
+  e.target.value = '';
   try {
     const text = await file.text();
     const data = JSON.parse(text);
     if (!data.annots) throw new Error('Invalid session file');
+
+    // v3: embedded PDF — auto-load it first
+    if (data.v === 3 && data.pdfData) {
+      toast('Loading embedded PDF…', 2000);
+      const binary = atob(data.pdfData);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const pdfFile = new File([bytes], data.pdfName || 'document.pdf', { type: 'application/pdf' });
+      await loadPDF(pdfFile);
+    }
+
     annots = data.annots;
     emmaRows = data.emmaRows || {};
-    annotIdSeq = data.annotIdSeq || annots.reduce((m,a) => Math.max(m, a.id||0), 0);
+    annotIdSeq = data.annotIdSeq || annots.reduce((m, a) => Math.max(m, a.id || 0), 0);
     if (data.measureScale) {
       measureScale = data.measureScale;
       document.getElementById('sb-scale').textContent =
         `⚖ Scale: 1 ${measureScale.unit} = ${(measureScale.pxPerUnit).toFixed(1)} px`;
     }
-    syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
-    toast(`✓ Loaded session: ${annots.length} annotation${annots.length !== 1 ? 's' : ''}`);
-  } catch(err) { toast('Failed to load session: ' + err.message); }
-  e.target.value = '';
+    // Restore EMMA panel fields if saved
+    if (data.emmaFields) {
+      Object.entries(data.emmaFields).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+      });
+    }
+    syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister(); updateEmmaDash();
+    toast(`✓ Loaded: ${annots.length} annotation${annots.length !== 1 ? 's' : ''}${data.v === 3 ? ' (with embedded PDF)' : ''}`);
+  } catch(err) {
+    toast('Failed to load session: ' + err.message);
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   EXPORT ANNOTATED PDF
+   Burns all annotations onto the PDF pages using
+   pdf-lib so the result is viewable in any PDF
+   reader without EngDoc installed.
+═══════════════════════════════════════════════ */
+async function exportAnnotatedPdf() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  if (!annots.length) { toast('No annotations to export — add some markup first'); return; }
+
+  toast('Generating annotated PDF…', 5000);
+  try {
+    await loadPdfLib();
+    const { PDFDocument, rgb, degrees } = PDFLib;
+
+    const srcDoc = await PDFDocument.load(pdfBytes.slice(0));
+    const pages  = srcDoc.getPages();
+
+    // pdf-lib colour helpers from hex
+    const hexToRgb = (hex, alpha = 1) => {
+      const r = parseInt(hex.slice(1,3), 16) / 255;
+      const g = parseInt(hex.slice(3,5), 16) / 255;
+      const b = parseInt(hex.slice(5,7), 16) / 255;
+      return { r, g, b };
+    };
+    const C = (hex, a) => { const { r, g, b } = hexToRgb(hex); return rgb(r, g, b); };
+
+    // Colour map
+    const HEX  = { yellow: '#fbbf24', teal: '#2dd4bf', rose: '#fb7185' };
+    const FILL = { yellow: '#fef9c3', teal: '#ccfbf1', rose: '#ffe4e6' };
+
+    // Group annotations by page
+    const byPage = {};
+    annots.forEach(a => {
+      if (!byPage[a.pageNum]) byPage[a.pageNum] = [];
+      byPage[a.pageNum].push(a);
+    });
+
+    for (const [pgNumStr, pageAnnots] of Object.entries(byPage)) {
+      const pgNum = parseInt(pgNumStr);
+      const page  = pages[pgNum - 1];
+      if (!page) continue;
+      const { width: W, height: H } = page.getSize();
+
+      for (const a of pageAnnots) {
+        const c = HEX[a.color] || HEX.yellow;
+        const cf = FILL[a.color] || FILL.yellow;
+        const { r, g, b } = hexToRgb(c);
+
+        try {
+          if (a.type === 'highlight') {
+            // Semi-transparent yellow box
+            page.drawRectangle({
+              x: a.x / 100 * W,
+              y: H - (a.y + a.h) / 100 * H,
+              width:  a.w / 100 * W,
+              height: a.h / 100 * H,
+              color: rgb(r, g, b),
+              opacity: 0.3,
+              borderOpacity: 0,
+            });
+          }
+
+          else if (a.type === 'rect') {
+            page.drawRectangle({
+              x: a.x / 100 * W,
+              y: H - (a.y + a.h) / 100 * H,
+              width:  a.w / 100 * W,
+              height: a.h / 100 * H,
+              borderColor: rgb(r, g, b),
+              borderWidth: 1.5,
+              color: rgb(r, g, b),
+              opacity: 0.07,
+              borderOpacity: 1,
+            });
+          }
+
+          else if (a.type === 'strike') {
+            // Strikethrough — horizontal line through middle
+            const sx = a.x / 100 * W;
+            const sy = H - (a.y + a.h / 2) / 100 * H;
+            const ex = (a.x + a.w) / 100 * W;
+            page.drawLine({
+              start: { x: sx, y: sy },
+              end:   { x: ex, y: sy },
+              color: rgb(r, g, b),
+              thickness: 2,
+              opacity: 0.8,
+            });
+          }
+
+          else if (a.type === 'arrow') {
+            const x1 = a.x1 / 100 * W, y1 = H - a.y1 / 100 * H;
+            const x2 = a.x2 / 100 * W, y2 = H - a.y2 / 100 * H;
+            const sw = Math.max(a.sw || 2, 1);
+            page.drawLine({
+              start: { x: x1, y: y1 },
+              end:   { x: x2, y: y2 },
+              color: rgb(r, g, b),
+              thickness: sw,
+              opacity: 0.9,
+            });
+            // Arrowhead — small triangle at tip
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            const hs = sw * 4 + 4;
+            const a1 = angle + Math.PI * 0.8;
+            const a2 = angle - Math.PI * 0.8;
+            page.drawLine({ start: { x: x2, y: y2 }, end: { x: x2 + Math.cos(a1) * hs, y: y2 + Math.sin(a1) * hs }, color: rgb(r,g,b), thickness: sw, opacity: 0.9 });
+            page.drawLine({ start: { x: x2, y: y2 }, end: { x: x2 + Math.cos(a2) * hs, y: y2 + Math.sin(a2) * hs }, color: rgb(r,g,b), thickness: sw, opacity: 0.9 });
+          }
+
+          else if (a.type === 'measure') {
+            const x1 = a.x1 / 100 * W, y1 = H - a.y1 / 100 * H;
+            const x2 = a.x2 / 100 * W, y2 = H - a.y2 / 100 * H;
+            // Measurement line (dashed look via two segments)
+            page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, color: rgb(0.49, 0.23, 0.93), thickness: 1, opacity: 0.8 });
+            // End ticks
+            const nx = -(y2 - y1), ny = x2 - x1;
+            const len = Math.hypot(nx, ny) || 1;
+            const tx = nx / len * 5, ty = ny / len * 5;
+            page.drawLine({ start: { x: x1-tx, y: y1-ty }, end: { x: x1+tx, y: y1+ty }, color: rgb(0.49,0.23,0.93), thickness: 1 });
+            page.drawLine({ start: { x: x2-tx, y: y2-ty }, end: { x: x2+tx, y: y2+ty }, color: rgb(0.49,0.23,0.93), thickness: 1 });
+            // Label
+            if (a.label) {
+              const mx = (x1+x2)/2, my = (y1+y2)/2 + 8;
+              _drawPdfLabel(page, a.label, mx, my, rgb(0.49,0.23,0.93), 8);
+            }
+          }
+
+          else if (a.type === 'note' || a.type === 'text') {
+            const px = a.x / 100 * W;
+            const py = H - a.y / 100 * H - 10;
+            const text = a.text || '';
+            // Coloured badge background
+            const { r: fr, g: fg, b: fb } = hexToRgb(cf);
+            const badge_w = Math.min(text.length * 5.5 + 16, 180);
+            const badge_h = 16;
+            page.drawRectangle({
+              x: px, y: py,
+              width: badge_w, height: badge_h,
+              color: rgb(fr, fg, fb),
+              borderColor: rgb(r, g, b),
+              borderWidth: 0.8,
+              borderOpacity: 1,
+              opacity: 0.92,
+            });
+            _drawPdfLabel(page, text.slice(0, 40) + (text.length > 40 ? '…' : ''), px + 4, py + 3, rgb(r, g, b), 7);
+            // EMMa index badge
+            const emmaIdx = getEmmaIndex(a.id);
+            if (emmaIdx > 0 && !a.emmaExclude) {
+              page.drawCircle({ x: px - 4, y: py + 8, size: 6, color: rgb(0.49, 0.23, 0.93), opacity: 0.9 });
+              _drawPdfLabel(page, String(emmaIdx), px - 7, py + 4, rgb(1, 1, 1), 6);
+            }
+          }
+
+          else if (a.type === 'cloud') {
+            // Cloud approximation — dashed rectangle with rounded feel
+            page.drawRectangle({
+              x: a.x / 100 * W,
+              y: H - (a.y + a.h) / 100 * H,
+              width:  a.w / 100 * W,
+              height: a.h / 100 * H,
+              borderColor: rgb(r, g, b),
+              borderWidth: 2,
+              color: rgb(r, g, b),
+              opacity: 0.05,
+              borderOpacity: 0.9,
+            });
+            // Cloud label
+            _drawPdfLabel(page, '☁ Revision', a.x / 100 * W + 3, H - a.y / 100 * H - 3, rgb(r, g, b), 7);
+          }
+
+          else if (a.type === 'pen' || a.type === 'texthighlight') {
+            // Draw freehand as connected line segments
+            if (a.points && a.points.length >= 2) {
+              const alpha = a.type === 'texthighlight' ? 0.4 : 0.85;
+              const sw = Math.max(a.sw || 2, 1);
+              for (let i = 0; i < a.points.length - 1; i++) {
+                const p1 = a.points[i], p2 = a.points[i + 1];
+                page.drawLine({
+                  start: { x: p1.x * W, y: H - p1.y * H },
+                  end:   { x: p2.x * W, y: H - p2.y * H },
+                  color: rgb(r, g, b),
+                  thickness: sw,
+                  opacity: alpha,
+                });
+              }
+            }
+          }
+
+          else if (a.type === 'area') {
+            // Polygon fill + border
+            if (a.points && a.points.length >= 3) {
+              // pdf-lib doesn't have drawPolygon, approximate with lines
+              for (let i = 0; i < a.points.length; i++) {
+                const p1 = a.points[i];
+                const p2 = a.points[(i + 1) % a.points.length];
+                page.drawLine({
+                  start: { x: p1.x * W, y: H - p1.y * H },
+                  end:   { x: p2.x * W, y: H - p2.y * H },
+                  color: rgb(r, g, b),
+                  thickness: 1.5,
+                  opacity: 0.8,
+                });
+              }
+              // Area label at centroid
+              if (a.label) {
+                const cx = a.points.reduce((s, p) => s + p.x, 0) / a.points.length * W;
+                const cy = H - a.points.reduce((s, p) => s + p.y, 0) / a.points.length * H;
+                _drawPdfLabel(page, a.label, cx - 20, cy, rgb(r, g, b), 8);
+              }
+            }
+          }
+        } catch(annotErr) { /* skip individual annotation errors silently */ }
+      }
+    }
+
+    const pdfBytesOut = await srcDoc.save();
+    const fname = (pdfName || 'drawing').replace(/\.pdf$/i, '') + '_annotated.pdf';
+    dl(pdfBytesOut, fname);
+    toast(`✓ Exported annotated PDF — ${annots.length} annotation${annots.length !== 1 ? 's' : ''} rendered`);
+  } catch(err) {
+    toast('Export failed: ' + err.message);
+    console.error('[EngDoc] exportAnnotatedPdf:', err);
+  }
+}
+
+// Helper: draw small text on a pdf-lib page (pdf-lib requires embedded font for non-latin;
+// we use the built-in Helvetica which covers ASCII)
+function _drawPdfLabel(page, text, x, y, color, size = 8) {
+  try {
+    page.drawText(String(text).replace(/[^\x20-\x7E]/g, '?'), {
+      x, y,
+      size,
+      color,
+      opacity: 0.95,
+    });
+  } catch(e) { /* skip if font issue */ }
 }
 
 /* ═══════════════════════════════════════════════

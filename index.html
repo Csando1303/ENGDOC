@@ -6,6 +6,38 @@
 <title>EngDoc — Engineering PDF Suite</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
+/* ── PDF TEXT LAYER — selectable text overlay ─── */
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;   /* visible — never clip transformed spans */
+  line-height: 1;
+  text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  forced-color-adjust: none;
+}
+.textLayer span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 100%; /* bottom-left — matches PDF coordinate origin */
+  user-select: text;
+  -webkit-user-select: text;
+}
+.textLayer ::selection {
+  background: rgba(37,99,235,0.28);
+  color: transparent;
+}
+.textLayer ::-moz-selection {
+  background: rgba(37,99,235,0.28);
+  color: transparent;
+}
+body.dark .textLayer ::selection {
+  background: rgba(96,165,250,0.35);
+}
+</style>
+<style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,600&display=swap');
 
 :root {
@@ -563,7 +595,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   font-family:var(--mono);font-size:10px;color:var(--gray-400);white-space:nowrap}
 
 /* annotation overlay */
-.aoverlay{position:absolute;inset:0;pointer-events:none;border-radius:2px;overflow:visible}
+.aoverlay{position:absolute;inset:0;pointer-events:none;border-radius:2px;overflow:visible;z-index:3}
 .aoverlay.active{pointer-events:all}
 .aoverlay.cur-cross{cursor:crosshair}
 .aoverlay.cur-cell{cursor:cell}
@@ -573,11 +605,74 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 /* annotation elements */
 .ah{position:absolute;mix-blend-mode:multiply;border-radius:1px}
 .ar{position:absolute;border:2px solid #2563eb;background:rgba(37,99,235,.07);border-radius:1px}
-.an{position:absolute;background:var(--white);border:1px solid var(--gray-300);
-  border-radius:var(--radius-sm);padding:5px 8px;font-size:11px;
-  color:var(--gray-700);line-height:1.4;max-width:160px;
-  box-shadow:var(--shadow-md);cursor:pointer;z-index:5}
-.an::before{content:'◆';font-size:8px;color:#fbbf24;margin-right:4px}
+/* ── STICKY NOTE ── */
+.an {
+  position: absolute;
+  width: 28px; height: 28px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  cursor: pointer;
+  z-index: 5;
+  transition: transform .15s, box-shadow .15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  display: flex; align-items: center; justify-content: center;
+}
+.an:hover {
+  transform: rotate(-45deg) scale(1.15);
+  box-shadow: 0 3px 10px rgba(0,0,0,.3);
+}
+.an-inner {
+  transform: rotate(45deg);
+  font-size: 9px; font-weight: 700;
+  font-family: var(--mono);
+  color: rgba(0,0,0,.6);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+/* Expanded note bubble — appears on click */
+.an-bubble {
+  position: absolute;
+  left: 28px; top: -4px;
+  min-width: 180px; max-width: 260px;
+  background: var(--white);
+  border: 1px solid var(--gray-300);
+  border-radius: 0 var(--radius) var(--radius) var(--radius);
+  padding: 8px 10px;
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+  font-size: 11.5px;
+  color: var(--gray-800);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: default;
+  pointer-events: all;
+  transform: rotate(45deg);  /* counter-rotate — parent is rotated -45 */
+}
+.an-bubble:empty::before {
+  content: '(empty note)';
+  color: var(--gray-400);
+  font-style: italic;
+}
+.an-bubble-actions {
+  display: flex; gap: 5px; margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--gray-200);
+}
+.an-bubble-btn {
+  font-size: 10px; padding: 2px 8px;
+  border-radius: 3px; border: 1px solid var(--gray-300);
+  background: var(--gray-50); color: var(--gray-700);
+  cursor: pointer; font-family: var(--font);
+}
+.an-bubble-btn:hover { background: var(--gray-100); }
+.an-bubble-btn.primary { background: var(--blue-500); color: #fff; border-color: var(--blue-500); }
+.an-bubble-btn.primary:hover { background: var(--blue-600); }
+.an-bubble-btn.danger { color: var(--red-500); }
+.an-bubble-btn.danger:hover { background: var(--red-50); border-color: #fca5a5; }
+/* Leader line SVG sits on the page overlay behind the note */
+.an-leader { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 4; }
 /* SVG annot wrappers — the div itself must NEVER block pointer events.
    Only the actual SVG strokes get pointer-events (set in JS for erase mode). */
 .asvg-wrap{position:absolute;inset:0;overflow:visible;pointer-events:none}
@@ -1616,8 +1711,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 let pdf = null, nPages = 0, curPg = 1, zoom = 1;
 let pdfBytes = null, pdfName = '';
 let tool = 'pan', color = 'yellow';
-let fontSize = 12;   // pt — applies to text, note, textbox, callout
-let annotOpacity = 80; // % — applies to highlights and fills
+let fontSize = 12;
+let annotOpacity = 80;
+// Note bubble state (initialised here; implementation in syncAnnots section below)
+let _openBubbleId  = null;
+let _leaderPlaceId = null;
 let annots = [];         // [{id, pageNum, type, ...}]
 let mergeFiles = [];
 let annotIdSeq = 0;
@@ -1795,7 +1893,18 @@ async function loadPDF(file) {
   pdfName = file.name;
   pdfBytes = await file.arrayBuffer();
 
-  pdf = await pdfjsLib.getDocument({ data: pdfBytes.slice(0), disableRange: false, disableStream: false }).promise;
+  pdf = await pdfjsLib.getDocument({
+    data: pdfBytes.slice(0),
+    // Streaming + range requests disabled (we have full bytes in memory)
+    disableRange: true,
+    disableStream: true,
+    // Suppress console noise
+    verbosityLevel: 0,
+    // Larger chunk size speeds up internal page parsing
+    rangeChunkSize: 65536,
+    // Use canvas for all rendering (no SVG fallback)
+    useSystemFonts: false,
+  }).promise;
   nPages = pdf.numPages; curPg = 1; annots = []; emmaRows = {};
   renderedPages.clear(); renderQueue.clear();
   Object.keys(pdfTextContent).forEach(k => delete pdfTextContent[k]);
@@ -2164,6 +2273,8 @@ function getVisibleRange() {
   return { first: Math.max(1, first - OVERSCAN), last: Math.min(nPages, last + OVERSCAN) };
 }
 
+const RENDER_CONCURRENCY = 4; // render up to 4 pages simultaneously
+
 function scheduleRender() {
   if (renderScheduled) return;
   renderScheduled = true;
@@ -2172,71 +2283,194 @@ function scheduleRender() {
     if (!pdf) return;
     const { first, last } = getVisibleRange();
 
-    // Unload pages far outside viewport to release canvas memory
+    // Unload pages far outside viewport to release GPU memory
     for (const pg of renderedPages) {
       if (pg < first - 4 || pg > last + 4) {
-        const wrap = document.getElementById(`pw-${pg}`);
+        const wrap = document.getElementById('pw-' + pg);
         if (wrap) {
           const canvas = wrap.querySelector('canvas');
           if (canvas) {
-            // Clear canvas before removing so GPU memory is freed
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.width = 1; canvas.height = 1; // release GPU texture
             canvas.remove();
           }
+          wrap.querySelector('.textLayer')?.remove();
           wrap.classList.add('unrendered');
         }
         renderedPages.delete(pg);
+        delete _pageCache[pg]; // free the page object too
       }
     }
 
-    // Render newly visible pages
+    // Collect pages that need rendering, prioritise visible ones first
+    const toRender = [];
     for (let i = first; i <= last; i++) {
-      if (!renderedPages.has(i) && !renderQueue.has(i)) {
-        renderQueue.add(i);
-        renderPageContent(i).then(() => { renderQueue.delete(i); });
-      }
+      if (!renderedPages.has(i) && !renderQueue.has(i)) toRender.push(i);
+    }
+
+    // Render in batches of RENDER_CONCURRENCY
+    for (let i = 0; i < toRender.length; i += RENDER_CONCURRENCY) {
+      const batch = toRender.slice(i, i + RENDER_CONCURRENCY);
+      batch.forEach(pg => renderQueue.add(pg));
+      await Promise.all(batch.map(pg =>
+        renderPageContent(pg).then(() => renderQueue.delete(pg)).catch(() => renderQueue.delete(pg))
+      ));
     }
   });
 }
 
+// Page object cache — avoid re-fetching already-loaded page objects
+const _pageCache = {};
+async function getCachedPage(num) {
+  if (!_pageCache[num]) _pageCache[num] = await pdf.getPage(num);
+  return _pageCache[num];
+}
+
 async function renderPageContent(pageNum) {
-  const wrap = document.getElementById(`pw-${pageNum}`);
+  const wrap = document.getElementById('pw-' + pageNum);
   if (!wrap || renderedPages.has(pageNum)) return;
 
-  const page = await pdf.getPage(pageNum);
-  const vp = page.getViewport({ scale: zoom });
+  const page = await getCachedPage(pageNum);
+  const vp   = page.getViewport({ scale: zoom });
+
+  // Device pixel ratio for sharp rendering on HiDPI/Retina screens
+  const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap at 2x
 
   // Store real viewport for this page
   pageViewports[pageNum] = { width: vp.width, height: vp.height, vp };
 
-  // Correct wrap + overlay to exact page dimensions (may differ from shell estimate)
-  wrap.style.width  = vp.width + 'px';
+  // Correct wrap + overlay to exact page dimensions
+  wrap.style.width  = vp.width  + 'px';
   wrap.style.height = vp.height + 'px';
 
   let ov = wrap.querySelector('.aoverlay');
-  ov.style.width  = vp.width + 'px';
+  ov.style.width  = vp.width  + 'px';
   ov.style.height = vp.height + 'px';
 
-  // Attach drawing events with the real viewport on first render of this page
+  // Attach drawing events on first render
   if (ov._pendingAttach) {
     ov._pendingAttach = false;
     attachEvents(ov, pageNum, vp);
     syncAnnotsOnOverlay(ov, pageNum);
   }
 
-  // Remove existing canvas if any
+  // Remove existing canvas and text layer
   wrap.querySelector('canvas')?.remove();
+  wrap.querySelector('.textLayer')?.remove();
 
+  // ── HiDPI canvas ──
   const canvas = document.createElement('canvas');
-  canvas.width  = vp.width;
-  canvas.height = vp.height;
-  canvas.style.cssText = `width:${vp.width}px;height:${vp.height}px;display:block`;
+  // Physical pixels = CSS pixels × dpr
+  canvas.width  = Math.floor(vp.width  * dpr);
+  canvas.height = Math.floor(vp.height * dpr);
+  // CSS size stays at logical pixels
+  canvas.style.cssText = 'width:' + vp.width + 'px;height:' + vp.height + 'px;display:block';
 
   ov = wrap.querySelector('.aoverlay');
   wrap.insertBefore(canvas, ov);
 
-  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+  const ctx = canvas.getContext('2d', { alpha: false });
+  // Scale context to account for dpr so rendering coords stay in CSS-pixel space
+  ctx.scale(dpr, dpr);
+
+  // Render canvas — use 'display' intent for speed; swap to 'print' for export
+  const renderTask = page.render({
+    canvasContext: ctx,
+    viewport: vp,
+    intent: 'display',
+  });
+
+  // ── Text layer (selectable text) ──
+  // Build in parallel with canvas render for speed.
+  // overflow:visible is critical — overflow:hidden clips rotated/transformed spans,
+  // causing the visual text and the selection hitbox to diverge.
+  const textLayerDiv = document.createElement('div');
+  textLayerDiv.className = 'textLayer';
+  textLayerDiv.style.cssText = [
+    'position:absolute',
+    'top:0', 'left:0',
+    'width:' + vp.width + 'px',
+    'height:' + vp.height + 'px',
+    'overflow:visible',
+    'pointer-events:none',
+    'z-index:2',
+    'line-height:1',
+    'transform-origin:0 0',
+    // Prevent browser from applying its own text-size adjustments
+    'text-size-adjust:none',
+    '-webkit-text-size-adjust:none',
+  ].join(';');
+
+  wrap.insertBefore(textLayerDiv, ov);
+
+  // Run canvas render and text content fetch in parallel
+  const [, textContent] = await Promise.all([
+    renderTask.promise,
+    page.getTextContent({ includeMarkedContent: false }),
+  ]);
+
+  // Build the text layer manually for precise hit-box alignment.
+  // pdf.js's renderTextLayer in 3.x positions spans correctly but their
+  // selection box can be off when text has a rotation transform.
+  // Manual placement gives us full control over transform-origin.
+  try {
+    const pageH = vp.height;
+    const scale  = zoom;
+
+    textContent.items.forEach(item => {
+      if (!item.str || !item.str.trim()) return;
+
+      const [a, b, c, d, e, f] = item.transform;
+
+      const span = document.createElement('span');
+
+      // Position: pdf coords have origin at bottom-left; CSS at top-left
+      const tx = e * scale;
+      const ty = pageH - f * scale;
+
+      // Font size from the transform scale factor
+      const fontSize = Math.sqrt(a * a + b * b) * scale;
+
+      // Rotation angle from the transform matrix
+      const angle = Math.atan2(b, a);
+
+      span.style.cssText = [
+        'position:absolute',
+        'left:' + tx.toFixed(2) + 'px',
+        'top:' + ty.toFixed(2) + 'px',
+        'font-size:' + fontSize.toFixed(2) + 'px',
+        'font-family:sans-serif',
+        'transform-origin:0% 100%',  // bottom-left — matches pdf coord origin
+        'transform:' + (angle !== 0
+          ? 'rotate(' + (-angle * 180 / Math.PI).toFixed(3) + 'deg)scaleX(' + (item.width ? (item.width * scale / Math.max(span.offsetWidth || 1, 1)) : 1).toFixed(4) + ')'
+          : 'none'),
+        'white-space:pre',
+        'cursor:text',
+        'color:transparent',
+        'user-select:text',
+        '-webkit-user-select:text',
+      ].join(';');
+
+      span.textContent = item.str;
+      textLayerDiv.appendChild(span);
+    });
+
+    // After spans are in the DOM, apply correct scaleX to match visual width
+    textLayerDiv.querySelectorAll('span').forEach((span, i) => {
+      const item = textContent.items.filter(it => it.str && it.str.trim())[i];
+      if (!item || !item.width) return;
+      const [a, b] = item.transform;
+      const angle = Math.atan2(b, a);
+      const visualW = item.width * scale;
+      const naturalW = span.getBoundingClientRect().width || visualW;
+      const scaleX = naturalW > 0 ? visualW / naturalW : 1;
+      const rot = angle !== 0 ? 'rotate(' + (-angle * 180 / Math.PI).toFixed(3) + 'deg)' : '';
+      span.style.transform = rot + 'scaleX(' + scaleX.toFixed(4) + ')';
+    });
+
+    textLayerDiv.style.pointerEvents = 'auto';
+  } catch (e) {
+    textLayerDiv.remove();
+  }
 
   wrap.classList.remove('unrendered');
   renderedPages.add(pageNum);
@@ -2245,14 +2479,14 @@ async function renderPageContent(pageNum) {
 async function rerenderAll() {
   renderedPages.clear();
   renderQueue.clear();
-  // Rebuild shells then re-render visible range
+  // Clear page cache so viewports recalculate at new zoom
+  Object.keys(_pageCache).forEach(k => delete _pageCache[k]);
   const savedPg = curPg;
   await buildPageShells();
   syncAnnots();
   scheduleRender();
-  // Restore scroll position
   requestAnimationFrame(() => {
-    const el = document.getElementById(`pw-${savedPg}`);
+    const el = document.getElementById('pw-' + savedPg);
     if (el) el.scrollIntoView({ block: 'start' });
   });
 }
@@ -2366,14 +2600,22 @@ function setTool(t) {
   document.getElementById('sb-tool').textContent = typeLabels[t] || t;
 
   // All tools keep overlay active so it receives mouse events.
-  // Pan uses those events for drag-scroll (handled in attachEvents).
   document.querySelectorAll('.aoverlay').forEach(o => {
     o.className = 'aoverlay active';
-    if (['highlight','rect','strike','pen','arrow','measure','texthighlight','cloud'].includes(t)) o.classList.add('cur-cross');
-    else if (t === 'note')  o.classList.add('cur-cell');
-    else if (t === 'text')  o.classList.add('cur-text');
-    else if (t === 'erase') o.classList.add('cur-erase');
-    else if (t === 'pan')   o.classList.add('cur-pan');
+    if (['highlight','rect','rectfill','strike','pen','arrow','line',
+         'measure','texthighlight','cloud','area'].includes(t)) o.classList.add('cur-cross');
+    else if (t === 'note')    o.classList.add('cur-cell');
+    else if (t === 'text')    o.classList.add('cur-text');
+    else if (t === 'erase')   o.classList.add('cur-erase');
+    else if (t === 'pan')     o.classList.add('cur-pan');
+    else if (t === 'zoombox') o.classList.add('cur-zoombox');
+  });
+
+  // Text layer pointer-events: enabled only in pan mode (allows text selection)
+  // Disabled during drawing tools so the overlay captures mouse events
+  const textSelectable = (t === 'pan');
+  document.querySelectorAll('.textLayer').forEach(tl => {
+    tl.style.pointerEvents = textSelectable ? 'auto' : 'none';
   });
 
   refreshAnnotPointerEvents();
@@ -3007,14 +3249,211 @@ document.addEventListener('mouseup', () => {
 ═══════════════════════════════════════════════ */
 
 // Sync annotations only on a specific overlay (used after lazy render)
+/* ═══════════════════════════════════════════════
+   STICKY NOTE — BUBBLE + LEADER SYSTEM
+   Adobe-style: pin icon on drawing, click to
+   expand bubble with text + Edit/Delete/Leader
+   actions. Optional leader line to any point.
+═══════════════════════════════════════════════ */
+
+function buildNoteLeaderSvg(a, ov) {
+  // Remove any existing leader for this note
+  ov.querySelector('[data-leader="' + a.id + '"]')?.remove();
+  if (a.leaderX === undefined || a.leaderY === undefined) return;
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.className = 'an-leader';
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.dataset.leader = a.id;
+
+  const c = CHex[a.color] || CHex.yellow;
+
+  // Line from pin centre to leader tip
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  // Pin is at a.x, a.y — add ~1% to get pin centre
+  line.setAttribute('x1', (a.x + 0.5).toFixed(2));
+  line.setAttribute('y1', (a.y + 0.5).toFixed(2));
+  line.setAttribute('x2', a.leaderX.toFixed(2));
+  line.setAttribute('y2', a.leaderY.toFixed(2));
+  line.setAttribute('stroke', c);
+  line.setAttribute('stroke-width', '1');
+  line.setAttribute('stroke-dasharray', '3 2');
+  line.setAttribute('stroke-linecap', 'round');
+  line.setAttribute('vector-effect', 'non-scaling-stroke');
+
+  // Dot at tip
+  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  dot.setAttribute('cx', a.leaderX.toFixed(2));
+  dot.setAttribute('cy', a.leaderY.toFixed(2));
+  dot.setAttribute('r', '0.8');
+  dot.setAttribute('fill', c);
+
+  svg.appendChild(line); svg.appendChild(dot);
+  // Insert leader BEFORE the pin so it renders underneath
+  const pin = ov.querySelector('[data-aid="' + a.id + '"]');
+  if (pin) ov.insertBefore(svg, pin);
+  else ov.appendChild(svg);
+}
+
+function openNoteBubble(a, pinEl, ov) {
+  // Close any existing bubble first
+  closeNoteBubble();
+  _openBubbleId = a.id;
+  pinEl.dataset.bubbleOpen = '1';
+
+  const c = CHex[a.color] || CHex.yellow;
+
+  const bubble = document.createElement('div');
+  bubble.className = 'an-bubble';
+  bubble.id = 'note-bubble-' + a.id;
+
+  // Text content
+  const textDiv = document.createElement('div');
+  textDiv.style.cssText = 'font-size:12px;line-height:1.5;white-space:pre-wrap;color:var(--gray-800);margin-bottom:6px;max-width:220px;word-break:break-word';
+  textDiv.textContent = a.text || '';
+  bubble.appendChild(textDiv);
+
+  // Priority badge if set
+  if (a.priority) {
+    const colors = { Critical:'#fee2e2', Major:'#ffedd5', Minor:'#fef9c3', Info:'#dbeafe' };
+    const textc  = { Critical:'#b91c1c', Major:'#c2410c', Minor:'#854d0e', Info:'#1d4ed8' };
+    const badge  = document.createElement('span');
+    badge.style.cssText = 'display:inline-block;font-size:9px;font-weight:700;font-family:var(--mono);' +
+      'text-transform:uppercase;letter-spacing:.4px;padding:1px 6px;border-radius:3px;margin-bottom:5px;' +
+      'background:' + (colors[a.priority]||'#f1f5f9') + ';color:' + (textc[a.priority]||'#475569');
+    badge.textContent = a.priority;
+    bubble.insertBefore(badge, textDiv);
+  }
+
+  // EMMA index
+  const emmaIdx = !a.emmaExclude ? getEmmaIndex(a.id) : 0;
+  if (emmaIdx > 0) {
+    const ref = document.createElement('div');
+    ref.style.cssText = 'font-size:9px;font-family:var(--mono);color:#7c3aed;margin-bottom:4px;font-weight:600';
+    ref.textContent = 'EMMA #' + emmaIdx;
+    bubble.insertBefore(ref, bubble.firstChild);
+  }
+
+  // Action buttons
+  const actions = document.createElement('div');
+  actions.className = 'an-bubble-actions';
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'an-bubble-btn primary';
+  editBtn.textContent = 'Edit';
+  editBtn.onclick = ev => { ev.stopPropagation(); closeNoteBubble(); editAnnotById(a.id); };
+
+  const leaderBtn = document.createElement('button');
+  leaderBtn.className = 'an-bubble-btn';
+  leaderBtn.textContent = a.leaderX !== undefined ? 'Move arrow' : '+ Arrow';
+  leaderBtn.title = 'Click anywhere on the drawing to place / reposition the leader arrow';
+  leaderBtn.onclick = ev => {
+    ev.stopPropagation();
+    closeNoteBubble();
+    startLeaderPlacement(a.id, ov);
+  };
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'an-bubble-btn danger';
+  delBtn.textContent = 'Delete';
+  delBtn.onclick = ev => { ev.stopPropagation(); closeNoteBubble(); deleteAnnotById(a.id); };
+
+  if (a.leaderX !== undefined) {
+    const rmLeaderBtn = document.createElement('button');
+    rmLeaderBtn.className = 'an-bubble-btn';
+    rmLeaderBtn.textContent = '✕ Arrow';
+    rmLeaderBtn.title = 'Remove leader arrow';
+    rmLeaderBtn.onclick = ev => {
+      ev.stopPropagation();
+      a.leaderX = undefined; a.leaderY = undefined;
+      closeNoteBubble();
+      syncAnnots(); pushHistory();
+    };
+    actions.appendChild(rmLeaderBtn);
+  }
+
+  actions.appendChild(editBtn);
+  actions.appendChild(leaderBtn);
+  actions.appendChild(delBtn);
+  bubble.appendChild(actions);
+
+  pinEl.appendChild(bubble);
+
+  // Close bubble when clicking elsewhere
+  setTimeout(() => {
+    document.addEventListener('mousedown', _bubbleOutsideHandler, { capture: true, once: true });
+  }, 10);
+}
+
+function _bubbleOutsideHandler(e) {
+  const bubble = document.getElementById('note-bubble-' + _openBubbleId);
+  const pin = bubble?.closest('[data-aid]');
+  if (bubble && !bubble.contains(e.target) && e.target !== pin && !pin?.contains(e.target)) {
+    closeNoteBubble();
+  } else if (!bubble) {
+    closeNoteBubble();
+  }
+}
+
+function closeNoteBubble() {
+  if (_openBubbleId === null) return;
+  const bubble = document.getElementById('note-bubble-' + _openBubbleId);
+  if (bubble) bubble.remove();
+  // Remove bubbleOpen marker from pin
+  document.querySelectorAll('[data-bubble-open]').forEach(el => delete el.dataset.bubbleOpen);
+  _openBubbleId = null;
+}
+
+function startLeaderPlacement(annotId, ov) {
+  _leaderPlaceId = annotId;
+  // Visual cue
+  toast('Click anywhere on the drawing to place the note arrow tip · Esc to cancel', 4000);
+  ov.style.cursor = 'crosshair';
+
+  const onLeaderClick = ev => {
+    if (_leaderPlaceId === null) return;
+    ev.stopPropagation();
+    const r = ov.getBoundingClientRect();
+    const mx = (ev.clientX - r.left) / ov.offsetWidth  * 100;
+    const my = (ev.clientY - r.top)  / ov.offsetHeight * 100;
+    const ann = annots.find(x => x.id === _leaderPlaceId);
+    if (ann) {
+      ann.leaderX = mx;
+      ann.leaderY = my;
+      syncAnnots(); pushHistory();
+    }
+    _leaderPlaceId = null;
+    ov.style.cursor = '';
+    ov.removeEventListener('click', onLeaderClick, true);
+  };
+
+  const onEsc = ev => {
+    if (ev.key === 'Escape') {
+      _leaderPlaceId = null;
+      ov.style.cursor = '';
+      ov.removeEventListener('click', onLeaderClick, true);
+      document.removeEventListener('keydown', onEsc);
+    }
+  };
+
+  ov.addEventListener('click', onLeaderClick, true);
+  document.addEventListener('keydown', onEsc);
+}
+
 function syncAnnotsOnOverlay(ov, pn) {
+  // Remove all existing annotation elements AND leader SVGs
   ov.querySelectorAll('[data-aid]').forEach(el => el.remove());
+  ov.querySelectorAll('[data-leader]').forEach(el => el.remove());
+
   annots.filter(a => a.pageNum === pn).forEach(a => {
     const el = buildAnnotEl(a);
     if (!el) return;
     el.dataset.aid = a.id;
     attachAnnotListeners(el, a, ov);
     ov.appendChild(el);
+    // Render leader SVG for notes that have one
+    if (a.type === 'note') buildNoteLeaderSvg(a, ov);
   });
   refreshAnnotPointerEvents();
 }
@@ -3023,6 +3462,7 @@ function syncAnnots() {
   document.querySelectorAll('.aoverlay').forEach(ov => {
     const pn = parseInt(ov.dataset.page);
     ov.querySelectorAll('[data-aid]').forEach(el => el.remove());
+    ov.querySelectorAll('[data-leader]').forEach(el => el.remove());
 
     annots.filter(a => a.pageNum === pn).forEach(a => {
       const el = buildAnnotEl(a, ov);
@@ -3030,6 +3470,7 @@ function syncAnnots() {
       el.dataset.aid = a.id;
       attachAnnotListeners(el, a, ov);
       ov.appendChild(el);
+      if (a.type === 'note') buildNoteLeaderSvg(a, ov);
     });
   });
   refreshAnnotPointerEvents();
@@ -3049,21 +3490,29 @@ function attachAnnotListeners(el, a, ov) {
       if (tool !== 'erase') return;
       ev.stopPropagation();
       ev.preventDefault();
+      if (a.type === 'note') closeNoteBubble();
       deleteAnnotById(a.id);
       toast('Annotation removed');
     });
   });
 
-  // Pan/select tool: click on note or text to edit
+  // Pan/select tool: click on note/text/callout/textbox to open
   if (a.type === 'note' || a.type === 'text' || a.type === 'textbox' || a.type === 'callout') {
     el.addEventListener('click', ev => {
       if (tool !== 'pan') return;
       ev.stopPropagation();
-      editAnnotById(a.id);
+      if (a.type === 'note') {
+        // Toggle bubble open/closed
+        if (_openBubbleId === a.id) { closeNoteBubble(); }
+        else { openNoteBubble(a, el, el.closest('.aoverlay')); }
+      } else {
+        editAnnotById(a.id);
+      }
     });
     el.addEventListener('dblclick', ev => {
       ev.stopPropagation();
-      editAnnotById(a.id);
+      if (a.type === 'note') { closeNoteBubble(); editAnnotById(a.id); }
+      else { editAnnotById(a.id); }
     });
   }
 
@@ -3104,26 +3553,23 @@ function buildAnnotEl(a) {
     el = document.createElement('div'); el.className = 'astrike';
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;background:${CHex[a.color] || CHex.rose}55;border-top:2.5px solid ${CHex[a.color] || CHex.rose};border-bottom:2.5px solid ${CHex[a.color] || CHex.rose}`;
   } else if (a.type === 'note') {
-    el = document.createElement('div'); el.className = 'an';
-    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%`;
-    // EMMA ref badge
-    if (!a.emmaExclude) {
-      const idx = getEmmaIndex(a.id);
-      if (idx > 0) {
-        const badge = document.createElement('span');
-        badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#7c3aed;color:#fff;border-radius:50%;font-size:9px;font-weight:700;font-family:var(--mono);margin-right:4px;vertical-align:middle;flex-shrink:0';
-        badge.textContent = idx;
-        el.appendChild(badge);
-      }
-    }
-    const txt = document.createTextNode(a.text);
-    el.appendChild(txt); el.title = a.text;
-    if (a.emmaExclude) {
-      const tag = document.createElement('span');
-      tag.style.cssText = 'display:inline-block;font-size:8px;background:#f1f5f9;color:#94a3b8;border-radius:2px;padding:0 3px;margin-left:4px;vertical-align:middle;font-family:var(--mono)';
-      tag.textContent = '⊘ EMMA';
-      el.appendChild(tag);
-    }
+    // Build the pin icon container
+    el = document.createElement('div');
+    el.className = 'an';
+    const c = CHex[a.color] || CHex.yellow;
+    el.style.cssText = 'position:absolute;left:' + a.x + '%;top:' + a.y + '%;background:' + c;
+
+    // Inner label — EMMA index or priority initial
+    const inner = document.createElement('span');
+    inner.className = 'an-inner';
+    const emmaIdx = !a.emmaExclude ? getEmmaIndex(a.id) : 0;
+    const priorityInitial = { Critical:'!', Major:'M', Minor:'m', Info:'i' }[a.priority] || '';
+    inner.textContent = emmaIdx > 0 ? emmaIdx : (priorityInitial || '✎');
+    el.appendChild(inner);
+
+    // Leader SVG — rendered as sibling in overlay, not child of pin
+    // (drawn separately in syncAnnots via buildNoteLeader)
+
   } else if (a.type === 'text') {
     el = document.createElement('div'); el.className = 'atxt';
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;color:${CHex[a.color] || CHex.yellow}`;

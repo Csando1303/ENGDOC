@@ -706,7 +706,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
     <div id="doc-name">No document open</div>
   </div>
   <!-- Hidden file inputs referenced by ribbon buttons -->
-  <input type="file" id="fopen" accept=".pdf" style="display:none" onchange="openFile(event)">
+  <input type="file" id="fopen" accept=".pdf,.engdoc" style="display:none" onchange="openFile(event)">
   <input type="file" id="fsession" accept=".engdoc" style="display:none" onchange="loadSession(event)">
   <input type="file" id="fmergesession" accept=".engdoc" style="display:none" onchange="mergeSession(event)">
 </div>
@@ -929,20 +929,12 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       </div>
       <div class="rgroup">
         <div class="rgroup-btns">
-          <button class="rbtn lg" onclick="saveSession()" data-tip="Save annotations only — small file (Ctrl+S)">
+          <button class="rbtn lg" onclick="saveSessionWithPdf()" data-tip="Save session + embedded PDF (Ctrl+S)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            <span class="rbtn-label">Save<br>Session</span>
-          </button>
-          <button class="rbtn lg" onclick="saveSessionWithPdf()" data-tip="Save session + embedded PDF — fully portable, anyone can open it">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/><circle cx="18" cy="18" r="5" fill="none"/><line x1="18" y1="15" x2="18" y2="21"/><line x1="15" y1="18" x2="21" y2="18"/></svg>
-            <span class="rbtn-label">Save +<br>PDF</span>
-          </button>
-          <button class="rbtn lg" onclick="document.getElementById('fsession').click()" data-tip="Load a saved .engdoc session (with or without embedded PDF)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-            <span class="rbtn-label">Load<br>Session</span>
+            <span class="rbtn-label">Save<br>.engdoc</span>
           </button>
         </div>
-        <div class="rgroup-label">Session</div>
+        <div class="rgroup-label">Save</div>
       </div>
       <div class="rgroup">
         <div class="rgroup-btns">
@@ -1127,7 +1119,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         </div>
         <div class="drop-h">Open a drawing or spec</div>
-        <div class="drop-s">Drag & drop a PDF here, or click to browse your files</div>
+        <div class="drop-s">Drag &amp; drop a PDF or .engdoc session file here, or click to browse</div>
         <button class="drop-btn" onclick="document.getElementById('fopen').click()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Browse Files
@@ -1709,11 +1701,24 @@ function hideCtx()  { document.getElementById('ctx-menu').classList.remove('open
 /* ═══════════════════════════════════════════════
    FILE OPEN
 ═══════════════════════════════════════════════ */
-async function openFile(e) { const f = e.target.files[0]; if (f) await loadPDF(f); }
+async function openFile(e) {
+  const f = e.target.files[0]; if (!f) return;
+  e.target.value = '';
+  if (f.name.toLowerCase().endsWith('.engdoc')) {
+    await loadSession({ target: { files: [f], value: '' } });
+  } else {
+    await loadPDF(f);
+  }
+}
 function onDragOver(e) { e.preventDefault(); document.getElementById('drop-card').classList.add('drag-over'); }
 async function onDrop(e) {
   e.preventDefault(); document.getElementById('drop-card').classList.remove('drag-over');
-  const f = e.dataTransfer.files[0]; if (f?.type === 'application/pdf') await loadPDF(f);
+  const f = e.dataTransfer.files[0]; if (!f) return;
+  if (f.name.toLowerCase().endsWith('.engdoc')) {
+    await loadSession({ target: { files: [f], value: '' } });
+  } else if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
+    await loadPDF(f);
+  }
 }
 
 async function loadPDF(file) {
@@ -4849,7 +4854,7 @@ try {
 } catch(e) {}
 // Ctrl+S save
 document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveSession(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveSessionWithPdf(); }
 });
 
 // ═══════════════════════════════════════════════

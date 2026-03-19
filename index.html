@@ -684,6 +684,19 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 /* cloud/revision bubble annotation */
 .acloud{position:absolute;pointer-events:none}
 .acloud svg{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible}
+/* Straight line */
+.aline{position:absolute;pointer-events:none;overflow:visible}
+/* Filled rectangle */
+.arectfill{position:absolute;pointer-events:none;border-radius:1px}
+/* Callout box with leader */
+.acallout{position:absolute;pointer-events:all;cursor:pointer}
+.acallout-box{position:absolute;border:2px solid;border-radius:3px;background:rgba(255,255,255,.92);
+  padding:5px 8px;font-size:12px;line-height:1.4;min-width:60px;min-height:28px;
+  word-break:break-word;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+/* Text box */
+.atextbox{position:absolute;border:1.5px solid;border-radius:2px;
+  background:rgba(255,255,255,.9);padding:4px 7px;font-size:12px;
+  line-height:1.5;word-break:break-word;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 
 /* keyboard shortcuts modal */
 #mkeys .modal{width:480px}
@@ -860,8 +873,46 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
             <div class="rsw-opt" onclick="setStrokeW(8,this)"><div class="rsw-line" style="width:26px;height:5px"></div><span class="rsw-lbl">Thick</span></div>
             <div class="rsw-opt" onclick="setStrokeW(14,this)"><div class="rsw-line" style="width:26px;height:8px"></div><span class="rsw-lbl">Bold</span></div>
           </div>
+          <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+            <div style="font-size:8.5px;font-family:var(--mono);color:var(--gray-400)">Font</div>
+            <select id="font-size-sel" onchange="setFontSize(this.value)" style="font-family:var(--mono);font-size:10px;background:var(--gray-50);border:1px solid var(--gray-300);border-radius:3px;color:var(--gray-700);padding:2px 4px;cursor:pointer;width:46px">
+              <option value="8">8pt</option>
+              <option value="10">10pt</option>
+              <option value="12" selected>12pt</option>
+              <option value="14">14pt</option>
+              <option value="16">16pt</option>
+              <option value="20">20pt</option>
+              <option value="24">24pt</option>
+            </select>
+            <div style="font-size:8.5px;font-family:var(--mono);color:var(--gray-400)">Opacity</div>
+            <input type="range" id="opacity-sel" min="20" max="100" value="80" step="10"
+              oninput="setOpacity(this.value)"
+              style="width:46px;cursor:pointer;accent-color:var(--blue-500)">
+          </div>
         </div>
         <div class="rgroup-label">Style</div>
+      </div>
+
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn" id="t-line" data-tip="Straight line (L)" onclick="setTool('line')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/></svg>
+            <span class="rbtn-label">Line</span>
+          </button>
+          <button class="rbtn" id="t-rectfill" data-tip="Filled rectangle — solid block" onclick="setTool('rectfill')">
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2" fill-opacity="0.4"/></svg>
+            <span class="rbtn-label">Fill Box</span>
+          </button>
+          <button class="rbtn" id="t-callout" data-tip="Callout box with leader line — drag box, click leader point" onclick="setTool('callout')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="14" height="10" rx="1"/><path d="M8 12l-4 6"/></svg>
+            <span class="rbtn-label">Callout</span>
+          </button>
+          <button class="rbtn" id="t-textbox" data-tip="Text box — drag to set size, type text" onclick="setTool('textbox')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="1"/><line x1="6" y1="9" x2="18" y2="9"/><line x1="6" y1="13" x2="14" y2="13"/></svg>
+            <span class="rbtn-label">Text Box</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Shapes+</div>
       </div>
 
       <div class="rgroup">
@@ -1557,6 +1608,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 let pdf = null, nPages = 0, curPg = 1, zoom = 1;
 let pdfBytes = null, pdfName = '';
 let tool = 'pan', color = 'yellow';
+let fontSize = 12;   // pt — applies to text, note, textbox, callout
+let annotOpacity = 80; // % — applies to highlights and fills
 let annots = [];         // [{id, pageNum, type, ...}]
 let mergeFiles = [];
 let annotIdSeq = 0;
@@ -1605,7 +1658,8 @@ const CVals = { yellow: 'rgba(251,191,36,.38)', teal: 'rgba(45,212,191,.32)', ro
 const CHex  = { yellow: '#fbbf24', teal: '#2dd4bf', rose: '#fb7185' };
 const typeLabels = { highlight:'Highlight', rect:'Rectangle', strike:'Strikethrough',
   pen:'Freehand', arrow:'Arrow', note:'Note', text:'Text Label',
-  measure:'Measurement', texthighlight:'Text Highlight', cloud:'Cloud / Revision Bubble' };
+  texthighlight:'Text Highlight', cloud:'Cloud', measure:'Measure', area:'Area',
+  line:'Line', rectfill:'Fill Box', callout:'Callout', textbox:'Text Box' };
 
 // ── HISTORY/UNDO stubs — full implementation below in ANNOTATION DATA MANAGEMENT ──
 
@@ -2356,7 +2410,9 @@ function refreshAnnotPointerEvents() {
         el.style.pointerEvents = 'none';
         el.querySelectorAll('path, line').forEach(s => s.style.pointerEvents = 'none');
       } else {
-        const interactive = el.classList.contains('an') || el.classList.contains('atxt');
+        const interactive = el.classList.contains('an') || el.classList.contains('atxt') ||
+                            el.classList.contains('atextbox') || el.classList.contains('acallout') ||
+                            el.classList.contains('acallout-box');
         el.style.pointerEvents = interactive ? 'all' : 'none';
         el.style.cursor = '';
       }
@@ -2369,6 +2425,14 @@ function setColor(c) {
   document.querySelectorAll('.csw').forEach(s => s.classList.remove('active'));
   const map = { yellow: 'c-y', teal: 'c-t', rose: 'c-r' };
   if (map[c]) document.getElementById(map[c]).classList.add('active');
+}
+
+function setFontSize(v) {
+  fontSize = parseInt(v) || 12;
+}
+
+function setOpacity(v) {
+  annotOpacity = parseInt(v) || 80;
 }
 
 /* ═══════════════════════════════════════════════
@@ -2554,14 +2618,38 @@ function attachEvents(ov, pageNum, vp) {
       liveEl.className = 'ar';
       liveEl.style.borderColor = CHex[color];
       liveEl.style.background = CHex[color] + '11';
+    } else if (tool === 'rectfill') {
+      liveEl.style.background = CHex[color];
+      liveEl.style.opacity = (annotOpacity / 100).toFixed(2);
+      liveEl.style.borderRadius = '1px';
+    } else if (tool === 'line') {
+      // Line preview via SVG
+      liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      liveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
+      liveSvg.setAttribute('width', vp.width); liveSvg.setAttribute('height', vp.height);
+      const lLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      lLine.setAttribute('x1', ox); lLine.setAttribute('y1', oy);
+      lLine.setAttribute('x2', ox); lLine.setAttribute('y2', oy);
+      lLine.setAttribute('stroke', CHex[color]); lLine.setAttribute('stroke-width', strokeW());
+      lLine.setAttribute('stroke-linecap', 'round');
+      liveSvg.appendChild(lLine);
+      ov.appendChild(liveSvg);
+      liveEl = null;
+      return;
     } else if (tool === 'cloud') {
       liveEl.style.border = `2px dashed ${CHex[color] || CHex.yellow}`;
       liveEl.style.borderRadius = '4px';
       liveEl.style.background = (CHex[color] || CHex.yellow) + '11';
+    } else if (tool === 'callout' || tool === 'textbox') {
+      liveEl.style.border = `2px dashed ${CHex[color] || CHex.yellow}`;
+      liveEl.style.borderRadius = '3px';
+      liveEl.style.background = 'rgba(255,255,255,0.7)';
     }
-    liveEl.style.left = ox + 'px'; liveEl.style.top = oy + 'px';
-    liveEl.style.width = '0'; liveEl.style.height = '0';
-    ov.appendChild(liveEl);
+    if (liveEl) {
+      liveEl.style.left = ox + 'px'; liveEl.style.top = oy + 'px';
+      liveEl.style.width = '0'; liveEl.style.height = '0';
+      ov.appendChild(liveEl);
+    }
   });
 
   ov.addEventListener('mousemove', e => {
@@ -2606,6 +2694,19 @@ function attachEvents(ov, pageNum, vp) {
     if (tool === 'arrow' && liveSvg && drawing) {
       const line = liveSvg.querySelector('line');
       if (line) { line.setAttribute('x2', mx); line.setAttribute('y2', my); }
+      return;
+    }
+    // Line: update live preview (shift to constrain)
+    if (tool === 'line' && liveSvg && drawing) {
+      let ex = mx, ey = my;
+      if (e.shiftKey) {
+        const dx = Math.abs(mx - origin.x), dy = Math.abs(my - origin.y);
+        if (dx > dy * 2) ey = origin.y;
+        else if (dy > dx * 2) ex = origin.x;
+        else { const d = Math.min(dx, dy); ex = origin.x + (mx > origin.x ? d : -d); ey = origin.y + (my > origin.y ? d : -d); }
+      }
+      const ln = liveSvg.querySelector('line');
+      if (ln) { ln.setAttribute('x2', ex); ln.setAttribute('y2', ey); }
       return;
     }
     if ((tool === 'pen' || tool === 'texthighlight') && liveSvg) {
@@ -2655,16 +2756,29 @@ function attachEvents(ov, pageNum, vp) {
       return;
     }
 
+    // Line commit (SVG tool — handled before liveEl cleanup)
+    if (tool === 'line' && liveSvg) {
+      liveSvg.remove(); liveSvg = null;
+      let ex = mx, ey = my;
+      if (e.shiftKey) {
+        const adx = Math.abs(mx - origin.x), ady = Math.abs(my - origin.y);
+        if (adx > ady * 2) ey = origin.y;
+        else if (ady > adx * 2) ex = origin.x;
+        else { const d = Math.min(adx, ady); ex = origin.x + (mx > origin.x ? d : -d); ey = origin.y + (my > origin.y ? d : -d); }
+      }
+      if (Math.hypot(ex - origin.x, ey - origin.y) < 3) return;
+      const lx1 = origin.x / vp.width * 100, ly1 = origin.y / vp.height * 100;
+      const lx2 = ex / vp.width * 100,       ly2 = ey / vp.height * 100;
+      pushAnnot({ id: nextId(), pageNum, type: 'line', x1: lx1, y1: ly1, x2: lx2, y2: ly2, color, sw: strokeW() });
+      return;
+    }
+
     if (liveEl) { liveEl.remove(); liveEl = null; }
 
     const x  = Math.min(mx, origin.x) / vp.width  * 100;
     const y  = Math.min(my, origin.y) / vp.height * 100;
     const w  = Math.abs(mx - origin.x) / vp.width  * 100;
     const h  = Math.abs(my - origin.y) / vp.height * 100;
-    const x1 = origin.x / vp.width  * 100;
-    const y1 = origin.y / vp.height * 100;
-    const x2 = mx / vp.width  * 100;
-    const y2 = my / vp.height * 100;
 
     if (tool === 'strike') {
       if (w < 0.5 || h < 0.5) return;
@@ -2672,9 +2786,26 @@ function attachEvents(ov, pageNum, vp) {
     } else if (tool === 'highlight' || tool === 'rect') {
       if (w < 0.3 || h < 0.3) return;
       pushAnnot({ id: nextId(), pageNum, type: tool, x, y, w, h, color });
+    } else if (tool === 'rectfill') {
+      if (w < 0.3 || h < 0.3) return;
+      pushAnnot({ id: nextId(), pageNum, type: 'rectfill', x, y, w, h, color, opacity: annotOpacity });
     } else if (tool === 'cloud') {
       if (w < 0.5 || h < 0.5) return;
       pushAnnot({ id: nextId(), pageNum, type: 'cloud', x, y, w, h, color });
+    } else if (tool === 'textbox') {
+      if (w < 1 || h < 1) return;
+      const txt = prompt('Text box content:');
+      if (!txt || !txt.trim()) return;
+      pushAnnot({ id: nextId(), pageNum, type: 'textbox', x, y, w, h, color,
+        text: txt.trim(), fontSize, opacity: annotOpacity });
+    } else if (tool === 'callout') {
+      if (w < 1 || h < 1) return;
+      const txt = prompt('Callout text:');
+      if (!txt || !txt.trim()) return;
+      // Default leader point at bottom-left of box
+      const lx = x, ly = y + h + 5;
+      pushAnnot({ id: nextId(), pageNum, type: 'callout', x, y, w, h, color,
+        text: txt.trim(), fontSize, lx, ly, opacity: annotOpacity });
     }
   });
 
@@ -2801,7 +2932,8 @@ document.addEventListener('keydown', e => {
   // Tool letter shortcuts (not when typing)
   if (!inInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const toolKeys = { h:'highlight', m:'texthighlight', r:'rect', p:'pen',
-      a:'arrow', c:'cloud', g:'area', d:'measure', n:'note', t:'text', e:'erase', v:'pan' };
+      a:'arrow', c:'cloud', g:'area', d:'measure', n:'note', t:'text',
+      e:'erase', v:'pan', z:'zoombox', l:'line', f:'rectfill' };
     if (toolKeys[e.key.toLowerCase()]) { setTool(toolKeys[e.key.toLowerCase()]); return; }
   }
 });
@@ -2881,14 +3013,12 @@ function attachAnnotListeners(el, a, ov) {
   });
 
   // Pan/select tool: click on note or text to edit
-  if (a.type === 'note' || a.type === 'text') {
+  if (a.type === 'note' || a.type === 'text' || a.type === 'textbox' || a.type === 'callout') {
     el.addEventListener('click', ev => {
       if (tool !== 'pan') return;
       ev.stopPropagation();
-      const r = el.getBoundingClientRect();
       editAnnotById(a.id);
     });
-    // Double-click always edits regardless of tool
     el.addEventListener('dblclick', ev => {
       ev.stopPropagation();
       editAnnotById(a.id);
@@ -2979,6 +3109,17 @@ function buildAnnotEl(a) {
     el = buildMeasureAnnotEl(a);
   } else if (a.type === 'cloud') {
     el = buildCloudAnnotEl(a);
+  } else if (a.type === 'line') {
+    el = buildLineAnnotEl(a);
+  } else if (a.type === 'rectfill') {
+    el = document.createElement('div');
+    el.className = 'arectfill';
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;` +
+      `background:${CHex[a.color]||CHex.yellow};opacity:${(a.opacity||80)/100};border-radius:1px`;
+  } else if (a.type === 'textbox') {
+    el = buildTextboxAnnotEl(a);
+  } else if (a.type === 'callout') {
+    el = buildCalloutAnnotEl(a);
   }
   return el || null;
 }
@@ -3190,6 +3331,85 @@ function buildCloudAnnotEl(a) {
 
   svg.appendChild(ghost); svg.appendChild(path); svg.appendChild(tri);
   wrap.appendChild(svg);
+  return wrap;
+}
+
+/* ── LINE annotation ── */
+function buildLineAnnotEl(a) {
+  const wrap = document.createElement('div');
+  wrap.className = 'asvg-wrap';
+  wrap.style.cssText = 'position:absolute;inset:0;overflow:visible;pointer-events:none';
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
+  const c = CHex[a.color] || CHex.yellow;
+  // Fat invisible ghost line for easier hit-testing
+  const ghost = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  ghost.setAttribute('x1', a.x1); ghost.setAttribute('y1', a.y1);
+  ghost.setAttribute('x2', a.x2); ghost.setAttribute('y2', a.y2);
+  ghost.setAttribute('stroke', 'transparent'); ghost.setAttribute('stroke-width', '8');
+  ghost.setAttribute('stroke-linecap', 'round'); ghost.setAttribute('vector-effect', 'non-scaling-stroke');
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', a.x1); line.setAttribute('y1', a.y1);
+  line.setAttribute('x2', a.x2); line.setAttribute('y2', a.y2);
+  line.setAttribute('stroke', c); line.setAttribute('stroke-width', a.sw || 2);
+  line.setAttribute('stroke-linecap', 'round'); line.setAttribute('vector-effect', 'non-scaling-stroke');
+  svg.appendChild(ghost); svg.appendChild(line);
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+/* ── TEXTBOX annotation ── */
+function buildTextboxAnnotEl(a) {
+  const c = CHex[a.color] || CHex.yellow;
+  const fs = a.fontSize || 12;
+  const op = (a.opacity || 80) / 100;
+  const el = document.createElement('div');
+  el.className = 'atextbox';
+  el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;` +
+    `border-color:${c};font-size:${fs}px;opacity:${op};background:rgba(255,255,255,${op * 0.95});` +
+    `min-height:${a.h}%;padding:4px 7px;line-height:1.4;word-break:break-word`;
+  el.textContent = a.text || '';
+  return el;
+}
+
+/* ── CALLOUT annotation ── */
+function buildCalloutAnnotEl(a) {
+  const c = CHex[a.color] || CHex.yellow;
+  const fs = a.fontSize || 12;
+  // Wrapper that holds both the SVG leader and the text box
+  const wrap = document.createElement('div');
+  wrap.className = 'acallout';
+  wrap.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:visible';
+
+  // SVG leader line from box anchor to leader point
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible;pointer-events:none';
+  // Leader attaches at bottom-left corner of box
+  const anchorX = a.x, anchorY = a.y + a.h;
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', anchorX); line.setAttribute('y1', anchorY);
+  line.setAttribute('x2', a.lx || anchorX); line.setAttribute('y2', a.ly || anchorY + 5);
+  line.setAttribute('stroke', c); line.setAttribute('stroke-width', '1.5');
+  line.setAttribute('stroke-linecap', 'round'); line.setAttribute('vector-effect', 'non-scaling-stroke');
+  // Small arrowhead dot at leader tip
+  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  dot.setAttribute('cx', a.lx || anchorX); dot.setAttribute('cy', a.ly || anchorY + 5);
+  dot.setAttribute('r', '1'); dot.setAttribute('fill', c);
+  svg.appendChild(line); svg.appendChild(dot);
+  wrap.appendChild(svg);
+
+  // Text box div
+  const box = document.createElement('div');
+  box.className = 'acallout-box';
+  box.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;` +
+    `border-color:${c};font-size:${fs}px;background:rgba(255,255,255,0.95);` +
+    `padding:5px 8px;line-height:1.4;word-break:break-word;pointer-events:all`;
+  box.textContent = a.text || '';
+  wrap.appendChild(box);
   return wrap;
 }
 
@@ -5598,8 +5818,12 @@ const TOOL_HINTS = {
   highlight:    'Drag to highlight a region · colour set in Style group',
   texthighlight:'Swipe across text like a physical highlighter pen',
   rect:         'Drag to draw a rectangle markup box',
+  rectfill:     'Drag to draw a solid filled rectangle — blocks out content or marks areas',
   strike:       'Drag to add a strikethrough over text or a region',
   cloud:        'Drag to draw a revision cloud bubble — standard NR markup convention',
+  line:         'Drag to draw a straight line · Shift = constrain to horizontal / vertical / 45°',
+  callout:      'Drag to place the callout box · then click to set the leader point · type text',
+  textbox:      'Drag to set the text box size · then type your text · font size in Style group',
   note:         'Click to place a sticky note · adds to EMMA register automatically',
   text:         'Click to place a text label on the drawing',
   pen:          'Click and drag to draw freehand · release to commit',
@@ -5611,7 +5835,8 @@ const TOOL_HINTS = {
 
 const TOOL_TABS = {
   pan:'markup', erase:'markup', zoombox:'markup',
-  highlight:'markup', texthighlight:'markup', rect:'markup', strike:'markup',
+  highlight:'markup', texthighlight:'markup', rect:'markup', rectfill:'markup',
+  strike:'markup', line:'markup', callout:'markup', textbox:'markup',
   note:'markup', text:'markup',
   pen:'markup', arrow:'markup', cloud:'markup',
   measure:'markup', area:'markup',
@@ -5821,8 +6046,8 @@ document.getElementById('viewer').addEventListener('wheel', async e => {
 let _moveState = null;
 
 function makeDraggable(el, a, ov) {
-  const moveable = ['highlight','rect','strike','note','text','cloud',
-                    'pen','texthighlight','arrow','measure','area'];
+  const moveable = ['highlight','rect','rectfill','strike','note','text','textbox','callout','cloud',
+                    'pen','texthighlight','arrow','line','measure','area'];
   if (!moveable.includes(a.type)) return;
 
   const targets = [el];

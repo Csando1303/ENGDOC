@@ -1443,9 +1443,9 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   <div class="modal" style="width:400px">
     <div class="mhead"><span class="mtitle">Download EMMA Checksheet</span><button class="mclose" onclick="closeM('memma')">✕</button></div>
     <div class="mbody">
-      <p style="font-size:13px;color:var(--gray-600);margin-bottom:12px">This will populate the <strong>Checking Review</strong> sheet and <strong>Document Check Sheet</strong> in the Amey EMMa template with your current comments and project details.</p>
+      <p style="font-size:13px;color:var(--gray-600);margin-bottom:12px">Writes your comments into the <strong>Checking Review</strong> and <strong>Document Check Sheet</strong> tabs of the Amey EMMa Checksheet.</p>
       <div id="emma-export-summary" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:10px;font-size:12px;color:var(--gray-700);line-height:1.8;font-family:var(--mono)"></div>
-      <p style="font-size:11px;color:var(--gray-500);margin-top:10px">To preserve VBA macros, load your <code>Checksheet.xlsm</code> template first via the EMMA panel → Load Template button.</p>
+      <div id="emma-template-status" style="margin-top:10px;padding:8px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:500"></div>
     </div>
     <div class="mfoot">
       <button class="hbtn outline" onclick="closeM('memma')">Cancel</button>
@@ -3816,10 +3816,13 @@ async function loadEmmaTemplate(e) {
       if (projNo && projNo !== 0) document.getElementById('emma-proj-no').value    = String(projNo);
       if (projNm && projNm !== 0) document.getElementById('emma-proj-title').value = String(projNm);
     }
-    toast('✓ Template loaded — project info imported');
+    toast('✓ Template loaded and saved — will be remembered next time');
   } catch(err) {
     toast('Could not read template metadata: ' + err.message);
   }
+  // Persist to IDB so it survives page reload
+  await idbSaveTemplate(emmaTemplateBuf, file.name);
+  updateTemplateUI(file.name);
   e.target.value = '';
 }
 
@@ -3844,81 +3847,102 @@ async function exportEmma() {
   try {
     await loadSheetJs();
 
-    let wb;
-    if (emmaTemplateBuf) {
-      // Write into the real template
-      wb = XLSX.read(emmaTemplateBuf, { type: 'array', cellStyles: true, bookVBA: true });
-    } else {
-      // Build fresh workbook that mirrors the template structure
-      wb = XLSX.utils.book_new();
+    if (!emmaTemplateBuf) {
+      toast('⚠ No template loaded — please load your Checksheet.xlsm via the EMMA panel first. This preserves all formatting and macros.', 6000);
+      return;
     }
 
-    // ── Populate Document Check Sheet ──
-    if (wb.Sheets['Document Check Sheet']) {
-      const ws = wb.Sheets['Document Check Sheet'];
-      const set = (cell, val) => { if (ws[cell]) ws[cell].v = val; else ws[cell] = { t:'s', v: val }; };
-      if (docTitle)   set('C4', docTitle);
-      if (projNo)     set('I4', projNo);
-      if (specific)   set('D5', specific);
-      if (rev)        set('K5', rev);
-      if (discipline) set('D6', discipline);
-      if (chkNo)      set('K6', chkNo);
-      const today = new Date();
-      set('G5', today);
-      if (ws['G5']) ws['G5'].t = 'd';
-    }
-
-    // ── Populate Checking Review ──
-    const getOrCreateSheet = (name) => {
-      if (wb.Sheets[name]) return wb.Sheets[name];
-      const newWs = {}; XLSX.utils.book_append_sheet(wb, newWs, name); return newWs;
-    };
-    const ws = getOrCreateSheet('Checking Review');
-
-    // Populate header fields (rows 3-7)
-    const setCell = (cell, val, type='s') => { ws[cell] = { t: type, v: val }; };
-    if (projNo)   setCell('D3', projNo,   isNaN(projNo) ? 's' : 'n');
-    if (docTitle) setCell('D4', docTitle);
-    if (discipline) setCell('D5', discipline);
-    if (chkNo)    setCell('D6', chkNo);
-    if (specific) setCell('D7', specific);
-
-    // Data rows start at row 11, columns B–N
-    // B=Item No, C=Doc No, D=Rev, E=Date, F=Designer Name, G=Checker Name,
-    // H=Checker Cat, I=Comment, J=Comment Type, K=Accepted, L=Reply, M=Closed, N=Notes
-    const colLetters = ['B','C','D','E','F','G','H','I','J','K','L','M','N'];
-    const today = new Date();
-
-    emmaAnnots.forEach((a, idx) => {
-      const rowNum = 11 + idx;
-      const row = emmaRowForAnnot(a);
-      const comment = a.text || (a.type === 'measure' ? a.label || '' : '');
-
-      ws[`B${rowNum}`] = { t:'n', v: idx + 1 };
-      ws[`C${rowNum}`] = { t:'s', v: row.docNo || docNo || '' };
-      ws[`D${rowNum}`] = { t:'s', v: row.rev   || rev   || '' };
-      ws[`E${rowNum}`] = { t:'d', v: a.ts ? new Date(a.ts) : today };
-      ws[`F${rowNum}`] = { t:'s', v: a.author || currentAuthor || '' };
-      ws[`G${rowNum}`] = { t:'s', v: currentAuthor || '' };
-      ws[`H${rowNum}`] = { t:'s', v: row.cat         || '' };
-      ws[`I${rowNum}`] = { t:'s', v: comment };
-      ws[`J${rowNum}`] = { t:'s', v: row.commentType || '' };
-      ws[`K${rowNum}`] = { t:'s', v: row.accepted    || '' };
-      ws[`L${rowNum}`] = { t:'s', v: row.reply       || '' };
-      ws[`M${rowNum}`] = { t:'s', v: row.closedOut   || 'No' };
-      ws[`N${rowNum}`] = { t:'s', v: row.notes       || '' };
+    // Read template preserving ALL styles, formats, merges, VBA
+    const wb = XLSX.read(emmaTemplateBuf, {
+      type: 'array',
+      cellStyles: true,
+      cellNF: true,
+      cellDates: true,
+      bookVBA: true,
+      WTF: false,
     });
 
-    // Update sheet ref
-    const lastRow = 10 + emmaAnnots.length;
-    ws['!ref'] = `A1:N${Math.max(lastRow, 499)}`;
+    // ── Safe cell writer: merges value into existing cell, never replaces it ──
+    // This preserves borders, fills, fonts, number formats, merges etc.
+    const writeVal = (ws, cell, val, type) => {
+      if (ws[cell]) {
+        // Existing cell — only update the value, keep everything else
+        ws[cell].v = val;
+        if (type) ws[cell].t = type;
+        // Clear cached formula result if any, let Excel recalculate
+        delete ws[cell].f;
+        delete ws[cell].F;
+      } else {
+        // New cell (no existing formatting to preserve)
+        ws[cell] = { t: type || (typeof val === 'number' ? 'n' : 's'), v: val };
+      }
+    };
 
-    // Download
-    const fname = (chkNo || (docNo ? docNo.replace(/[^\w-]/g,'_') : 'EMMA')) + '_Checksheet.xlsm';
-    XLSX.writeFile(wb, fname, { bookType: 'xlsm', bookVBA: true });
+    // ── Document Check Sheet ──
+    const dcs = wb.Sheets['Document Check Sheet'];
+    if (dcs) {
+      if (docTitle)   writeVal(dcs, 'C4', docTitle);
+      if (projNo)     writeVal(dcs, 'I4', projNo);
+      if (specific)   writeVal(dcs, 'D5', specific);
+      if (rev)        writeVal(dcs, 'K5', rev);
+      if (discipline) writeVal(dcs, 'D6', discipline);
+      if (chkNo)      writeVal(dcs, 'K6', chkNo);
+      writeVal(dcs, 'G5', new Date(), 'd');
+    }
+
+    // ── Checking Review ──
+    const cr = wb.Sheets['Checking Review'];
+    if (!cr) {
+      toast('Checking Review sheet not found in template — please load the correct Checksheet.xlsm', 5000);
+      return;
+    }
+
+    // Header fields
+    if (projNo)     writeVal(cr, 'D3', projNo);
+    if (docTitle)   writeVal(cr, 'D4', docTitle);
+    if (discipline) writeVal(cr, 'D5', discipline);
+    if (chkNo)      writeVal(cr, 'D6', chkNo);
+    if (specific)   writeVal(cr, 'D7', specific);
+
+    // Data rows — B:N starting at row 11
+    // B=Item No, C=Doc No, D=Rev, E=Date, F=Designer Name, G=Checker/RE Name,
+    // H=Checker Cat, I=Comment, J=Comment Type, K=Accepted, L=Reply, M=Closed Out, N=Notes
+    const today = new Date();
+    emmaAnnots.forEach((a, idx) => {
+      const rowNum = 11 + idx;
+      const row    = emmaRowForAnnot(a);
+      const comment = a.text || (a.type === 'measure' ? a.label || '' : '');
+
+      writeVal(cr, `B${rowNum}`, idx + 1, 'n');
+      writeVal(cr, `C${rowNum}`, row.docNo || docNo || '');
+      writeVal(cr, `D${rowNum}`, row.rev   || rev   || '');
+      writeVal(cr, `E${rowNum}`, a.timestamp ? new Date(a.timestamp) : today, 'd');
+      writeVal(cr, `F${rowNum}`, a.author || currentAuthor || '');
+      writeVal(cr, `G${rowNum}`, currentAuthor || '');
+      writeVal(cr, `H${rowNum}`, row.cat          || '');
+      writeVal(cr, `I${rowNum}`, comment);
+      writeVal(cr, `J${rowNum}`, row.commentType  || '');
+      writeVal(cr, `K${rowNum}`, row.accepted     || '');
+      writeVal(cr, `L${rowNum}`, row.reply        || '');
+      writeVal(cr, `M${rowNum}`, row.closedOut    || 'No');
+      writeVal(cr, `N${rowNum}`, row.notes        || '');
+    });
+
+    // Extend !ref only if needed — don't shrink the template's existing range
+    const lastDataRow = 10 + emmaAnnots.length;
+    const existingRef = cr['!ref'] || 'A1:N499';
+    const existingLastRow = parseInt((existingRef.match(/:.*?(\d+)$/) || [])[1] || '0');
+    if (lastDataRow > existingLastRow) {
+      cr['!ref'] = existingRef.replace(/:.*$/, `:N${lastDataRow}`);
+    }
+
+    // Write back preserving VBA / macros
+    const fname = (chkNo || (docNo ? docNo.replace(/[^\w-]/g, '_') : 'EMMA')) + '_Checksheet.xlsm';
+    XLSX.writeFile(wb, fname, { bookType: 'xlsm', bookVBA: true, cellStyles: true });
     toast(`✓ EMMA Checksheet exported — ${emmaAnnots.length} comment${emmaAnnots.length !== 1 ? 's' : ''}`);
+
   } catch(err) {
-    console.error(err);
+    console.error('[EngDoc] exportEmma:', err);
     toast('Export failed: ' + err.message);
   }
 }
@@ -3938,8 +3962,17 @@ function openEmmaExport() {
   const closedCount = emmaAnnots.length - openCount;
   document.getElementById('emma-export-summary').innerHTML =
     `Project: ${projTitle}<br>Doc No: ${docNo} · Rev: ${rev}<br>Check Sheet: ${chkNo}<br>` +
-    `Comments: ${emmaAnnots.length} total (${openCount} open, ${closedCount} closed)<br>` +
-    `Template: ${emmaTemplateBuf ? '✓ Loaded' : 'None — will create fresh'}`;
+    `Comments: ${emmaAnnots.length} total (${openCount} open, ${closedCount} closed)`;
+
+  // Template status
+  const statusEl = document.getElementById('emma-template-status');
+  if (emmaTemplateBuf) {
+    statusEl.style.cssText = 'background:#dcfce7;color:#166534;border:1px solid #bbf7d0;margin-top:10px;padding:8px 10px;border-radius:4px;font-size:12px;font-weight:500';
+    statusEl.textContent = '✓ Template loaded — all formatting, colours and macros will be preserved';
+  } else {
+    statusEl.style.cssText = 'background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;margin-top:10px;padding:8px 10px;border-radius:4px;font-size:12px;font-weight:500';
+    statusEl.textContent = '⚠ No template loaded — load your Checksheet.xlsm via the EMMA panel → Load Template before exporting. Without it the formatting will be lost.';
+  }
   openM('memma');
 }
 
@@ -3964,11 +3997,43 @@ if (localStorage.getItem('engdoc_dark') === '1') toggleDark();
 let idb = null;
 function openIDB() {
   return new Promise((res, rej) => {
-    const req = indexedDB.open('engdoc', 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore('sessions', { keyPath: 'id' });
+    const req = indexedDB.open('engdoc', 2); // v2 adds templates store
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('sessions'))  db.createObjectStore('sessions',  { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('templates')) db.createObjectStore('templates', { keyPath: 'id' });
+    };
     req.onsuccess = e => { idb = e.target.result; res(idb); };
     req.onerror = () => rej(req.error);
   });
+}
+
+async function idbSaveTemplate(buf, filename) {
+  if (!idb) return;
+  try {
+    const tx = idb.transaction('templates', 'readwrite');
+    tx.objectStore('templates').put({ id: 'emma-template', buf, filename, savedAt: new Date().toISOString() });
+  } catch(e) { /* silent */ }
+}
+
+async function idbLoadTemplate() {
+  if (!idb) return null;
+  return new Promise(res => {
+    try {
+      const tx = idb.transaction('templates', 'readonly');
+      const req = tx.objectStore('templates').get('emma-template');
+      req.onsuccess = () => res(req.result || null);
+      req.onerror = () => res(null);
+    } catch(e) { res(null); }
+  });
+}
+
+async function idbClearTemplate() {
+  if (!idb) return;
+  try {
+    const tx = idb.transaction('templates', 'readwrite');
+    tx.objectStore('templates').delete('emma-template');
+  } catch(e) { /* silent */ }
 }
 
 async function idbSave() {
@@ -3978,7 +4043,6 @@ async function idbSave() {
       emmaFields: captureEmmaFields(), savedAt: new Date().toISOString() };
     const tx = idb.transaction('sessions', 'readwrite');
     tx.objectStore('sessions').put(data);
-    // Flash autosave dot
     const dot = document.getElementById('autosave-dot');
     if (dot) { dot.classList.add('pulse'); setTimeout(() => dot.classList.remove('pulse'), 1500); }
   } catch(e) { /* silent */ }
@@ -4004,25 +4068,65 @@ function captureEmmaFields() {
   return out;
 }
 
+function updateTemplateUI(filename) {
+  const btn = document.querySelector('.emma-import-btn');
+  if (!btn) return;
+  const fileInput = '<input type="file" id="emma-template-file" accept=".xlsm,.xlsx" style="display:none" onchange="loadEmmaTemplate(event)">';
+  if (filename) {
+    const short = filename.replace(/\.xlsm$/i,'').replace(/\.xlsx$/i,'').slice(0, 24);
+    btn.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 11l3 3L22 4"/></svg> ' +
+      short +
+      ' <span onclick="clearEmmaTemplate(event)" style="margin-left:6px;color:#b91c1c;font-weight:700;cursor:pointer" title="Remove saved template">&times;</span>' +
+      fileInput;
+    btn.style.color = '#166534';
+    btn.style.borderColor = '#bbf7d0';
+    btn.style.background = '#f0fdf4';
+  } else {
+    btn.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ' +
+      'Load Template' +
+      fileInput;
+    btn.style.color = '';
+    btn.style.borderColor = '';
+    btn.style.background = '';
+  }
+}
+
+async function clearEmmaTemplate(e) {
+  e.stopPropagation();
+  emmaTemplateBuf = null;
+  await idbClearTemplate();
+  updateTemplateUI(null);
+  toast('EMMA template removed — load a new one via the EMMA panel');
+}
+
 // Auto-save every 30s and on every annotation push
 let autoSaveTimer = null;
 function scheduleAutoSave() {
   clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(() => idbSave(), 30000);
-  // Also save immediately on annotation changes (debounced to 2s)
   clearTimeout(window._idbDebounce);
   window._idbDebounce = setTimeout(() => idbSave(), 2000);
 }
 
-// Initialise IDB
+// Initialise IDB — restore template + session on startup
 openIDB().then(async () => {
+  // Restore template silently first
+  const tmpl = await idbLoadTemplate();
+  if (tmpl && tmpl.buf) {
+    emmaTemplateBuf = tmpl.buf;
+    updateTemplateUI(tmpl.filename || 'Checksheet.xlsm');
+    toast('✓ EMMA template ready: ' + (tmpl.filename || 'Checksheet.xlsm'), 3000);
+  }
+  // Offer to restore last session
   const saved = await idbRestore();
   if (saved && saved.pdfName && !pdfName) {
-    // Offer to restore
     const age = saved.savedAt ? Math.round((Date.now() - new Date(saved.savedAt)) / 60000) : '?';
-    toast(`Auto-save found: "${saved.pdfName}" from ${age} min ago — reload the PDF to restore`, 6000);
+    toast('Auto-save found: "' + saved.pdfName + '" from ' + age + ' min ago — drag it in to restore', 6000);
   }
 }).catch(() => {});
+
 
 // ═══════════════════════════════════════════════
 //  AREA / POLYGON MEASUREMENT TOOL

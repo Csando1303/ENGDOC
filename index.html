@@ -69,6 +69,27 @@ body.dark select, body.dark input { color-scheme: dark; }
 .aoverlay.cur-zoombox { cursor: crosshair; }
 [data-aid].moveable { cursor: move; }
 [data-aid].moveable:hover { outline: 2px dashed #2563eb; outline-offset: 2px; }
+/* Resize handles */
+.resize-handle {
+  position:absolute; width:10px; height:10px; background:#fff;
+  border:2px solid #2563eb; border-radius:2px; z-index:20;
+  cursor:se-resize; pointer-events:all;
+  box-shadow:0 1px 3px rgba(0,0,0,.2);
+  transform:translate(-50%,-50%);
+}
+.resize-handle.nw { cursor:nw-resize; }
+.resize-handle.ne { cursor:ne-resize; }
+.resize-handle.sw { cursor:sw-resize; }
+.resize-handle.se { cursor:se-resize; }
+.resize-handle.n  { cursor:n-resize; }
+.resize-handle.s  { cursor:s-resize; }
+.resize-handle.e  { cursor:e-resize; }
+.resize-handle.w  { cursor:w-resize; }
+/* Selected annotation highlight */
+[data-aid].ann-selected {
+  outline: 2px solid #2563eb !important;
+  outline-offset: 2px;
+}
 .check-group { border-bottom:1px solid var(--gray-200); }
 .check-group:last-child { border-bottom:none; }
 .check-group-head { display:flex;align-items:center;gap:10px;padding:10px 16px;
@@ -791,9 +812,9 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
             <span class="rbtn-label">Highlight</span>
           </button>
-          <button class="rbtn" id="t-texthighlight" data-tip="Text highlighter — swipe over text (M)" onclick="setTool('texthighlight')">
+          <button class="rbtn" id="t-texthighlight" data-tip="Marker pen — swipe over text (M)" onclick="setTool('texthighlight')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 17h4l9.5-9.5a2.121 2.121 0 00-3-3L4 14v3z" fill="currentColor" fill-opacity="0.15"/><line x1="2" y1="20" x2="22" y2="20" stroke-linecap="round"/></svg>
-            <span class="rbtn-label">Text Hi.</span>
+            <span class="rbtn-label">Marker</span>
           </button>
           <button class="rbtn" id="t-strike" data-tip="Strikethrough" onclick="setTool('strike')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5"/><path d="M6 6h12M6 18h12" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
@@ -805,13 +826,17 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 
       <div class="rgroup">
         <div class="rgroup-btns">
-          <button class="rbtn" id="t-rect" data-tip="Rectangle markup (R)" onclick="setTool('rect')">
+          <button class="rbtn" id="t-rect" data-tip="Rectangle outline (R)" onclick="setTool('rect')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
             <span class="rbtn-label">Rect</span>
           </button>
-          <button class="rbtn" id="t-cloud" data-tip="Cloud / revision bubble (C)" onclick="setTool('cloud')">
+          <button class="rbtn" id="t-cloud" data-tip="Revision cloud (C)" onclick="setTool('cloud')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
             <span class="rbtn-label">Cloud</span>
+          </button>
+          <button class="rbtn" id="t-line" data-tip="Straight line (L)" onclick="setTool('line')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/></svg>
+            <span class="rbtn-label">Line</span>
           </button>
           <button class="rbtn" id="t-arrow" data-tip="Arrow (A)" onclick="setTool('arrow')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
@@ -827,12 +852,12 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 
       <div class="rgroup">
         <div class="rgroup-btns">
-          <button class="rbtn" id="t-note" data-tip="Sticky note — EMMA register (N)" onclick="setTool('note')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          <button class="rbtn" id="t-note" data-tip="Note / Callout — drag for callout box, click for floating note (N)" onclick="setTool('note')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="14" height="10" rx="1"/><path d="M8 12l-4 6"/></svg>
             <span class="rbtn-label">Note</span>
           </button>
-          <button class="rbtn" id="t-text" data-tip="Text label (T)" onclick="setTool('text')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+          <button class="rbtn" id="t-text" data-tip="Text box — drag to size, or click for inline label (T)" onclick="setTool('text')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="1"/><line x1="6" y1="9" x2="18" y2="9"/><line x1="6" y1="13" x2="14" y2="13"/></svg>
             <span class="rbtn-label">Text</span>
           </button>
         </div>
@@ -893,27 +918,10 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
         <div class="rgroup-label">Style</div>
       </div>
 
-      <div class="rgroup">
-        <div class="rgroup-btns">
-          <button class="rbtn" id="t-line" data-tip="Straight line (L)" onclick="setTool('line')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/></svg>
-            <span class="rbtn-label">Line</span>
-          </button>
-          <button class="rbtn" id="t-rectfill" data-tip="Filled rectangle — solid block" onclick="setTool('rectfill')">
-            <svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2" fill-opacity="0.4"/></svg>
-            <span class="rbtn-label">Fill Box</span>
-          </button>
-          <button class="rbtn" id="t-callout" data-tip="Callout box with leader line — drag box, click leader point" onclick="setTool('callout')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="14" height="10" rx="1"/><path d="M8 12l-4 6"/></svg>
-            <span class="rbtn-label">Callout</span>
-          </button>
-          <button class="rbtn" id="t-textbox" data-tip="Text box — drag to set size, type text" onclick="setTool('textbox')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="1"/><line x1="6" y1="9" x2="18" y2="9"/><line x1="6" y1="13" x2="14" y2="13"/></svg>
-            <span class="rbtn-label">Text Box</span>
-          </button>
-        </div>
-        <div class="rgroup-label">Shapes+</div>
-      </div>
+      <!-- Hidden tool stubs for JS compat — these tools still exist in the data model -->
+      <button id="t-rectfill"  style="display:none" onclick="setTool('rectfill')"></button>
+      <button id="t-callout"   style="display:none" onclick="setTool('callout')"></button>
+      <button id="t-textbox"   style="display:none" onclick="setTool('textbox')"></button>
 
       <div class="rgroup">
         <div class="rgroup-btns">
@@ -2380,16 +2388,29 @@ function setTool(t) {
 //   other → only notes/text labels need pointer-events for context menu
 function refreshAnnotPointerEvents() {
   document.querySelectorAll('[data-aid]').forEach(el => {
-    const isSvgWrap = el.classList.contains('asvg-wrap');
+    const isSvgWrap  = el.classList.contains('asvg-wrap');
+    const isCallout  = el.classList.contains('acallout');
+    const isTextable = el.classList.contains('an') || el.classList.contains('atxt') ||
+                       el.classList.contains('atextbox') || el.classList.contains('acallout');
+
     if (tool === 'pan') {
-      // All annotations get pointer-events in pan mode so they can be dragged
       if (isSvgWrap) {
+        // SVG annotation wrappers: allow pointer events for dragging
         el.style.pointerEvents = 'all';
         el.style.cursor = 'move';
         el.querySelectorAll('path, line, polyline, polygon').forEach(s => {
           s.style.pointerEvents = 'all';
           s.style.cursor = 'move';
         });
+      } else if (isCallout) {
+        // Callout: the SVG leader is pointer-events:none (it's decorative),
+        // the inner .acallout-box handles interaction
+        el.style.pointerEvents = 'none';
+        el.style.cursor = 'default';
+        const box = el.querySelector('.acallout-box');
+        if (box) { box.style.pointerEvents = 'all'; box.style.cursor = 'move'; }
+        const svgEl = el.querySelector('svg');
+        if (svgEl) svgEl.style.pointerEvents = 'none';
       } else {
         el.style.pointerEvents = 'all';
         el.style.cursor = 'move';
@@ -2401,20 +2422,28 @@ function refreshAnnotPointerEvents() {
           s.style.pointerEvents = 'stroke';
           s.style.cursor = 'crosshair';
         });
+      } else if (isCallout) {
+        el.style.pointerEvents = 'none';
+        const box = el.querySelector('.acallout-box');
+        if (box) { box.style.pointerEvents = 'all'; box.style.cursor = 'crosshair'; }
       } else {
         el.style.pointerEvents = 'all';
         el.style.cursor = 'crosshair';
       }
     } else {
+      // Drawing tools — only interactive annotations stay clickable
       if (isSvgWrap) {
         el.style.pointerEvents = 'none';
         el.querySelectorAll('path, line').forEach(s => s.style.pointerEvents = 'none');
+      } else if (isCallout) {
+        el.style.pointerEvents = 'none';
+        const box = el.querySelector('.acallout-box');
+        if (box) { box.style.pointerEvents = 'all'; box.style.cursor = 'pointer'; }
+        const svgEl = el.querySelector('svg');
+        if (svgEl) svgEl.style.pointerEvents = 'none';
       } else {
-        const interactive = el.classList.contains('an') || el.classList.contains('atxt') ||
-                            el.classList.contains('atextbox') || el.classList.contains('acallout') ||
-                            el.classList.contains('acallout-box');
-        el.style.pointerEvents = interactive ? 'all' : 'none';
-        el.style.cursor = '';
+        el.style.pointerEvents = isTextable ? 'all' : 'none';
+        el.style.cursor = isTextable ? 'pointer' : '';
       }
     }
   });
@@ -2460,12 +2489,16 @@ function attachEvents(ov, pageNum, vp) {
     const r = ov.getBoundingClientRect();
     const ox = e.clientX - r.left, oy = e.clientY - r.top;
 
-    // ── NOTE / TEXT: show inline popover ──
+    // ── NOTE / TEXT: click = simple annotation, drag = callout/textbox ──
     if (tool === 'note' || tool === 'text') {
-      const x = ox / vp.width * 100, y = oy / vp.height * 100;
-      showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
-        pushAnnot({ id: nextId(), pageNum, type: tool, x, y, text: txt, color, ...emmaFields });
-      });
+      // Mark as potential drag — if user moves >8px it becomes callout/textbox
+      drawing = true; origin = { x: ox, y: oy };
+      liveEl = document.createElement('div');
+      liveEl.style.cssText = 'position:absolute;pointer-events:none;z-index:10;' +
+        'border:2px dashed ' + (CHex[color]||CHex.yellow) + ';border-radius:3px;background:rgba(255,255,255,0.7)';
+      liveEl.style.left = ox + 'px'; liveEl.style.top = oy + 'px';
+      liveEl.style.width = '0'; liveEl.style.height = '0';
+      ov.appendChild(liveEl);
       return;
     }
 
@@ -2792,20 +2825,29 @@ function attachEvents(ov, pageNum, vp) {
     } else if (tool === 'cloud') {
       if (w < 0.5 || h < 0.5) return;
       pushAnnot({ id: nextId(), pageNum, type: 'cloud', x, y, w, h, color });
-    } else if (tool === 'textbox') {
-      if (w < 1 || h < 1) return;
-      const txt = prompt('Text box content:');
-      if (!txt || !txt.trim()) return;
-      pushAnnot({ id: nextId(), pageNum, type: 'textbox', x, y, w, h, color,
-        text: txt.trim(), fontSize, opacity: annotOpacity });
-    } else if (tool === 'callout') {
-      if (w < 1 || h < 1) return;
-      const txt = prompt('Callout text:');
-      if (!txt || !txt.trim()) return;
-      // Default leader point at bottom-left of box
-      const lx = x, ly = y + h + 5;
-      pushAnnot({ id: nextId(), pageNum, type: 'callout', x, y, w, h, color,
-        text: txt.trim(), fontSize, lx, ly, opacity: annotOpacity });
+    } else if (tool === 'note' || tool === 'text') {
+      // Small drag (< 3% wide and tall) = click = simple popover annotation
+      if (w < 3 && h < 3) {
+        const px = origin.x / vp.width * 100, py = origin.y / vp.height * 100;
+        showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
+          pushAnnot({ id: nextId(), pageNum, type: tool, x: px, y: py,
+            text: txt, color, fontSize, ...emmaFields });
+        });
+      } else {
+        // Large drag = callout (note) or textbox (text)
+        const targetType = tool === 'note' ? 'callout' : 'textbox';
+        const label = tool === 'note' ? 'Callout text:' : 'Text box content:';
+        const txt = prompt(label);
+        if (txt && txt.trim()) {
+          if (targetType === 'callout') {
+            pushAnnot({ id: nextId(), pageNum, type: 'callout', x, y, w, h, color,
+              text: txt.trim(), fontSize, lx: x, ly: y + h + 5, opacity: annotOpacity });
+          } else {
+            pushAnnot({ id: nextId(), pageNum, type: 'textbox', x, y, w, h, color,
+              text: txt.trim(), fontSize, opacity: annotOpacity });
+          }
+        }
+      }
     }
   });
 
@@ -3029,7 +3071,7 @@ function attachAnnotListeners(el, a, ov) {
     ev.preventDefault(); ev.stopPropagation();
     ctxAnnotId = a.id;
     document.getElementById('ctx-edit').style.display =
-      (a.type === 'note' || a.type === 'text') ? 'flex' : 'none';
+      ['note','text','callout','textbox'].includes(a.type) ? 'flex' : 'none';
     const menu = document.getElementById('ctx-menu');
     menu.style.left = ev.clientX + 'px';
     menu.style.top  = ev.clientY + 'px';
@@ -3044,7 +3086,7 @@ function attachAnnotListeners(el, a, ov) {
    or 0 if the annotation is excluded or not in the register. */
 function getEmmaIndex(id) {
   const emmaAnnots = annots.filter(a =>
-    (a.type === 'note' || a.type === 'text' || a.type === 'measure') && !a.emmaExclude
+    (a.type === 'note' || a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
   );
   const idx = emmaAnnots.findIndex(a => a.id === id);
   return idx >= 0 ? idx + 1 : 0;
@@ -3362,52 +3404,93 @@ function buildLineAnnotEl(a) {
 
 /* ── TEXTBOX annotation ── */
 function buildTextboxAnnotEl(a) {
-  const c = CHex[a.color] || CHex.yellow;
-  const fs = a.fontSize || 12;
-  const op = (a.opacity || 80) / 100;
-  const el = document.createElement('div');
+  const c   = CHex[a.color] || CHex.yellow;
+  const fs  = a.fontSize || 12;
+  const op  = (a.opacity || 80) / 100;
+  const el  = document.createElement('div');
   el.className = 'atextbox';
-  el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;` +
-    `border-color:${c};font-size:${fs}px;opacity:${op};background:rgba(255,255,255,${op * 0.95});` +
-    `min-height:${a.h}%;padding:4px 7px;line-height:1.4;word-break:break-word`;
+  el.style.cssText = [
+    'position:absolute',
+    'left:' + a.x + '%', 'top:' + a.y + '%',
+    'width:' + a.w + '%', 'min-height:' + a.h + '%',
+    'border:1.5px solid ' + c,
+    'border-radius:3px',
+    'background:rgba(255,255,255,' + (op * 0.96) + ')',
+    'font-size:' + fs + 'px',
+    'line-height:1.45',
+    'padding:5px 8px',
+    'word-break:break-word',
+    'white-space:pre-wrap',
+    'box-shadow:0 1px 6px rgba(0,0,0,.1)',
+    'opacity:' + op,
+  ].join(';');
   el.textContent = a.text || '';
   return el;
 }
 
 /* ── CALLOUT annotation ── */
 function buildCalloutAnnotEl(a) {
-  const c = CHex[a.color] || CHex.yellow;
-  const fs = a.fontSize || 12;
-  // Wrapper that holds both the SVG leader and the text box
+  const c   = CHex[a.color] || CHex.yellow;
+  const fs  = a.fontSize || 12;
+
+  // Outer wrapper — inset:0 so SVG can draw anywhere on the page overlay
   const wrap = document.createElement('div');
   wrap.className = 'acallout';
-  wrap.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:visible';
+  wrap.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:4';
 
-  // SVG leader line from box anchor to leader point
+  // SVG leader
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible;pointer-events:none';
-  // Leader attaches at bottom-left corner of box
-  const anchorX = a.x, anchorY = a.y + a.h;
+
+  const anchorX = a.x + a.w / 2;  // leader from box bottom-centre
+  const anchorY = a.y + a.h;
+  const tipX    = a.lx !== undefined ? a.lx : anchorX;
+  const tipY    = a.ly !== undefined ? a.ly : anchorY + 8;
+
   const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  line.setAttribute('x1', anchorX); line.setAttribute('y1', anchorY);
-  line.setAttribute('x2', a.lx || anchorX); line.setAttribute('y2', a.ly || anchorY + 5);
+  line.setAttribute('x1', anchorX.toFixed(2)); line.setAttribute('y1', anchorY.toFixed(2));
+  line.setAttribute('x2', tipX.toFixed(2));    line.setAttribute('y2', tipY.toFixed(2));
   line.setAttribute('stroke', c); line.setAttribute('stroke-width', '1.5');
-  line.setAttribute('stroke-linecap', 'round'); line.setAttribute('vector-effect', 'non-scaling-stroke');
-  // Small arrowhead dot at leader tip
-  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  dot.setAttribute('cx', a.lx || anchorX); dot.setAttribute('cy', a.ly || anchorY + 5);
-  dot.setAttribute('r', '1'); dot.setAttribute('fill', c);
-  svg.appendChild(line); svg.appendChild(dot);
+  line.setAttribute('stroke-linecap', 'round');
+  line.setAttribute('vector-effect', 'non-scaling-stroke');
+
+  // Filled arrowhead at tip
+  const defs   = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  const markId = 'co-arr-' + a.id;
+  marker.setAttribute('id', markId);
+  marker.setAttribute('viewBox', '0 0 8 8');
+  marker.setAttribute('refX', '7'); marker.setAttribute('refY', '4');
+  marker.setAttribute('markerWidth', '5'); marker.setAttribute('markerHeight', '5');
+  marker.setAttribute('orient', 'auto');
+  const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  arrow.setAttribute('d', 'M0,0 L8,4 L0,8 Z');
+  arrow.setAttribute('fill', c);
+  marker.appendChild(arrow); defs.appendChild(marker);
+  line.setAttribute('marker-end', 'url(#' + markId + ')');
+  svg.appendChild(defs); svg.appendChild(line);
   wrap.appendChild(svg);
 
-  // Text box div
+  // Callout box
   const box = document.createElement('div');
   box.className = 'acallout-box';
-  box.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;` +
-    `border-color:${c};font-size:${fs}px;background:rgba(255,255,255,0.95);` +
-    `padding:5px 8px;line-height:1.4;word-break:break-word;pointer-events:all`;
+  box.style.cssText = [
+    'position:absolute',
+    'left:' + a.x + '%', 'top:' + a.y + '%',
+    'width:' + a.w + '%', 'min-height:' + (a.h || 8) + '%',
+    'border:1.5px solid ' + c,
+    'border-radius:3px',
+    'background:rgba(255,255,255,0.96)',
+    'font-size:' + fs + 'px',
+    'padding:5px 8px',
+    'line-height:1.45',
+    'word-break:break-word',
+    'white-space:pre-wrap',
+    'box-shadow:0 2px 8px rgba(0,0,0,.12)',
+    'pointer-events:all',
+  ].join(';');
   box.textContent = a.text || '';
   wrap.appendChild(box);
   return wrap;
@@ -3448,8 +3531,9 @@ function updateAnnotPanel() {
 
 function editAnnotById(id) {
   const a = annots.find(x => x.id === id);
-  if (!a || (a.type !== 'note' && a.type !== 'text')) return;
-  const el = document.querySelector(`[data-aid="${id}"]`);
+  const editableTypes = ['note','text','callout','textbox'];
+  if (!a || !editableTypes.includes(a.type)) return;
+  const el = document.querySelector('[data-aid="' + id + '"]');
   let sx = window.innerWidth / 2, sy = window.innerHeight / 2;
   if (el) { const r = el.getBoundingClientRect(); sx = r.left; sy = r.bottom; }
   const emmaData = {
@@ -3942,7 +4026,7 @@ function updateEmmaRegister() {
   const empty    = document.getElementById('emma-empty');
   // Only note/text/measure annotations that aren't excluded go into EMMA
   const emmaAnnots = annots.filter(a =>
-    (a.type === 'note' || a.type === 'text' || a.type === 'measure') && !a.emmaExclude
+    (a.type === 'note' || a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
   );
 
   // Remove existing rows (not the empty message)
@@ -4065,20 +4149,15 @@ async function loadEmmaTemplate(e) {
 /* ── Export into real .xlsm template ── */
 async function exportEmma() {
   const emmaAnnots = annots.filter(a =>
-    (a.type === 'note' || a.type === 'text' || a.type === 'measure') && !a.emmaExclude
+    (a.type === 'note' || a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
   );
   if (!emmaAnnots.length) { toast('No EMMA comments to export'); return; }
-
-  if (!emmaTemplateBuf) {
-    toast('⚠ No template loaded — load your Checksheet.xlsm via the EMMA panel first', 6000);
-    return;
-  }
+  if (!emmaTemplateBuf)   { toast('⚠ No template loaded — load your Checksheet.xlsm via the EMMA panel first', 6000); return; }
 
   closeM('memma');
   toast('Building EMMA Checksheet…');
 
   try {
-    // ── Load JSZip ──
     await loadJSZip();
 
     const docTitle   = document.getElementById('emma-proj-title').value.trim();
@@ -4088,102 +4167,129 @@ async function exportEmma() {
     const rev        = document.getElementById('emma-rev-no').value.trim();
     const specific   = document.getElementById('emma-specific').value.trim();
     const chkNo      = document.getElementById('emma-chk-no').value.trim();
-    const today      = new Date().toISOString().slice(0, 10);
 
-    // Open the .xlsm as a zip — all files preserved byte-for-byte
     const zip = await JSZip.loadAsync(emmaTemplateBuf);
 
-    // ── Helper: find which sheet file corresponds to a sheet name ──
-    // workbook.xml lists sheet names + r:id, workbook.xml.rels maps r:id → file path
-    async function getSheetXml(sheetName) {
-      const wbXml  = await zip.file('xl/workbook.xml').async('string');
+    // ── Helper: find worksheet file for a named sheet ──
+    async function getSheetPath(sheetName) {
+      const wbXml   = await zip.file('xl/workbook.xml').async('string');
       const relsXml = await zip.file('xl/_rels/workbook.xml.rels').async('string');
-
-      // Find r:id for this sheet name
-      const nameRe = new RegExp('sheet[^>]+name="' + sheetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"[^>]+r:id="([^"]+)"', 'i');
-      const nameAlt = new RegExp('sheet[^>]+r:id="([^"]+)"[^>]+name="' + sheetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"', 'i');
-      const m = wbXml.match(nameRe) || wbXml.match(nameAlt);
-      if (!m) return null;
-      const rid = m[1];
-
-      // Find target file for this r:id
-      const relRe = new RegExp('Relationship[^>]+Id="' + rid + '"[^>]+Target="([^"]+)"', 'i');
-      const rm = relsXml.match(relRe);
+      const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const m1 = wbXml.match(new RegExp('<sheet[^>]+name="' + esc(sheetName) + '"[^>]+r:id="([^"]+)"'));
+      const m2 = wbXml.match(new RegExp('<sheet[^>]+r:id="([^"]+)"[^>]+name="' + esc(sheetName) + '"'));
+      const rid = (m1 || m2)?.[1]; if (!rid) return null;
+      const rm = relsXml.match(new RegExp('Id="' + rid + '"[^>]+Target="([^"]+)"'));
       if (!rm) return null;
-      const target = rm[1].replace(/^\/?xl\//, '');
-      return 'xl/' + target;
+      const t = rm[1].replace(/^\/?xl\//, '');
+      return 'xl/' + t;
     }
 
-    // ── Helper: set a cell value in worksheet XML ──
-    // Finds <c r="REF"...> and replaces/inserts its <v> or <t>/<is> content.
-    // For shared strings we write inline strings (<is><t>) to avoid needing to patch sharedStrings.xml
-    function setCellValue(xml, cellRef, value, type) {
-      const col = cellRef.match(/^[A-Z]+/)[0];
-      const row = cellRef.match(/\d+$/)[0];
+    // ── Shared strings: read existing, add new, write back ──
+    // This is the ONLY correct way to write text into styled cells —
+    // the cell keeps its s= style attribute and we just change the shared string index.
+    let ssXml = await zip.file('xl/sharedStrings.xml').async('string');
 
-      // Escape XML special chars
-      const esc = s => String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+    // Parse existing strings into an array
+    const ssEntries = [];
+    const siRe = /<si>([\s\S]*?)<\/si>/g;
+    let siM;
+    while ((siM = siRe.exec(ssXml)) !== null) {
+      // Extract text — may be <t> or multiple <r><t> runs
+      const tVals = [...siM[1].matchAll(/<t[^>]*>([^<]*)<\/t>/g)].map(x => x[1]);
+      ssEntries.push(tVals.join(''));
+    }
 
-      const escaped = esc(value);
+    // Look up or add a string, return its index
+    function ssIndex(str) {
+      const s = String(str);
+      const existing = ssEntries.indexOf(s);
+      if (existing !== -1) return existing;
+      // Append new entry
+      ssEntries.push(s);
+      const xmlEsc = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const needsSpace = s !== s.trim();
+      const tAttr = needsSpace ? ' xml:space="preserve"' : '';
+      // Insert before </sst>
+      ssXml = ssXml.replace(/<\/sst>/, '<si><t' + tAttr + '>' + xmlEsc + '</t></si></sst>');
+      return ssEntries.length - 1;
+    }
 
-      // Build the value fragment based on type
-      // 'n' = number, 'd' = date (stored as ISO string text), else inline string
-      let valFrag;
-      if (type === 'n' && !isNaN(Number(value))) {
-        valFrag = '<v>' + Number(value) + '</v>';
-      } else {
-        // Inline string — works without touching sharedStrings.xml
-        valFrag = '<is><t>' + escaped + '</t></is>';
-        type = 'inlineStr';
-      }
+    // Update the count attribute on <sst>
+    function finaliseSharedStrings() {
+      const count = ssEntries.length;
+      ssXml = ssXml.replace(/(<sst[^>]+count=")[^"]*(")/,  '$1' + count + '$2');
+      ssXml = ssXml.replace(/(<sst[^>]+uniqueCount=")[^"]*(")/,  '$1' + count + '$2');
+      zip.file('xl/sharedStrings.xml', ssXml);
+    }
 
-      // Try to find and update existing cell
-      // Matches <c r="A1" ... > ... </c>  or  <c r="A1" ... />
+    // ── Core cell writer ──
+    // Finds <c r="REF" ...> and updates ONLY the <v> content and t= attribute.
+    // The s= style attribute and all other attributes are left completely untouched.
+    function writeSharedStr(xml, cellRef, strIndex) {
+      // Match existing cell — may be self-closing or have content
       const cellRe = new RegExp(
-        '(<c\\s+r="' + cellRef + '"[^>]*)(/>|>(?:[\\s\\S]*?)</c>)',
+        '(<c\\s+r="' + cellRef + '"(?:\\s+[^>]*)?)(?:\\s*/>|>((?:[\\s\\S]*?))<\\/c>)',
         'i'
       );
+      const replacement = (match, openTag, _inner) => {
+        // Remove existing t= attribute, add t="s"
+        let tag = openTag.replace(/\s+t="[^"]*"/, '');
+        return tag + ' t="s"><v>' + strIndex + '</v></c>';
+      };
+      if (cellRe.test(xml)) return xml.replace(cellRe, replacement);
 
-      if (cellRe.test(xml)) {
-        xml = xml.replace(cellRe, (match, open) => {
-          // Strip existing t= attribute and add correct type
-          let newOpen = open.replace(/\s+t="[^"]*"/, '');
-          if (type !== 'n') newOpen += ' t="' + type + '"';
-          // Strip existing <v>, <is>, <f> contents
-          return newOpen + '>' + valFrag + '</c>';
-        });
-      } else {
-        // Cell doesn't exist — insert before the closing </row> for this row
-        const rowCloseRe = new RegExp('(</row>)');
-        // Find the right row first
-        const rowRe = new RegExp('(<row[^>]+r="' + row + '"[\\s\\S]*?)(</row>)');
-        if (rowRe.test(xml)) {
-          const newCell = '<c r="' + cellRef + '"' + (type !== 'n' ? ' t="' + type + '"' : '') + '>' + valFrag + '</c>';
-          xml = xml.replace(rowRe, (m, rowOpen, rowClose) => rowOpen + newCell + rowClose);
-        }
-      }
-      return xml;
+      // Cell doesn't exist — insert into its row
+      const rowNum = cellRef.match(/\d+$/)[0];
+      const rowRe  = new RegExp('(<row\\b[^>]*\\br="' + rowNum + '"[^>]*>)([\\s\\S]*?)(</row>)');
+      return xml.replace(rowRe, (_, open, body, close) =>
+        open + body + '<c r="' + cellRef + '" t="s"><v>' + strIndex + '</v></c>' + close
+      );
     }
 
-    // ── Patch Checking Review sheet ──
-    const crPath = await getSheetXml('Checking Review');
-    if (!crPath) {
-      toast('Could not find Checking Review sheet in template', 5000); return;
+    // Write a number into a cell (no t= attribute needed for numbers)
+    function writeNum(xml, cellRef, num) {
+      const cellRe = new RegExp(
+        '(<c\\s+r="' + cellRef + '"(?:\\s+[^>]*)?)(?:\\s*/>|>(?:[\\s\\S]*?)<\\/c>)',
+        'i'
+      );
+      const replacement = (_, openTag) => {
+        let tag = openTag.replace(/\s+t="[^"]*"/, '');
+        return tag + '><v>' + num + '</v></c>';
+      };
+      if (cellRe.test(xml)) return xml.replace(cellRe, replacement);
+      const rowNum = cellRef.match(/\d+$/)[0];
+      const rowRe  = new RegExp('(<row\\b[^>]*\\br="' + rowNum + '"[^>]*>)([\\s\\S]*?)(</row>)');
+      return xml.replace(rowRe, (_, open, body, close) =>
+        open + body + '<c r="' + cellRef + '"><v>' + num + '</v></c>' + close
+      );
     }
+
+    // ── Patch Document Check Sheet ──
+    // D3-D7 in Checking Review are FORMULAS that pull from here — write here only.
+    const dcsPath = await getSheetPath('Document Check Sheet');
+    if (dcsPath) {
+      let dcsXml = await zip.file(dcsPath).async('string');
+      if (docTitle)   dcsXml = writeSharedStr(dcsXml, 'D4',  ssIndex(docTitle));
+      if (projNo)     dcsXml = writeNum(dcsXml,       'I4',  projNo);
+      if (specific)   dcsXml = writeSharedStr(dcsXml, 'D5',  ssIndex(specific));
+      if (rev)        dcsXml = writeSharedStr(dcsXml, 'K5',  ssIndex(rev));
+      if (discipline) dcsXml = writeSharedStr(dcsXml, 'D6',  ssIndex(discipline));
+      if (chkNo)      dcsXml = writeSharedStr(dcsXml, 'K6',  ssIndex(chkNo));
+      // Date in G5 — store as a number (Excel serial date)
+      const today = new Date();
+      const serial = Math.floor((today - new Date(1899, 11, 30)) / 86400000);
+      dcsXml = writeNum(dcsXml, 'G5', serial);
+      zip.file(dcsPath, dcsXml);
+    }
+
+    // ── Patch Checking Review data rows ──
+    // Rows start at 11. Only write C (Doc No), E (Date), F (Designer), G (Checker),
+    // H (Cat), I (Comment), J (Type), K (Accepted), L (Reply), M (Closed Out), N (Notes).
+    // Column B is auto-numbered by the template formula, D is formula from DCS.
+    const crPath = await getSheetPath('Checking Review');
+    if (!crPath) { toast('Checking Review sheet not found in template', 5000); return; }
     let crXml = await zip.file(crPath).async('string');
 
-    // Header fields
-    if (projNo)     crXml = setCellValue(crXml, 'D3', projNo, 'n');
-    if (docTitle)   crXml = setCellValue(crXml, 'D4', docTitle);
-    if (discipline) crXml = setCellValue(crXml, 'D5', discipline);
-    if (chkNo)      crXml = setCellValue(crXml, 'D6', chkNo);
-    if (specific)   crXml = setCellValue(crXml, 'D7', specific);
-
-    // Data rows from row 11
     const todayStr = new Date().toLocaleDateString('en-GB');
     emmaAnnots.forEach((a, idx) => {
       const r   = 11 + idx;
@@ -4191,38 +4297,24 @@ async function exportEmma() {
       const comment = a.text || (a.type === 'measure' ? a.label || '' : '');
       const dateStr = a.timestamp ? new Date(a.timestamp).toLocaleDateString('en-GB') : todayStr;
 
-      crXml = setCellValue(crXml, 'B' + r, idx + 1, 'n');
-      crXml = setCellValue(crXml, 'C' + r, row.docNo || docNo || '');
-      crXml = setCellValue(crXml, 'D' + r, row.rev   || rev   || '');
-      crXml = setCellValue(crXml, 'E' + r, dateStr);
-      crXml = setCellValue(crXml, 'F' + r, a.author || currentAuthor || '');
-      crXml = setCellValue(crXml, 'G' + r, currentAuthor || '');
-      crXml = setCellValue(crXml, 'H' + r, row.cat         || '');
-      crXml = setCellValue(crXml, 'I' + r, comment);
-      crXml = setCellValue(crXml, 'J' + r, row.commentType || '');
-      crXml = setCellValue(crXml, 'K' + r, row.accepted    || '');
-      crXml = setCellValue(crXml, 'L' + r, row.reply       || '');
-      crXml = setCellValue(crXml, 'M' + r, row.closedOut   || 'No');
-      crXml = setCellValue(crXml, 'N' + r, row.notes       || '');
+      crXml = writeSharedStr(crXml, 'C' + r, ssIndex(row.docNo || docNo || ''));
+      crXml = writeSharedStr(crXml, 'E' + r, ssIndex(dateStr));
+      crXml = writeSharedStr(crXml, 'F' + r, ssIndex(a.author || currentAuthor || ''));
+      crXml = writeSharedStr(crXml, 'G' + r, ssIndex(currentAuthor || ''));
+      crXml = writeSharedStr(crXml, 'H' + r, ssIndex(row.cat          || ''));
+      crXml = writeSharedStr(crXml, 'I' + r, ssIndex(comment));
+      crXml = writeSharedStr(crXml, 'J' + r, ssIndex(row.commentType  || ''));
+      crXml = writeSharedStr(crXml, 'K' + r, ssIndex(row.accepted     || ''));
+      crXml = writeSharedStr(crXml, 'L' + r, ssIndex(row.reply        || ''));
+      crXml = writeSharedStr(crXml, 'M' + r, ssIndex(row.closedOut    || 'No'));
+      crXml = writeSharedStr(crXml, 'N' + r, ssIndex(row.notes        || ''));
     });
-
     zip.file(crPath, crXml);
 
-    // ── Patch Document Check Sheet ──
-    const dcsPath = await getSheetXml('Document Check Sheet');
-    if (dcsPath) {
-      let dcsXml = await zip.file(dcsPath).async('string');
-      if (docTitle)   dcsXml = setCellValue(dcsXml, 'C4', docTitle);
-      if (projNo)     dcsXml = setCellValue(dcsXml, 'I4', projNo);
-      if (specific)   dcsXml = setCellValue(dcsXml, 'D5', specific);
-      if (rev)        dcsXml = setCellValue(dcsXml, 'K5', rev);
-      if (discipline) dcsXml = setCellValue(dcsXml, 'D6', discipline);
-      if (chkNo)      dcsXml = setCellValue(dcsXml, 'K6', chkNo);
-      dcsXml = setCellValue(dcsXml, 'G5', todayStr);
-      zip.file(dcsPath, dcsXml);
-    }
+    // Write updated shared strings back
+    finaliseSharedStrings();
 
-    // ── Download — re-zip as binary, preserving everything else ──
+    // Re-zip and download
     const outBytes = await zip.generateAsync({
       type: 'uint8array',
       compression: 'DEFLATE',
@@ -4230,7 +4322,7 @@ async function exportEmma() {
       mimeType: 'application/vnd.ms-excel.sheet.macroEnabled.12'
     });
 
-    const fname = (chkNo || (docNo ? docNo.replace(/[^\w-]/g, '_') : 'EMMA')) + '_Checksheet.xlsm';
+    const fname = (chkNo || (docNo ? docNo.replace(/[^\w-]/g,'_') : 'EMMA')) + '_Checksheet.xlsm';
     dl(outBytes, fname);
     toast('✓ EMMA Checksheet exported — ' + emmaAnnots.length + ' comment' + (emmaAnnots.length !== 1 ? 's' : ''));
 
@@ -4252,7 +4344,7 @@ async function loadJSZip() {
 
 function openEmmaExport() {
   const emmaAnnots = annots.filter(a =>
-    (a.type === 'note' || a.type === 'text' || a.type === 'measure') && !a.emmaExclude
+    (a.type === 'note' || a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
   );
   if (!emmaAnnots.length) {
     toast('No EMMA comments to export — add Notes or Text annotations (with EMMA checked) first'); return;
@@ -5121,7 +5213,7 @@ function addPointerSupport(ov) {
 // ═══════════════════════════════════════════════
 function updateEmmaDash() {
   const emmaAnnots = annots.filter(a =>
-    (a.type === 'note' || a.type === 'text' || a.type === 'measure') && !a.emmaExclude
+    (a.type === 'note' || a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
   );
   const total = emmaAnnots.length;
   const closed = emmaAnnots.filter(a => emmaRows[a.id]?.closedOut === 'Yes').length;
@@ -6054,6 +6146,11 @@ function makeDraggable(el, a, ov) {
   if (el.classList.contains('asvg-wrap')) {
     el.querySelectorAll('path, line, polyline, polygon').forEach(s => targets.push(s));
   }
+  // Callout: the interactive box is a child — include it as a drag target
+  if (el.classList.contains('acallout')) {
+    const box = el.querySelector('.acallout-box');
+    if (box) targets.push(box);
+  }
 
   targets.forEach(target => {
     target.addEventListener('mousedown', ev => {
@@ -6158,6 +6255,202 @@ function pushHistory() {
   history.push(snap);
   if (typeof historyIdx !== 'undefined') historyIdx = history.length - 1;
 }
+
+// ═══════════════════════════════════════════════
+//  RESIZE HANDLES
+//  For annotations that have x/y/w/h (box types):
+//  highlight, rect, rectfill, strike, cloud,
+//  textbox, callout, note (when sized)
+//  Shows 8-point handles in pan mode when clicked.
+// ═══════════════════════════════════════════════
+let _selectedAnnotId = null;
+let _resizing = null; // { id, handle, startX, startY, orig{x,y,w,h}, ovW, ovH }
+
+const RESIZABLE = ['highlight','rect','rectfill','strike','cloud','textbox','callout'];
+
+function showResizeHandles(el, a, ov) {
+  removeResizeHandles();
+  _selectedAnnotId = a.id;
+  el.classList.add('ann-selected');
+
+  const handles = [
+    { cls:'nw', lx:'0%',   ly:'0%'   },
+    { cls:'n',  lx:'50%',  ly:'0%'   },
+    { cls:'ne', lx:'100%', ly:'0%'   },
+    { cls:'e',  lx:'100%', ly:'50%'  },
+    { cls:'se', lx:'100%', ly:'100%' },
+    { cls:'s',  lx:'50%',  ly:'100%' },
+    { cls:'sw', lx:'0%',   ly:'100%' },
+    { cls:'w',  lx:'0%',   ly:'50%'  },
+  ];
+
+  handles.forEach(({ cls, lx, ly }) => {
+    const h = document.createElement('div');
+    h.className = 'resize-handle ' + cls;
+    // Position relative to the annotation element itself
+    // The handle is absolute within the overlay; compute position from annot coords
+    h.style.left  = (a.x + (parseFloat(lx) / 100) * a.w) + '%';
+    h.style.top   = (a.y + (parseFloat(ly) / 100) * a.h) + '%';
+    h.dataset.handle = cls;
+    h.dataset.annotId = a.id;
+
+    h.addEventListener('mousedown', ev => {
+      ev.stopPropagation();
+      ev.preventDefault();
+      const ovRect = ov.getBoundingClientRect();
+      _resizing = {
+        id: a.id, handle: cls,
+        startX: ev.clientX, startY: ev.clientY,
+        origX: a.x, origY: a.y, origW: a.w, origH: a.h,
+        ovW: ovRect.width, ovH: ovRect.height,
+      };
+
+      const onMove = mv => {
+        if (!_resizing) return;
+        const dx = (mv.clientX - _resizing.startX) / _resizing.ovW * 100;
+        const dy = (mv.clientY - _resizing.startY) / _resizing.ovH * 100;
+        const ann = annots.find(x => x.id === _resizing.id);
+        if (!ann) return;
+
+        const { handle: hd, origX: ox, origY: oy, origW: ow, origH: oh } = _resizing;
+
+        // Apply delta based on which handle
+        if (hd.includes('e'))  ann.w = Math.max(1, ow + dx);
+        if (hd.includes('s'))  ann.h = Math.max(1, oh + dy);
+        if (hd.includes('w'))  { ann.x = ox + dx; ann.w = Math.max(1, ow - dx); }
+        if (hd.includes('n'))  { ann.y = oy + dy; ann.h = Math.max(1, oh - dy); }
+
+        // Update callout leader point proportionally when box resizes
+        if (ann.type === 'callout') {
+          ann.lx = ann.x;
+          ann.ly = ann.y + ann.h + 5;
+        }
+
+        // Live DOM update — just reposition the ann element directly
+        const domEl = ov.querySelector('[data-aid="' + _resizing.id + '"]');
+        if (domEl) {
+          domEl.style.left   = ann.x + '%';
+          domEl.style.top    = ann.y + '%';
+          if (domEl.style.width  !== undefined) domEl.style.width  = ann.w + '%';
+          if (domEl.style.height !== undefined) domEl.style.height = ann.h + '%';
+        }
+        // Reposition handles live
+        showResizeHandles(domEl || el, ann, ov);
+      };
+
+      const onUp = () => {
+        if (_resizing) { syncAnnots(); pushHistory(); }
+        _resizing = null;
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        // Re-show handles after full re-render
+        setTimeout(() => {
+          const newEl = ov.querySelector('[data-aid="' + a.id + '"]');
+          const newAnn = annots.find(x => x.id === a.id);
+          if (newEl && newAnn) showResizeHandles(newEl, newAnn, ov);
+        }, 50);
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    ov.appendChild(h);
+  });
+}
+
+function removeResizeHandles() {
+  document.querySelectorAll('.resize-handle').forEach(h => h.remove());
+  document.querySelectorAll('.ann-selected').forEach(el => el.classList.remove('ann-selected'));
+  _selectedAnnotId = null;
+}
+
+// Attach resize-handle trigger to annotation elements in pan mode
+// Called from makeDraggable — on mousedown in pan mode, show handles
+const _origMakeDraggable = makeDraggable;
+makeDraggable = function(el, a, ov) {
+  _origMakeDraggable(el, a, ov);
+  if (!RESIZABLE.includes(a.type)) return;
+  // On click (not drag), show resize handles
+  el.addEventListener('click', ev => {
+    if (tool !== 'pan') return;
+    if (_resizing) return;
+    ev.stopPropagation();
+    if (_selectedAnnotId === a.id) {
+      removeResizeHandles(); // deselect on second click
+    } else {
+      showResizeHandles(el, a, ov);
+    }
+  });
+};
+
+// Clicking empty overlay in pan mode deselects
+document.addEventListener('mousedown', ev => {
+  if (tool !== 'pan') return;
+  if (ev.target.closest('.resize-handle')) return;
+  if (ev.target.closest('[data-aid]')) return;
+  removeResizeHandles();
+});
+
+// ═══════════════════════════════════════════════
+//  3D PDF SUPPORT
+//  PDF.js does not support 3D (U3D/PRC) content —
+//  these are embedded as PDF annotations of type
+//  '3D' and require a native renderer (Acrobat).
+//  We detect them and offer a clear message plus
+//  a download link so the user can open in Acrobat.
+// ═══════════════════════════════════════════════
+
+async function check3DContent(pdfDoc) {
+  let found3D = false;
+  try {
+    for (let i = 1; i <= Math.min(pdfDoc.numPages, 10); i++) {
+      const page = await pdfDoc.getPage(i);
+      const annots3d = await page.getAnnotations();
+      if (annots3d.some(a => a.subtype === '3D' || a.annotationType === 25)) {
+        found3D = true; break;
+      }
+    }
+  } catch(e) { /* non-fatal */ }
+
+  if (found3D) {
+    // Show a persistent banner in the viewer
+    show3DBanner();
+  }
+}
+
+function show3DBanner() {
+  const existing = document.getElementById('banner-3d');
+  if (existing) return;
+  const banner = document.createElement('div');
+  banner.id = 'banner-3d';
+  banner.style.cssText = [
+    'position:fixed;bottom:36px;left:50%;transform:translateX(-50%)',
+    'background:#1e293b;color:#fff;font-size:12px;font-family:var(--font)',
+    'padding:10px 18px;border-radius:8px;z-index:600',
+    'display:flex;align-items:center;gap:12px',
+    'box-shadow:0 4px 20px rgba(0,0,0,.3);max-width:560px;text-align:left',
+  ].join(';');
+  banner.innerHTML = [
+    '<svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" width="20" height="20" style="flex-shrink:0">',
+    '<path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>',
+    '<span><strong>3D content detected.</strong> PDF.js cannot render 3D annotations (U3D/PRC). ',
+    'All 2D content, annotations and markup will work normally. ',
+    'To view the 3D model, open the original file in <strong>Adobe Acrobat</strong>.</span>',
+    '<button onclick="document.getElementById(\'banner-3d\').remove()" ',
+    'style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;flex-shrink:0;padding:0 4px">✕</button>',
+  ].join('');
+  document.body.appendChild(banner);
+}
+
+// Hook into loadPDF to check for 3D content after load
+const _origLoadPDF = loadPDF;
+loadPDF = async function(file) {
+  const existing = document.getElementById('banner-3d');
+  if (existing) existing.remove();
+  await _origLoadPDF(file);
+  if (pdf) check3DContent(pdf);
+};
 
 // ── Keyboard shortcuts: Z = marquee zoom, Escape = back to pan ──
 document.addEventListener('keydown', ev => {

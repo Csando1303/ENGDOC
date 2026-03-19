@@ -65,7 +65,10 @@ body.dark select, body.dark input { color-scheme: dark; }
 #autosave-dot { width:6px;height:6px;border-radius:50%;background:#22c55e;
   opacity:0;transition:opacity .5s;flex-shrink:0; }
 #autosave-dot.pulse { opacity:1; }
-/* Standards checker */
+.aoverlay.cur-move { cursor: move; }
+.aoverlay.cur-zoombox { cursor: crosshair; }
+[data-aid].moveable { cursor: move; }
+[data-aid].moveable:hover { outline: 2px dashed #2563eb; outline-offset: 2px; }
 .check-group { border-bottom:1px solid var(--gray-200); }
 .check-group:last-child { border-bottom:none; }
 .check-group-head { display:flex;align-items:center;gap:10px;padding:10px 16px;
@@ -741,6 +744,10 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 00-4 0M14 10V4a2 2 0 00-4 0v2M10 10.5V6a2 2 0 00-4 0v8"/><path d="M6 14a3 3 0 00-3 3c0 2 1 3 2 4h9c1-1 2-2 2-4v-2a2 2 0 00-2-2h-1"/></svg>
             <span class="rbtn-label">Pan</span>
           </button>
+          <button class="rbtn" id="t-zoombox" data-tip="Marquee zoom — drag a rectangle to zoom in (Z)" onclick="setTool('zoombox')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>
+            <span class="rbtn-label">Zoom</span>
+          </button>
           <div style="display:flex;flex-direction:column;gap:3px;padding:2px 0">
             <div style="display:flex;align-items:center;gap:3px">
               <button class="rbtn sm" data-tip="Previous page" onclick="changePage(-1)">
@@ -1113,6 +1120,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   </div>
 
   <div id="viewer" ondragover="onDragOver(event)" ondrop="onDrop(event)">
+    <div id="zoom-marquee" style="position:fixed;border:2px solid #2563eb;background:rgba(37,99,235,.08);pointer-events:none;display:none;z-index:100;box-shadow:0 0 0 1px rgba(37,99,235,.3)"></div>
     <div id="drop-landing">
       <div class="drop-card" id="drop-card">
         <div class="drop-icon">
@@ -1548,7 +1556,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 ═══════════════════════════════════════════════ */
 let pdf = null, nPages = 0, curPg = 1, zoom = 1;
 let pdfBytes = null, pdfName = '';
-let tool = 'highlight', color = 'yellow';
+let tool = 'pan', color = 'yellow';
 let annots = [];         // [{id, pageNum, type, ...}]
 let mergeFiles = [];
 let annotIdSeq = 0;
@@ -2320,14 +2328,17 @@ function refreshAnnotPointerEvents() {
   document.querySelectorAll('[data-aid]').forEach(el => {
     const isSvgWrap = el.classList.contains('asvg-wrap');
     if (tool === 'pan') {
-      // Notes and text labels remain clickable in pan mode for editing
-      if (!isSvgWrap) {
-        const editable = el.classList.contains('an') || el.classList.contains('atxt');
-        el.style.pointerEvents = editable ? 'all' : 'none';
-        if (editable) el.style.cursor = 'pointer';
+      // All annotations get pointer-events in pan mode so they can be dragged
+      if (isSvgWrap) {
+        el.style.pointerEvents = 'all';
+        el.style.cursor = 'move';
+        el.querySelectorAll('path, line, polyline, polygon').forEach(s => {
+          s.style.pointerEvents = 'all';
+          s.style.cursor = 'move';
+        });
       } else {
-        el.style.pointerEvents = 'none';
-        el.querySelectorAll('path, line').forEach(s => s.style.pointerEvents = 'none');
+        el.style.pointerEvents = 'all';
+        el.style.cursor = 'move';
       }
     } else if (tool === 'erase') {
       if (isSvgWrap) {
@@ -2338,6 +2349,7 @@ function refreshAnnotPointerEvents() {
         });
       } else {
         el.style.pointerEvents = 'all';
+        el.style.cursor = 'crosshair';
       }
     } else {
       if (isSvgWrap) {
@@ -2346,6 +2358,7 @@ function refreshAnnotPointerEvents() {
       } else {
         const interactive = el.classList.contains('an') || el.classList.contains('atxt');
         el.style.pointerEvents = interactive ? 'all' : 'none';
+        el.style.cursor = '';
       }
     }
   });
@@ -2826,7 +2839,7 @@ function syncAnnotsOnOverlay(ov, pn) {
     const el = buildAnnotEl(a);
     if (!el) return;
     el.dataset.aid = a.id;
-    attachAnnotListeners(el, a);
+    attachAnnotListeners(el, a, ov);
     ov.appendChild(el);
   });
   refreshAnnotPointerEvents();
@@ -2841,14 +2854,14 @@ function syncAnnots() {
       const el = buildAnnotEl(a, ov);
       if (!el) return;
       el.dataset.aid = a.id;
-      attachAnnotListeners(el, a);
+      attachAnnotListeners(el, a, ov);
       ov.appendChild(el);
     });
   });
   refreshAnnotPointerEvents();
 }
 
-function attachAnnotListeners(el, a) {
+function attachAnnotListeners(el, a, ov) {
   const isSvgWrap = el.classList.contains('asvg-wrap');
   const targets = isSvgWrap ? Array.from(el.querySelectorAll('path, line')) : [el];
 
@@ -2892,6 +2905,9 @@ function attachAnnotListeners(el, a) {
     menu.style.top  = ev.clientY + 'px';
     menu.classList.add('open');
   });
+
+  // Wire up drag-to-move (ov is passed in so el doesn't need to be in DOM yet)
+  if (ov) makeDraggable(el, a, ov);
 }
 
 /* Returns the 1-based EMMa register index for a given annotation id,
@@ -3833,118 +3849,185 @@ async function exportEmma() {
   );
   if (!emmaAnnots.length) { toast('No EMMA comments to export'); return; }
 
-  const docTitle   = document.getElementById('emma-proj-title').value.trim();
-  const projNo     = document.getElementById('emma-proj-no').value.trim();
-  const discipline = document.getElementById('emma-discipline').value;
-  const docNo      = document.getElementById('emma-doc-no').value.trim();
-  const rev        = document.getElementById('emma-rev-no').value.trim();
-  const specific   = document.getElementById('emma-specific').value.trim();
-  const chkNo      = document.getElementById('emma-chk-no').value.trim();
+  if (!emmaTemplateBuf) {
+    toast('⚠ No template loaded — load your Checksheet.xlsm via the EMMA panel first', 6000);
+    return;
+  }
 
   closeM('memma');
   toast('Building EMMA Checksheet…');
 
   try {
-    await loadSheetJs();
+    // ── Load JSZip ──
+    await loadJSZip();
 
-    if (!emmaTemplateBuf) {
-      toast('⚠ No template loaded — please load your Checksheet.xlsm via the EMMA panel first. This preserves all formatting and macros.', 6000);
-      return;
+    const docTitle   = document.getElementById('emma-proj-title').value.trim();
+    const projNo     = document.getElementById('emma-proj-no').value.trim();
+    const discipline = document.getElementById('emma-discipline').value;
+    const docNo      = document.getElementById('emma-doc-no').value.trim();
+    const rev        = document.getElementById('emma-rev-no').value.trim();
+    const specific   = document.getElementById('emma-specific').value.trim();
+    const chkNo      = document.getElementById('emma-chk-no').value.trim();
+    const today      = new Date().toISOString().slice(0, 10);
+
+    // Open the .xlsm as a zip — all files preserved byte-for-byte
+    const zip = await JSZip.loadAsync(emmaTemplateBuf);
+
+    // ── Helper: find which sheet file corresponds to a sheet name ──
+    // workbook.xml lists sheet names + r:id, workbook.xml.rels maps r:id → file path
+    async function getSheetXml(sheetName) {
+      const wbXml  = await zip.file('xl/workbook.xml').async('string');
+      const relsXml = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+
+      // Find r:id for this sheet name
+      const nameRe = new RegExp('sheet[^>]+name="' + sheetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"[^>]+r:id="([^"]+)"', 'i');
+      const nameAlt = new RegExp('sheet[^>]+r:id="([^"]+)"[^>]+name="' + sheetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"', 'i');
+      const m = wbXml.match(nameRe) || wbXml.match(nameAlt);
+      if (!m) return null;
+      const rid = m[1];
+
+      // Find target file for this r:id
+      const relRe = new RegExp('Relationship[^>]+Id="' + rid + '"[^>]+Target="([^"]+)"', 'i');
+      const rm = relsXml.match(relRe);
+      if (!rm) return null;
+      const target = rm[1].replace(/^\/?xl\//, '');
+      return 'xl/' + target;
     }
 
-    // Read template preserving ALL styles, formats, merges, VBA
-    const wb = XLSX.read(emmaTemplateBuf, {
-      type: 'array',
-      cellStyles: true,
-      cellNF: true,
-      cellDates: true,
-      bookVBA: true,
-      WTF: false,
-    });
+    // ── Helper: set a cell value in worksheet XML ──
+    // Finds <c r="REF"...> and replaces/inserts its <v> or <t>/<is> content.
+    // For shared strings we write inline strings (<is><t>) to avoid needing to patch sharedStrings.xml
+    function setCellValue(xml, cellRef, value, type) {
+      const col = cellRef.match(/^[A-Z]+/)[0];
+      const row = cellRef.match(/\d+$/)[0];
 
-    // ── Safe cell writer: merges value into existing cell, never replaces it ──
-    // This preserves borders, fills, fonts, number formats, merges etc.
-    const writeVal = (ws, cell, val, type) => {
-      if (ws[cell]) {
-        // Existing cell — only update the value, keep everything else
-        ws[cell].v = val;
-        if (type) ws[cell].t = type;
-        // Clear cached formula result if any, let Excel recalculate
-        delete ws[cell].f;
-        delete ws[cell].F;
+      // Escape XML special chars
+      const esc = s => String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+      const escaped = esc(value);
+
+      // Build the value fragment based on type
+      // 'n' = number, 'd' = date (stored as ISO string text), else inline string
+      let valFrag;
+      if (type === 'n' && !isNaN(Number(value))) {
+        valFrag = '<v>' + Number(value) + '</v>';
       } else {
-        // New cell (no existing formatting to preserve)
-        ws[cell] = { t: type || (typeof val === 'number' ? 'n' : 's'), v: val };
+        // Inline string — works without touching sharedStrings.xml
+        valFrag = '<is><t>' + escaped + '</t></is>';
+        type = 'inlineStr';
       }
-    };
 
-    // ── Document Check Sheet ──
-    const dcs = wb.Sheets['Document Check Sheet'];
-    if (dcs) {
-      if (docTitle)   writeVal(dcs, 'C4', docTitle);
-      if (projNo)     writeVal(dcs, 'I4', projNo);
-      if (specific)   writeVal(dcs, 'D5', specific);
-      if (rev)        writeVal(dcs, 'K5', rev);
-      if (discipline) writeVal(dcs, 'D6', discipline);
-      if (chkNo)      writeVal(dcs, 'K6', chkNo);
-      writeVal(dcs, 'G5', new Date(), 'd');
+      // Try to find and update existing cell
+      // Matches <c r="A1" ... > ... </c>  or  <c r="A1" ... />
+      const cellRe = new RegExp(
+        '(<c\\s+r="' + cellRef + '"[^>]*)(/>|>(?:[\\s\\S]*?)</c>)',
+        'i'
+      );
+
+      if (cellRe.test(xml)) {
+        xml = xml.replace(cellRe, (match, open) => {
+          // Strip existing t= attribute and add correct type
+          let newOpen = open.replace(/\s+t="[^"]*"/, '');
+          if (type !== 'n') newOpen += ' t="' + type + '"';
+          // Strip existing <v>, <is>, <f> contents
+          return newOpen + '>' + valFrag + '</c>';
+        });
+      } else {
+        // Cell doesn't exist — insert before the closing </row> for this row
+        const rowCloseRe = new RegExp('(</row>)');
+        // Find the right row first
+        const rowRe = new RegExp('(<row[^>]+r="' + row + '"[\\s\\S]*?)(</row>)');
+        if (rowRe.test(xml)) {
+          const newCell = '<c r="' + cellRef + '"' + (type !== 'n' ? ' t="' + type + '"' : '') + '>' + valFrag + '</c>';
+          xml = xml.replace(rowRe, (m, rowOpen, rowClose) => rowOpen + newCell + rowClose);
+        }
+      }
+      return xml;
     }
 
-    // ── Checking Review ──
-    const cr = wb.Sheets['Checking Review'];
-    if (!cr) {
-      toast('Checking Review sheet not found in template — please load the correct Checksheet.xlsm', 5000);
-      return;
+    // ── Patch Checking Review sheet ──
+    const crPath = await getSheetXml('Checking Review');
+    if (!crPath) {
+      toast('Could not find Checking Review sheet in template', 5000); return;
     }
+    let crXml = await zip.file(crPath).async('string');
 
     // Header fields
-    if (projNo)     writeVal(cr, 'D3', projNo);
-    if (docTitle)   writeVal(cr, 'D4', docTitle);
-    if (discipline) writeVal(cr, 'D5', discipline);
-    if (chkNo)      writeVal(cr, 'D6', chkNo);
-    if (specific)   writeVal(cr, 'D7', specific);
+    if (projNo)     crXml = setCellValue(crXml, 'D3', projNo, 'n');
+    if (docTitle)   crXml = setCellValue(crXml, 'D4', docTitle);
+    if (discipline) crXml = setCellValue(crXml, 'D5', discipline);
+    if (chkNo)      crXml = setCellValue(crXml, 'D6', chkNo);
+    if (specific)   crXml = setCellValue(crXml, 'D7', specific);
 
-    // Data rows — B:N starting at row 11
-    // B=Item No, C=Doc No, D=Rev, E=Date, F=Designer Name, G=Checker/RE Name,
-    // H=Checker Cat, I=Comment, J=Comment Type, K=Accepted, L=Reply, M=Closed Out, N=Notes
-    const today = new Date();
+    // Data rows from row 11
+    const todayStr = new Date().toLocaleDateString('en-GB');
     emmaAnnots.forEach((a, idx) => {
-      const rowNum = 11 + idx;
-      const row    = emmaRowForAnnot(a);
+      const r   = 11 + idx;
+      const row = emmaRowForAnnot(a);
       const comment = a.text || (a.type === 'measure' ? a.label || '' : '');
+      const dateStr = a.timestamp ? new Date(a.timestamp).toLocaleDateString('en-GB') : todayStr;
 
-      writeVal(cr, `B${rowNum}`, idx + 1, 'n');
-      writeVal(cr, `C${rowNum}`, row.docNo || docNo || '');
-      writeVal(cr, `D${rowNum}`, row.rev   || rev   || '');
-      writeVal(cr, `E${rowNum}`, a.timestamp ? new Date(a.timestamp) : today, 'd');
-      writeVal(cr, `F${rowNum}`, a.author || currentAuthor || '');
-      writeVal(cr, `G${rowNum}`, currentAuthor || '');
-      writeVal(cr, `H${rowNum}`, row.cat          || '');
-      writeVal(cr, `I${rowNum}`, comment);
-      writeVal(cr, `J${rowNum}`, row.commentType  || '');
-      writeVal(cr, `K${rowNum}`, row.accepted     || '');
-      writeVal(cr, `L${rowNum}`, row.reply        || '');
-      writeVal(cr, `M${rowNum}`, row.closedOut    || 'No');
-      writeVal(cr, `N${rowNum}`, row.notes        || '');
+      crXml = setCellValue(crXml, 'B' + r, idx + 1, 'n');
+      crXml = setCellValue(crXml, 'C' + r, row.docNo || docNo || '');
+      crXml = setCellValue(crXml, 'D' + r, row.rev   || rev   || '');
+      crXml = setCellValue(crXml, 'E' + r, dateStr);
+      crXml = setCellValue(crXml, 'F' + r, a.author || currentAuthor || '');
+      crXml = setCellValue(crXml, 'G' + r, currentAuthor || '');
+      crXml = setCellValue(crXml, 'H' + r, row.cat         || '');
+      crXml = setCellValue(crXml, 'I' + r, comment);
+      crXml = setCellValue(crXml, 'J' + r, row.commentType || '');
+      crXml = setCellValue(crXml, 'K' + r, row.accepted    || '');
+      crXml = setCellValue(crXml, 'L' + r, row.reply       || '');
+      crXml = setCellValue(crXml, 'M' + r, row.closedOut   || 'No');
+      crXml = setCellValue(crXml, 'N' + r, row.notes       || '');
     });
 
-    // Extend !ref only if needed — don't shrink the template's existing range
-    const lastDataRow = 10 + emmaAnnots.length;
-    const existingRef = cr['!ref'] || 'A1:N499';
-    const existingLastRow = parseInt((existingRef.match(/:.*?(\d+)$/) || [])[1] || '0');
-    if (lastDataRow > existingLastRow) {
-      cr['!ref'] = existingRef.replace(/:.*$/, `:N${lastDataRow}`);
+    zip.file(crPath, crXml);
+
+    // ── Patch Document Check Sheet ──
+    const dcsPath = await getSheetXml('Document Check Sheet');
+    if (dcsPath) {
+      let dcsXml = await zip.file(dcsPath).async('string');
+      if (docTitle)   dcsXml = setCellValue(dcsXml, 'C4', docTitle);
+      if (projNo)     dcsXml = setCellValue(dcsXml, 'I4', projNo);
+      if (specific)   dcsXml = setCellValue(dcsXml, 'D5', specific);
+      if (rev)        dcsXml = setCellValue(dcsXml, 'K5', rev);
+      if (discipline) dcsXml = setCellValue(dcsXml, 'D6', discipline);
+      if (chkNo)      dcsXml = setCellValue(dcsXml, 'K6', chkNo);
+      dcsXml = setCellValue(dcsXml, 'G5', todayStr);
+      zip.file(dcsPath, dcsXml);
     }
 
-    // Write back preserving VBA / macros
+    // ── Download — re-zip as binary, preserving everything else ──
+    const outBytes = await zip.generateAsync({
+      type: 'uint8array',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
+      mimeType: 'application/vnd.ms-excel.sheet.macroEnabled.12'
+    });
+
     const fname = (chkNo || (docNo ? docNo.replace(/[^\w-]/g, '_') : 'EMMA')) + '_Checksheet.xlsm';
-    XLSX.writeFile(wb, fname, { bookType: 'xlsm', bookVBA: true, cellStyles: true });
-    toast(`✓ EMMA Checksheet exported — ${emmaAnnots.length} comment${emmaAnnots.length !== 1 ? 's' : ''}`);
+    dl(outBytes, fname);
+    toast('✓ EMMA Checksheet exported — ' + emmaAnnots.length + ' comment' + (emmaAnnots.length !== 1 ? 's' : ''));
 
   } catch(err) {
     console.error('[EngDoc] exportEmma:', err);
     toast('Export failed: ' + err.message);
   }
+}
+
+async function loadJSZip() {
+  if (window.JSZip) return;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
 }
 
 function openEmmaExport() {
@@ -5510,9 +5593,9 @@ async function extractPdfText() {
 // ═══════════════════════════════════════════════
 
 const TOOL_HINTS = {
-  pan:          'Click and drag to scroll · Space to temporarily pan from any tool',
+  pan:          'Click and drag to scroll · drag any annotation to move it · Space to temporarily pan',
   erase:        'Click any annotation to delete it · works on all annotation types',
-  highlight:    'Drag to highlight a region · colour set in Home tab',
+  highlight:    'Drag to highlight a region · colour set in Style group',
   texthighlight:'Swipe across text like a physical highlighter pen',
   rect:         'Drag to draw a rectangle markup box',
   strike:       'Drag to add a strikethrough over text or a region',
@@ -5523,10 +5606,11 @@ const TOOL_HINTS = {
   arrow:        'Drag to draw an arrow with arrowhead · snap to annotations nearby',
   measure:      'Click 1 → set start · Click 2 → set end · Click 3 → commit · Shift = orthogonal snap',
   area:         'Click to add polygon points · double-click to close and calculate area',
+  zoombox:      'Drag a rectangle to zoom into that region · Esc or V to return to pan · Ctrl+Wheel to zoom anywhere',
 };
 
 const TOOL_TABS = {
-  pan:'markup', erase:'markup',
+  pan:'markup', erase:'markup', zoombox:'markup',
   highlight:'markup', texthighlight:'markup', rect:'markup', strike:'markup',
   note:'markup', text:'markup',
   pen:'markup', arrow:'markup', cloud:'markup',
@@ -5652,9 +5736,214 @@ document.getElementById('viewer').addEventListener('mousemove', e => {
   // sb-pos already handled in renderPageContent via wrap.addEventListener
 });
 
+// ═══════════════════════════════════════════════
+//  MARQUEE ZOOM
+// ═══════════════════════════════════════════════
+let _mqStart = null;
+
+function initMarqueeZoom() {
+  const viewer = document.getElementById('viewer');
+  const marquee = document.getElementById('zoom-marquee');
+
+  viewer.addEventListener('mousedown', e => {
+    if (tool !== 'zoombox') return;
+    if (e.button !== 0) return;
+    e.preventDefault();
+    _mqStart = { cx: e.clientX, cy: e.clientY };
+    marquee.style.cssText = 'display:block;position:fixed;border:2px solid #2563eb;' +
+      'background:rgba(37,99,235,.07);pointer-events:none;z-index:500;' +
+      'left:' + e.clientX + 'px;top:' + e.clientY + 'px;width:0;height:0';
+  }, true);
+
+  window.addEventListener('mousemove', e => {
+    if (!_mqStart || tool !== 'zoombox') return;
+    const lx = Math.min(e.clientX, _mqStart.cx);
+    const ly = Math.min(e.clientY, _mqStart.cy);
+    marquee.style.left   = lx + 'px';
+    marquee.style.top    = ly + 'px';
+    marquee.style.width  = Math.abs(e.clientX - _mqStart.cx) + 'px';
+    marquee.style.height = Math.abs(e.clientY - _mqStart.cy) + 'px';
+  });
+
+  window.addEventListener('mouseup', async e => {
+    if (!_mqStart || tool !== 'zoombox') return;
+    marquee.style.display = 'none';
+    const selW = Math.abs(e.clientX - _mqStart.cx);
+    const selH = Math.abs(e.clientY - _mqStart.cy);
+    const start = _mqStart;
+    _mqStart = null;
+    if (selW < 12 || selH < 12) return; // too small — ignore
+
+    const vr = viewer.getBoundingClientRect();
+    // Centre of selection in current viewer-scroll coordinates
+    const centreX = Math.min(e.clientX, start.cx) + selW / 2 - vr.left + viewer.scrollLeft;
+    const centreY = Math.min(e.clientY, start.cy) + selH / 2 - vr.top  + viewer.scrollTop;
+
+    // New zoom = fit the selection width/height into the viewer
+    const newZoom = Math.min(
+      (vr.width  / selW) * zoom,
+      (vr.height / selH) * zoom,
+      zoom * 10
+    );
+    const scale = newZoom / zoom;
+    await applyZoom(String(Math.round(newZoom * 100) / 100));
+
+    // After re-render, scroll so selection centre is in the viewport centre
+    viewer.scrollLeft = centreX * scale - vr.width  / 2;
+    viewer.scrollTop  = centreY * scale - vr.height / 2;
+
+    // Drop back to pan
+    setTool('pan');
+  });
+}
+initMarqueeZoom();
+
+// ── Ctrl+Wheel zoom-to-cursor ──
+document.getElementById('viewer').addEventListener('wheel', async e => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  if (!pdf) return;
+  const viewer = document.getElementById('viewer');
+  const vr = viewer.getBoundingClientRect();
+  const mouseX = e.clientX - vr.left + viewer.scrollLeft;
+  const mouseY = e.clientY - vr.top  + viewer.scrollTop;
+  const factor = e.deltaY > 0 ? 0.88 : 1.14;
+  const newZoom = Math.max(0.2, Math.min(8, zoom * factor));
+  const scale = newZoom / zoom;
+  await applyZoom(String(Math.round(newZoom * 100) / 100));
+  viewer.scrollLeft = mouseX * scale - (e.clientX - vr.left);
+  viewer.scrollTop  = mouseY * scale - (e.clientY - vr.top);
+}, { passive: false });
+
+// ═══════════════════════════════════════════════
+//  MOVE ANNOTATIONS  (drag in pan mode)
+// ═══════════════════════════════════════════════
+let _moveState = null;
+
+function makeDraggable(el, a, ov) {
+  const moveable = ['highlight','rect','strike','note','text','cloud',
+                    'pen','texthighlight','arrow','measure','area'];
+  if (!moveable.includes(a.type)) return;
+
+  const targets = [el];
+  if (el.classList.contains('asvg-wrap')) {
+    el.querySelectorAll('path, line, polyline, polygon').forEach(s => targets.push(s));
+  }
+
+  targets.forEach(target => {
+    target.addEventListener('mousedown', ev => {
+      if (tool !== 'pan') return;
+      if (ev.button !== 0) return;
+      if (_moveState) return; // already moving something
+      ev.stopPropagation();
+      ev.preventDefault();
+
+      const vp = pageViewports[a.pageNum];
+      if (!vp) return;
+
+      // Use the overlay's actual rendered bounding rect for pixel→% conversion
+      const ovRect = ov.getBoundingClientRect();
+
+      _moveState = {
+        id:         a.id,
+        startX:     ev.clientX,
+        startY:     ev.clientY,
+        origX:      a.x,    origY:  a.y,
+        origX1:     a.x1,   origY1: a.y1,
+        origX2:     a.x2,   origY2: a.y2,
+        origPoints: a.points ? JSON.parse(JSON.stringify(a.points)) : null,
+        // Use the overlay's actual rendered pixel size, not the vp which may
+        // differ if CSS scaling is involved
+        ovW: ovRect.width,
+        ovH: ovRect.height,
+        hasMoved: false,
+        el,           // keep reference to top-level element for direct DOM update
+      };
+
+      const onMove = mv => {
+        if (!_moveState) return;
+        const dx = (mv.clientX - _moveState.startX) / _moveState.ovW * 100;
+        const dy = (mv.clientY - _moveState.startY) / _moveState.ovH * 100;
+        if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05) return;
+        _moveState.hasMoved = true;
+
+        const ann = annots.find(x => x.id === _moveState.id);
+        if (!ann) return;
+
+        // Update data model
+        if (ann.x !== undefined) {
+          ann.x = _moveState.origX + dx;
+          ann.y = _moveState.origY + dy;
+        }
+        if (ann.x1 !== undefined) {
+          ann.x1 = _moveState.origX1 + dx;  ann.y1 = _moveState.origY1 + dy;
+          ann.x2 = _moveState.origX2 + dx;  ann.y2 = _moveState.origY2 + dy;
+        }
+        if (ann.points && _moveState.origPoints) {
+          ann.points = _moveState.origPoints.map(p => ({
+            x: p.x + dx / 100,
+            y: p.y + dy / 100,
+          }));
+        }
+
+        // Update DOM directly — avoid full syncAnnots re-render during drag
+        const domEl = ov.querySelector('[data-aid="' + _moveState.id + '"]');
+        if (domEl) {
+          if (ann.x !== undefined) {
+            domEl.style.left = ann.x + '%';
+            domEl.style.top  = ann.y + '%';
+          } else if (ann.x1 !== undefined) {
+            // SVG wrap — easiest to use a CSS translate so we don't rebuild the SVG
+            const tdx = dx / 100 * _moveState.ovW;
+            const tdy = dy / 100 * _moveState.ovH;
+            domEl.style.transform = 'translate(' + (dx * _moveState.ovW / 100) + 'px,' + (dy * _moveState.ovH / 100) + 'px)';
+          } else if (ann.points) {
+            domEl.style.transform = 'translate(' + (dx * _moveState.ovW / 100) + 'px,' + (dy * _moveState.ovH / 100) + 'px)';
+          }
+        }
+      };
+
+      const onUp = () => {
+        if (_moveState && _moveState.hasMoved) {
+          // Remove translate and do a proper re-render now drag is done
+          const domEl = ov.querySelector('[data-aid="' + _moveState.id + '"]');
+          if (domEl) domEl.style.transform = '';
+          syncAnnots();
+          pushHistory();
+        }
+        _moveState = null;
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+// Helper: snapshot current state to undo history
+function pushHistory() {
+  const snap = {
+    annots:    JSON.parse(JSON.stringify(annots)),
+    emmaRows:  JSON.parse(JSON.stringify(emmaRows)),
+  };
+  // Trim any redo tail
+  if (typeof historyIdx !== 'undefined') history.splice(historyIdx + 1);
+  history.push(snap);
+  if (typeof historyIdx !== 'undefined') historyIdx = history.length - 1;
+}
+
+// ── Keyboard shortcuts: Z = marquee zoom, Escape = back to pan ──
+document.addEventListener('keydown', ev => {
+  if (ev.target.closest('input,textarea,select')) return;
+  if (ev.key === 'z' && !ev.ctrlKey && !ev.metaKey) setTool('zoombox');
+  if (ev.key === 'Escape') { _mqStart = null; document.getElementById('zoom-marquee').style.display='none'; }
+});
+
 // Initialise tool state without auto-switching ribbon tab
-_ribbonSetTool('highlight');
-const _hBtn = document.getElementById('t-highlight');
+_ribbonSetTool('pan');
+const _hBtn = document.getElementById('t-pan');
 if (_hBtn) _hBtn.classList.add('active');
 const _erBtn2 = document.getElementById('t-erase');
 if (_erBtn2) _erBtn2.classList.add('eraser-active');

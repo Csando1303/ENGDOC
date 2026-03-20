@@ -616,10 +616,11 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   z-index: 5;
   font-family: var(--font);
   transition: box-shadow .12s;
-  overflow: hidden;
+  /* overflow visible so action bar can extend without clipping */
 }
 .an:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,.22), 0 0 0 1px rgba(0,0,0,.12);
+  box-shadow: 0 4px 16px rgba(0,0,0,.22), 0 0 0 1.5px rgba(0,0,0,.15);
+  z-index: 6;
 }
 /* Coloured header bar */
 .an-header {
@@ -632,6 +633,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   font-family: var(--mono);
   color: rgba(0,0,0,.65);
   letter-spacing: .3px;
+  border-radius: 4px 4px 0 0;
 }
 .an-header-icon {
   font-size: 11px;
@@ -655,13 +657,17 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   border-top: 1px solid rgba(0,0,0,.07);
   min-height: 24px;
   background: #fff;
+  border-radius: 0 0 4px 4px;
+}
+.an:hover .an-body {
+  border-radius: 0;
 }
 .an-body:empty::before {
   content: 'Click to edit…';
   color: var(--gray-400);
   font-style: italic;
 }
-/* Expand/collapse chevron — shown on hover */
+/* Action bar — shown on hover */
 .an-actions {
   display: none;
   align-items: center;
@@ -669,6 +675,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   padding: 4px 8px;
   border-top: 1px solid rgba(0,0,0,.06);
   background: var(--gray-50);
+  border-radius: 0 0 4px 4px;
 }
 .an:hover .an-actions { display: flex; }
 .an-act-btn {
@@ -975,7 +982,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 
       <div class="rgroup">
         <div class="rgroup-btns">
-          <button class="rbtn" id="t-note" data-tip="Note / Callout — drag for callout box, click for floating note (N)" onclick="setTool('note')">
+          <button class="rbtn" id="t-note" data-tip="Sticky note — click to place (N)" onclick="setTool('note')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="14" height="10" rx="1"/><path d="M8 12l-4 6"/></svg>
             <span class="rbtn-label">Note</span>
           </button>
@@ -2680,6 +2687,13 @@ function refreshAnnotPointerEvents() {
       }
     }
   });
+
+  // Leader tip handles: only interactive in pan mode
+  const isPan = tool === 'pan';
+  document.querySelectorAll('[data-leader-handle]').forEach(h => {
+    h.style.pointerEvents = isPan ? 'all' : 'none';
+    h.style.cursor = isPan ? 'move' : '';
+  });
 }
 
 function setColor(c) {
@@ -2728,16 +2742,13 @@ function attachEvents(ov, pageNum, vp) {
     const r = ov.getBoundingClientRect();
     const ox = e.clientX - r.left, oy = e.clientY - r.top;
 
-    // ── NOTE / TEXT: click = simple annotation, drag = callout/textbox ──
+    // ── NOTE / TEXT: always click-only — show popover immediately ──
     if (tool === 'note' || tool === 'text') {
-      // Mark as potential drag — if user moves >8px it becomes callout/textbox
-      drawing = true; origin = { x: ox, y: oy };
-      liveEl = document.createElement('div');
-      liveEl.style.cssText = 'position:absolute;pointer-events:none;z-index:10;' +
-        'border:2px dashed ' + (CHex[color]||CHex.yellow) + ';border-radius:3px;background:rgba(255,255,255,0.7)';
-      liveEl.style.left = ox + 'px'; liveEl.style.top = oy + 'px';
-      liveEl.style.width = '0'; liveEl.style.height = '0';
-      ov.appendChild(liveEl);
+      const px = ox / vp.width * 100, py = oy / vp.height * 100;
+      showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
+        pushAnnot({ id: nextId(), pageNum, type: tool, x: px, y: py,
+          text: txt, color, fontSize, ...emmaFields });
+      });
       return;
     }
 
@@ -3064,29 +3075,6 @@ function attachEvents(ov, pageNum, vp) {
     } else if (tool === 'cloud') {
       if (w < 0.5 || h < 0.5) return;
       pushAnnot({ id: nextId(), pageNum, type: 'cloud', x, y, w, h, color });
-    } else if (tool === 'note' || tool === 'text') {
-      // Small drag (< 3% wide and tall) = click = simple popover annotation
-      if (w < 3 && h < 3) {
-        const px = origin.x / vp.width * 100, py = origin.y / vp.height * 100;
-        showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
-          pushAnnot({ id: nextId(), pageNum, type: tool, x: px, y: py,
-            text: txt, color, fontSize, ...emmaFields });
-        });
-      } else {
-        // Large drag = callout (note) or textbox (text)
-        const targetType = tool === 'note' ? 'callout' : 'textbox';
-        const label = tool === 'note' ? 'Callout text:' : 'Text box content:';
-        const txt = prompt(label);
-        if (txt && txt.trim()) {
-          if (targetType === 'callout') {
-            pushAnnot({ id: nextId(), pageNum, type: 'callout', x, y, w, h, color,
-              text: txt.trim(), fontSize, lx: x, ly: y + h + 5, opacity: annotOpacity });
-          } else {
-            pushAnnot({ id: nextId(), pageNum, type: 'textbox', x, y, w, h, color,
-              text: txt.trim(), fontSize, opacity: annotOpacity });
-          }
-        }
-      }
     }
   });
 
@@ -3321,6 +3309,50 @@ function buildNoteLeaderSvg(a, ov) {
   line.setAttribute('stroke-linecap', 'round');
   line.setAttribute('marker-end', 'url(#' + markerId + ')');
   svg.appendChild(line);
+
+  // Draggable tip handle — visible circle at arrow tip
+  // Drag it in pan mode to reposition the arrow
+  const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  handle.setAttribute('cx', tipPxX.toFixed(1));
+  handle.setAttribute('cy', tipPxY.toFixed(1));
+  handle.setAttribute('r', '5');
+  handle.setAttribute('fill', c);
+  handle.setAttribute('stroke', '#fff');
+  handle.setAttribute('stroke-width', '1.5');
+  handle.style.cursor  = 'move';
+  handle.style.pointerEvents = tool === 'pan' ? 'all' : 'none';
+  handle.dataset.leaderHandle = a.id;
+
+  // Drag handler for the tip
+  handle.addEventListener('mousedown', ev => {
+    if (tool !== 'pan') return;
+    ev.stopPropagation();
+    ev.preventDefault();
+
+    const ann = annots.find(x => x.id === a.id);
+    if (!ann) return;
+
+    const onMove = mv => {
+      const r = ov.getBoundingClientRect();
+      ann.leaderX = (mv.clientX - r.left) / ov.offsetWidth  * 100;
+      ann.leaderY = (mv.clientY - r.top)  / ov.offsetHeight * 100;
+      // Live-update leader SVG without full re-render
+      ov.querySelector('[data-leader="' + a.id + '"]')?.remove();
+      buildNoteLeaderSvg(ann, ov);
+    };
+
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+      syncAnnots();
+      pushHistory();
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+  });
+
+  svg.appendChild(handle);
 
   // Insert behind the pin
   if (pin) ov.insertBefore(svg, pin);
@@ -6353,8 +6385,8 @@ const TOOL_HINTS = {
   line:         'Drag to draw a straight line · Shift = constrain to horizontal / vertical / 45°',
   callout:      'Drag to place the callout box · then click to set the leader point · type text',
   textbox:      'Drag to set the text box size · then type your text · font size in Style group',
-  note:         'Click to place a sticky note · adds to EMMA register automatically',
-  text:         'Click to place a text label on the drawing',
+  note:         'Click to place a note · hover to Edit / add Arrow · drag the ● tip handle to reposition the arrow',
+  text:         'Click to place a text label · click label to edit',
   pen:          'Click and drag to draw freehand · release to commit',
   arrow:        'Drag to draw an arrow with arrowhead · snap to annotations nearby',
   measure:      'Click 1 → set start · Click 2 → set end · Click 3 → commit · Shift = orthogonal snap',

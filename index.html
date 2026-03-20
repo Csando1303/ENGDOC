@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ffffff">
 <title>EngDoc — Engineering PDF Suite</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
@@ -711,6 +715,155 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   line-height:1.3;cursor:pointer;white-space:pre-wrap;padding:2px 4px;border-radius:2px}
 .astrike{position:absolute}
 
+/* ── STAMPS ───────────────────────────────────── */
+.astamp {
+  position: absolute;
+  pointer-events: all;
+  cursor: move;
+  user-select: none;
+  opacity: .85;
+  transition: opacity .12s;
+}
+.astamp:hover { opacity: 1; }
+.astamp svg { display: block; }
+
+/* ── ANNOTATION STATUS BADGES ─────────────────── */
+.ann-status {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 700; font-family: var(--mono);
+  text-transform: uppercase; letter-spacing: .3px;
+  padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+  line-height: 1.4;
+}
+.ann-status.open     { background: #fee2e2; color: #b91c1c; }
+.ann-status.progress { background: #fef9c3; color: #854d0e; }
+.ann-status.resolved { background: #dcfce7; color: #166534; }
+.ann-status.rejected { background: #f1f5f9; color: #64748b; }
+/* Status dropdown in annotation panel */
+.aitem-status {
+  font-size: 10px; border: 1px solid var(--gray-300);
+  border-radius: 3px; padding: 1px 4px; background: var(--white);
+  color: var(--gray-700); cursor: pointer; font-family: var(--font);
+  flex-shrink: 0;
+}
+/* Annotation keyboard nav highlight */
+.ann-keynav-highlight {
+  outline: 3px solid #2563eb !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgba(37,99,235,.12) !important;
+  z-index: 50 !important;
+}
+
+/* ── SEARCH HIGHLIGHTS ─────────────────────────── */
+.search-hit-persist {
+  position: absolute;
+  background: rgba(250,204,21,.45);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 18;
+  mix-blend-mode: multiply;
+}
+
+/* ── REPLY THREADS ─────────────────────────────── */
+.an-replies {
+  border-top: 1px solid rgba(0,0,0,.07);
+  background: var(--gray-50);
+  max-height: 160px;
+  overflow-y: auto;
+}
+.an-reply {
+  padding: 5px 8px;
+  border-bottom: 1px solid rgba(0,0,0,.05);
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--gray-700);
+}
+.an-reply:last-child { border-bottom: none; }
+.an-reply-author {
+  font-weight: 700; color: var(--gray-500);
+  font-size: 9px; font-family: var(--mono);
+  margin-bottom: 2px;
+}
+.an-reply-input-wrap {
+  display: flex; gap: 4px; padding: 4px 6px;
+  border-top: 1px solid rgba(0,0,0,.07);
+  background: var(--white);
+  border-radius: 0 0 4px 4px;
+}
+.an-reply-input {
+  flex: 1; font-size: 11px; font-family: var(--font);
+  border: 1px solid var(--gray-300); border-radius: 3px;
+  padding: 3px 6px; outline: none; resize: none;
+  height: 28px; line-height: 1.4;
+}
+.an-reply-input:focus { border-color: var(--blue-500); }
+.an-reply-send {
+  font-size: 11px; padding: 3px 8px;
+  background: var(--blue-500); color: #fff;
+  border: none; border-radius: 3px; cursor: pointer;
+}
+.an-reply-send:hover { background: var(--blue-600); }
+
+/* ── MEASUREMENT TABLE PANEL ──────────────────── */
+.meas-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+.meas-table th {
+  text-align: left; padding: 4px 6px;
+  font-size: 9px; font-weight: 700; color: var(--gray-400);
+  text-transform: uppercase; letter-spacing: .4px;
+  border-bottom: 1px solid var(--gray-200); background: var(--gray-50);
+  font-family: var(--mono);
+}
+.meas-table td {
+  padding: 5px 6px; border-bottom: 1px solid var(--gray-100);
+  color: var(--gray-700); font-family: var(--mono);
+}
+.meas-table tr:hover td { background: var(--blue-50); }
+.meas-empty {
+  text-align: center; color: var(--gray-400);
+  font-size: 11px; padding: 20px; line-height: 1.6;
+}
+
+/* ── LAYER PANEL ──────────────────────────────── */
+.layer-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; cursor: pointer;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 12px; color: var(--gray-700);
+}
+.layer-item:hover { background: var(--gray-50); }
+.layer-item input[type=checkbox] { flex-shrink: 0; accent-color: var(--blue-500); }
+.layer-item.hidden-layer { color: var(--gray-400); }
+
+/* ── STAMP MODAL ──────────────────────────────── */
+.stamp-grid {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 8px;
+  padding: 4px 0;
+}
+.stamp-opt {
+  border: 2px solid var(--gray-200); border-radius: 6px;
+  padding: 10px 6px; cursor: pointer; text-align: center;
+  transition: border-color .12s, background .12s;
+}
+.stamp-opt:hover { border-color: var(--blue-400); background: var(--blue-50); }
+.stamp-opt.selected { border-color: var(--blue-500); background: var(--blue-50); }
+.stamp-opt svg { display: block; margin: 0 auto 4px; }
+.stamp-opt-label { font-size: 9px; font-weight: 700; font-family: var(--mono); color: var(--gray-600); text-transform: uppercase; letter-spacing: .3px; }
+
+/* ── ANNOTATION NAV COUNTER ───────────────────── */
+.ann-nav-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 8px; background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200); font-size: 11px;
+  color: var(--gray-600); flex-shrink: 0;
+}
+.ann-nav-btn {
+  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+  background: none; border: 1px solid var(--gray-300); border-radius: 4px;
+  cursor: pointer; color: var(--gray-600); font-size: 13px;
+}
+.ann-nav-btn:hover { background: var(--gray-100); color: var(--gray-900); }
+.ann-nav-btn:disabled { opacity: .35; cursor: default; }
+
 /* eraser hover highlight */
 .annot-hover-del{outline:2px solid var(--red-400)!important;
   background:rgba(239,68,68,.08)!important}
@@ -853,9 +1006,291 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   border:1px solid var(--gray-300);border-radius:4px;padding:3px 8px;font-family:var(--mono);
   font-size:11px;font-weight:600;color:var(--gray-700);min-width:28px;white-space:nowrap}
 .kdesc{font-size:12px;color:var(--gray-600);flex:1}
+
+/* ═══════════════════════════════════════════════
+   MOBILE / RESPONSIVE STYLES
+   Breakpoints: 768px (tablet), 480px (phone)
+═══════════════════════════════════════════════ */
+
+/* Mobile bottom toolbar */
+#mobile-toolbar {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 56px;
+  background: var(--white);
+  border-top: 1px solid var(--gray-200);
+  z-index: 200;
+  padding: 0 8px;
+  gap: 2px;
+  align-items: center;
+  justify-content: space-around;
+  box-shadow: 0 -2px 12px rgba(0,0,0,.08);
+  /* Safe area for notch/home bar */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mob-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; padding: 4px 8px; border-radius: 8px;
+  border: none; background: transparent; cursor: pointer;
+  color: var(--gray-500); font-family: var(--font);
+  min-width: 48px; min-height: 48px; /* touch target */
+  -webkit-tap-highlight-color: transparent;
+  transition: background .1s, color .1s;
+}
+.mob-btn:active, .mob-btn.active {
+  background: var(--blue-50); color: var(--blue-600);
+}
+.mob-btn svg { width: 22px; height: 22px; }
+.mob-btn-label { font-size: 9px; font-weight: 600; letter-spacing: .2px; }
+
+/* Mobile sidebar overlay */
+#mob-sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.4);
+  z-index: 299;
+}
+#mob-sidebar-overlay.open { display: block; }
+
+/* Mobile tool drawer — slides up from bottom */
+#mob-tool-drawer {
+  display: none;
+  position: fixed;
+  bottom: 56px; left: 0; right: 0;
+  background: var(--white);
+  border-top: 1px solid var(--gray-200);
+  border-radius: 16px 16px 0 0;
+  z-index: 250;
+  padding: 12px 0 8px;
+  box-shadow: 0 -4px 24px rgba(0,0,0,.12);
+  max-height: 60vh;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+}
+#mob-tool-drawer.open {
+  display: block;
+  transform: translateY(0);
+}
+.mob-drawer-handle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: var(--gray-300); margin: 0 auto 12px;
+}
+.mob-drawer-title {
+  font-size: 12px; font-weight: 700; color: var(--gray-400);
+  text-transform: uppercase; letter-spacing: .5px;
+  padding: 0 16px 8px; font-family: var(--mono);
+}
+.mob-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px; padding: 0 8px;
+}
+.mob-tool-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 10px 4px; border-radius: 8px;
+  border: 1.5px solid transparent; background: var(--gray-50);
+  cursor: pointer; color: var(--gray-600); font-family: var(--font);
+  min-height: 60px;
+  -webkit-tap-highlight-color: transparent;
+}
+.mob-tool-btn:active, .mob-tool-btn.active {
+  background: var(--blue-50); border-color: var(--blue-300); color: var(--blue-700);
+}
+.mob-tool-btn svg { width: 24px; height: 24px; }
+.mob-tool-btn span { font-size: 10px; font-weight: 600; text-align: center; line-height: 1.2; }
+
+/* Zoom controls always visible on mobile */
+.mob-zoom-bar {
+  display: none;
+  position: fixed;
+  bottom: 64px; right: 12px;
+  flex-direction: column; gap: 4px;
+  z-index: 190;
+}
+.mob-zoom-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--white); border: 1px solid var(--gray-300);
+  box-shadow: var(--shadow-md); font-size: 20px; font-weight: 300;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--gray-700);
+  -webkit-tap-highlight-color: transparent;
+}
+.mob-zoom-btn:active { background: var(--gray-100); }
+.mob-zoom-label {
+  text-align: center; font-size: 10px; font-family: var(--mono);
+  color: var(--gray-500); background: var(--white);
+  border: 1px solid var(--gray-200); border-radius: 4px;
+  padding: 2px 4px;
+}
+
+/* ── Tablet (≤ 900px) ── */
+@media (max-width: 900px) {
+  #ribbon { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #sidebar { width: 170px; }
+  #sidebar.emma-open { width: 380px; }
+}
+
+/* ── Mobile (≤ 768px) ── */
+@media (max-width: 768px) {
+  /* Hide desktop ribbon and header buttons */
+  #ribbon { display: none !important; }
+  #doc-name { display: none; }
+  .hdiv { display: none; }
+  .logo-tag { display: none; }
+  #header { height: 48px; padding: 0 12px; }
+
+  /* Sidebar becomes a slide-in panel */
+  #sidebar {
+    position: fixed;
+    left: -280px; top: 48px; bottom: 56px;
+    width: 280px !important;
+    z-index: 300;
+    transition: left .25s cubic-bezier(.4,0,.2,1);
+    box-shadow: 4px 0 20px rgba(0,0,0,.15);
+  }
+  #sidebar.mob-open { left: 0; }
+  #sidebar.emma-open { width: 280px !important; }
+
+  /* Body layout */
+  #body { flex-direction: column; }
+  #viewer {
+    padding: 12px 8px;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 12px);
+  }
+
+  /* Status bar hidden on mobile — info shown in header */
+  #statusbar { display: none; }
+
+  /* Show mobile toolbar */
+  #mobile-toolbar { display: flex; }
+
+  /* Show zoom controls */
+  .mob-zoom-bar { display: flex; }
+
+  /* Bigger touch targets on annotations */
+  [data-aid] { min-width: 44px; min-height: 44px; }
+
+  /* Larger note boxes on mobile */
+  .an { min-width: 160px; }
+  .an-act-btn { padding: 4px 10px; font-size: 11px; }
+
+  /* Txt pop fills more screen */
+  #txt-pop { width: calc(100vw - 24px); left: 12px !important; right: 12px; }
+
+  /* Modals full-screen on mobile */
+  .modal { width: 100% !important; max-width: 100%; height: auto;
+    border-radius: 16px 16px 0 0;
+    position: fixed; bottom: 0; left: 0; right: 0; margin: 0; }
+  .overlay { align-items: flex-end; }
+
+  /* Hide desktop-only elements */
+  .rgroup-label { display: none; }
+}
+
+/* ── Small phone (≤ 480px) ── */
+@media (max-width: 480px) {
+  .mob-tool-grid { grid-template-columns: repeat(3,1fr); }
+  #header { padding: 0 8px; }
+  .logo-name { font-size: 16px; }
+}
+
+/* Touch — remove hover states that don't apply */
+@media (hover: none) {
+  .an:hover .an-actions { display: none; }
+  .an.mob-tapped .an-actions { display: flex; }
+  [data-aid].moveable:hover { outline: none; }
+  .tbtn:hover { background: transparent; }
+}
 </style>
 </head>
 <body>
+
+<!-- MOBILE SIDEBAR OVERLAY -->
+<div id="mob-sidebar-overlay" onclick="closeMobSidebar()"></div>
+
+<!-- MOBILE ZOOM CONTROLS -->
+<div class="mob-zoom-bar">
+  <button class="mob-zoom-btn" onclick="mobileZoom(1.25)" title="Zoom in">+</button>
+  <div class="mob-zoom-label" id="mob-zoom-label">100%</div>
+  <button class="mob-zoom-btn" onclick="mobileZoom(0.8)" title="Zoom out">−</button>
+</div>
+
+<!-- MOBILE TOOL DRAWER -->
+<div id="mob-tool-drawer">
+  <div class="mob-drawer-handle"></div>
+  <div class="mob-drawer-title">Markup Tools</div>
+  <div class="mob-tool-grid">
+    <button class="mob-tool-btn" onclick="mobSetTool('highlight')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+      <span>Highlight</span>
+    </button>
+    <button class="mob-tool-btn" onclick="mobSetTool('note')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="14" height="10" rx="1"/><path d="M8 12l-4 6"/></svg>
+      <span>Note</span>
+    </button>
+    <button class="mob-tool-btn" onclick="mobSetTool('rect')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      <span>Rect</span>
+    </button>
+    <button class="mob-tool-btn" onclick="mobSetTool('arrow')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
+      <span>Arrow</span>
+    </button>
+    <button class="mob-tool-btn" onclick="mobSetTool('pen')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+      <span>Draw</span>
+    </button>
+    <button class="mob-tool-btn" onclick="mobSetTool('cloud')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+      <span>Cloud</span>
+    </button>
+    <button class="mob-tool-btn" onclick="mobSetTool('strike')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5"/><path d="M6 6h12M6 18h12" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
+      <span>Strike</span>
+    </button>
+    <button class="mob-tool-btn" onclick="mobSetTool('erase')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l11-11 6 6-3.5 3.5"/></svg>
+      <span>Erase</span>
+    </button>
+    <button class="mob-tool-btn" onclick="mobSetTool('measure')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20"/><line x1="8" y1="8" x2="8" y2="16" stroke-width="1.5"/><line x1="16" y1="8" x2="16" y2="16" stroke-width="1.5"/></svg>
+      <span>Measure</span>
+    </button>
+  </div>
+  <!-- Colour pickers -->
+  <div style="display:flex;gap:10px;padding:12px 16px 4px;align-items:center">
+    <span style="font-size:10px;font-family:var(--mono);color:var(--gray-400);text-transform:uppercase">Colour</span>
+    <div onclick="setColor('yellow');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')" class="mob-csw active" style="width:28px;height:28px;border-radius:50%;background:#fbbf24;border:3px solid transparent;cursor:pointer"></div>
+    <div onclick="setColor('teal');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')"   class="mob-csw"        style="width:28px;height:28px;border-radius:50%;background:#2dd4bf;border:3px solid transparent;cursor:pointer"></div>
+    <div onclick="setColor('rose');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')"   class="mob-csw"        style="width:28px;height:28px;border-radius:50%;background:#fb7185;border:3px solid transparent;cursor:pointer"></div>
+  </div>
+</div>
+
+<!-- MOBILE BOTTOM TOOLBAR -->
+<div id="mobile-toolbar">
+  <button class="mob-btn" id="mob-btn-sidebar" onclick="toggleMobSidebar()" title="Pages / Markup">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    <span class="mob-btn-label">Sidebar</span>
+  </button>
+  <button class="mob-btn active" id="mob-btn-pan" onclick="mobSetTool('pan')" title="Pan">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 00-4 0M14 10V4a2 2 0 00-4 0v2M10 10.5V6a2 2 0 00-4 0v8"/><path d="M6 14a3 3 0 00-3 3c0 2 1 3 2 4h9c1-1 2-2 2-4v-2a2 2 0 00-2-2h-1"/></svg>
+    <span class="mob-btn-label">Pan</span>
+  </button>
+  <button class="mob-btn" id="mob-btn-select" onclick="mobSetTool('select')" title="Select text">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h3"/><path d="M4 17v3h3"/><path d="M17 4h3v3"/><path d="M20 17v3h-3"/><path d="M9 12h6"/><path d="M12 9l3 3-3 3"/></svg>
+    <span class="mob-btn-label">Select</span>
+  </button>
+  <button class="mob-btn" id="mob-btn-tools" onclick="toggleMobDrawer()" title="Markup tools">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+    <span class="mob-btn-label">Mark Up</span>
+  </button>
+  <button class="mob-btn" onclick="document.getElementById('fopen').click()" title="Open PDF">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <span class="mob-btn-label">Open</span>
+  </button>
+</div>
 
 <!-- HEADER -->
 <div id="header">
@@ -990,6 +1425,10 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="1"/><line x1="6" y1="9" x2="18" y2="9"/><line x1="6" y1="13" x2="14" y2="13"/></svg>
             <span class="rbtn-label">Text</span>
           </button>
+          <button class="rbtn" id="t-stamp" data-tip="Place an approval stamp on the drawing" onclick="openStampPicker()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <span class="rbtn-label">Stamp</span>
+          </button>
         </div>
         <div class="rgroup-label">Annotate</div>
       </div>
@@ -1090,9 +1529,13 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       </div>
       <div class="rgroup">
         <div class="rgroup-btns">
-          <button class="rbtn lg" onclick="openEmmaExport()" data-tip="Export to EMMA Checksheet.xlsm">
+          <button class="rbtn lg" onclick="openEmmaExport()" data-tip="Export current drawing to EMMA Checksheet.xlsm">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
             <span class="rbtn-label">EMMA<br>Export</span>
+          </button>
+          <button class="rbtn lg" onclick="batchExportEmma()" data-tip="Export all drawings in set to a single consolidated EMMA register">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><rect x="3" y="11" width="4" height="6" rx="1"/><rect x="10" y="9" width="4" height="8" rx="1"/></svg>
+            <span class="rbtn-label">Batch<br>Export</span>
           </button>
           <button class="rbtn lg" onclick="document.getElementById('fmergesession').click()" data-tip="Merge another reviewer's session">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><circle cx="12" cy="18" r="3"/><path d="M8 11v2a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4v-2"/></svg>
@@ -1106,6 +1549,10 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
           <button class="rbtn lg" onclick="openM('mset')" data-tip="Drawing set register">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></svg>
             <span class="rbtn-label">Drawing<br>Set</span>
+          </button>
+          <button class="rbtn lg" onclick="openLayerPanel()" data-tip="Show/hide PDF layers (Optional Content Groups)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            <span class="rbtn-label">Layers</span>
           </button>
         </div>
         <div class="rgroup-label">Register</div>
@@ -1201,13 +1648,21 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 <div id="body">
   <div id="sidebar">
     <div class="stabs">
-      <button class="stab active" id="stab-pages" onclick="switchTab('pages',this)">Pages</button>
-      <button class="stab" id="stab-notes" onclick="switchTab('notes',this)">Markup</button>
-      <button class="stab emma" id="stab-emma" onclick="switchTab('emma',this)">EMMA</button>
-      <button class="stab" id="stab-search" onclick="switchTab('search',this)">Search</button>
+      <button class="stab active" id="stab-pages"  onclick="switchTab('pages',this)">Pages</button>
+      <button class="stab" id="stab-notes"          onclick="switchTab('notes',this)">Markup</button>
+      <button class="stab emma" id="stab-emma"      onclick="switchTab('emma',this)">EMMA</button>
+      <button class="stab" id="stab-search"         onclick="switchTab('search',this)">Search</button>
+      <button class="stab" id="stab-measure"        onclick="switchTab('measure',this)">⬌</button>
+      <button class="stab" id="stab-layers"         onclick="switchTab('layers',this)">Layers</button>
     </div>
     <div class="spanel" id="sp-pages"></div>
     <div class="spanel hidden" id="sp-notes">
+      <!-- Annotation keyboard navigation bar -->
+      <div class="ann-nav-bar" id="ann-nav-bar">
+        <button class="ann-nav-btn" id="ann-nav-prev" onclick="navAnnot(-1)" title="Previous annotation (Shift+Tab)">&#8593;</button>
+        <span id="ann-nav-label" style="font-family:var(--mono);font-size:10px">0 annotations</span>
+        <button class="ann-nav-btn" id="ann-nav-next" onclick="navAnnot(1)"  title="Next annotation (Tab)">&#8595;</button>
+      </div>
       <div class="aempty" id="aempty">No annotations yet.<br>Use the tools above<br>to start marking.</div>
     </div>
     <!-- SEARCH PANEL -->
@@ -1219,7 +1674,24 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       <div id="search-results"></div>
     </div>
 
-    <!-- EMMA LIVE PANEL -->
+    <!-- MEASUREMENT TABLE PANEL -->
+    <div class="spanel hidden" id="sp-measure">
+      <div style="padding:8px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:600;color:var(--gray-600)">Measurements</span>
+        <button onclick="exportMeasurementsCsv()" style="font-size:10px;padding:2px 8px;border:1px solid var(--gray-300);border-radius:3px;background:var(--gray-50);cursor:pointer;font-family:var(--font)">Export CSV</button>
+      </div>
+      <div id="meas-table-wrap"></div>
+    </div>
+
+    <!-- LAYER VISIBILITY PANEL -->
+    <div class="spanel hidden" id="sp-layers">
+      <div style="padding:8px;border-bottom:1px solid var(--gray-200)">
+        <span style="font-size:11px;font-weight:600;color:var(--gray-600)">PDF Layers</span>
+      </div>
+      <div id="layer-list">
+        <div class="meas-empty">Open a PDF to see its layers.<br>Not all PDFs have layers.</div>
+      </div>
+    </div>
     <div id="sp-emma">
       <!-- Project metadata -->
       <div class="emma-meta">
@@ -1738,6 +2210,22 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   </div>
 </div>
 
+<!-- STAMP PICKER MODAL -->
+<div class="overlay" id="mstamp">
+  <div class="modal" style="width:400px">
+    <div class="mhead">
+      <span class="mtitle">Place Stamp</span>
+      <button class="mclose" onclick="closeM('mstamp')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="stamp-grid" id="stamp-grid"></div>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('mstamp')">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <div class="snap-ring" id="snap-ring"></div>
 
@@ -1752,12 +2240,15 @@ let pdfBytes = null, pdfName = '';
 let tool = 'pan', color = 'yellow';
 let fontSize = 12;
 let annotOpacity = 80;
-// Note bubble state (initialised here; implementation in syncAnnots section below)
 let _openBubbleId  = null;
 let _leaderPlaceId = null;
-let annots = [];         // [{id, pageNum, type, ...}]
+let annots = [];
 let mergeFiles = [];
 let annotIdSeq = 0;
+
+// Status lifecycle — defined early, used in updateAnnotPanel and buildAnnotEl
+const STATUS_CYCLE = ['open','progress','resolved','rejected'];
+const STATUS_LABEL = { open:'Open', progress:'In Progress', resolved:'Resolved', rejected:'Rejected' };
 
 // Author
 let currentAuthor = localStorage.getItem('engdoc_author') || '';
@@ -1827,7 +2318,6 @@ const pdfTextContent  = {};  // { pageNum: string } — for standards checker
 const _pageTextItems  = {};  // { pageNum: [{str,x,y,w,h,angle}] } — for select tool
 
 function nextId() { return ++annotIdSeq; }
-function strokeW() { return parseFloat(document.getElementById('stroke-w').value) || 2.5; }
 
 // Text input popover state
 let txtPopCallback = null;
@@ -1970,8 +2460,9 @@ async function loadPDF(file) {
   toast(`Opened: ${file.name} — ${nPages} page${nPages !== 1 ? 's' : ''}`);
 }
 
-/* Extract text content from all pages using pdf.js */
-async function extractPdfText() {
+/* Extract text content from all pages using pdf.js — basic version,
+   overridden below by the worker-based version if available */
+async function extractPdfTextBasic() {
   for (let i = 1; i <= nPages; i++) {
     try {
       const page = await pdf.getPage(i);
@@ -3631,7 +4122,36 @@ function buildAnnotEl(a) {
     el = buildTextboxAnnotEl(a);
   } else if (a.type === 'callout') {
     el = buildCalloutAnnotEl(a);
+  } else if (a.type === 'area') {
+    el = typeof buildAreaAnnotEl !== 'undefined' ? buildAreaAnnotEl(a) : null;
+  } else if (a.type === 'stamp') {
+    el = buildStampEl(a);
   }
+
+  // ── Post-build extensions (applied here, not via patch chain) ──
+  if (el) {
+    // Author colour stripe for merged sessions
+    if (a.mergedFrom && a.author) {
+      const ac = getAuthorColour ? getAuthorColour(a.author) : null;
+      if (ac && el.style) { el.style.outline = '2px solid ' + ac; el.style.outlineOffset = '1px'; }
+    }
+    // Status badge on notes (only when status is not default 'open')
+    if (a.type === 'note' && a.status && a.status !== 'open' && el.classList.contains('an')) {
+      const badge = document.createElement('div');
+      badge.className = 'ann-status ' + a.status;
+      badge.textContent = (typeof STATUS_LABEL !== 'undefined' ? STATUS_LABEL[a.status] : null) || a.status;
+      badge.style.cssText = 'position:absolute;top:-9px;right:4px;z-index:8;cursor:pointer;pointer-events:all';
+      badge.onclick = ev => { if (typeof cycleAnnotStatus !== 'undefined') cycleAnnotStatus(a.id, ev); };
+      badge.title = 'Click to cycle status';
+      el.appendChild(badge);
+    }
+    // Reply thread on notes (appended to .an box — do NOT re-add on re-render if already present)
+    if (a.type === 'note' && el.classList.contains('an')) {
+      if (typeof buildNoteReplies    !== 'undefined') buildNoteReplies(a, el);
+      if (typeof buildNoteReplyInput !== 'undefined') buildNoteReplyInput(a, el);
+    }
+  }
+
   return el || null;
 }
 
@@ -3972,23 +4492,46 @@ function updateAnnotPanel() {
   const panel = document.getElementById('sp-notes');
   panel.querySelectorAll('.aitem').forEach(el => el.remove());
   const empty = document.getElementById('aempty');
-  if (!annots.length) { empty.classList.remove('hidden'); return; }
+  if (!annots.length) { empty.classList.remove('hidden'); updateAnnotNavBar(); return; }
   empty.classList.add('hidden');
+
+  const statusColors = { open:'#fee2e2', progress:'#fef9c3', resolved:'#dcfce7', rejected:'#f1f5f9' };
 
   [...annots].reverse().forEach(a => {
     const item = document.createElement('div');
     item.className = 'aitem'; item.dataset.id = a.id;
     const preview = a.text || (typeLabels[a.type] || a.type);
     const tsStr = a.ts ? new Date(a.ts).toLocaleString(undefined, {dateStyle:'short',timeStyle:'short'}) : '';
-    const canEdit = a.type === 'note' || a.type === 'text';
-    item.innerHTML = `
-      <button class="adel" title="Delete">✕</button>
-      <div class="atype"><span class="adot" style="background:${CHex[a.color]}"></span>${typeLabels[a.type] || a.type}</div>
-      <div class="apreview">${preview}</div>
-      <div class="aauthor">● ${a.author || 'Unknown'}</div>
-      <div class="ats">${tsStr} · Pg ${a.pageNum}</div>
-      ${canEdit ? `<button class="aedit-btn" title="Edit text" onclick="event.stopPropagation();editAnnotById(${a.id})">Edit</button>` : ''}`;
+    const canEdit = ['note','text','callout','textbox'].includes(a.type);
+    const hasStatus = canEdit;
+    const status = a.status || 'open';
+
+    item.innerHTML =
+      '<button class="adel" title="Delete">✕</button>' +
+      '<div class="atype"><span class="adot" style="background:' + (CHex[a.color] || '#999') + '"></span>' + (typeLabels[a.type] || a.type) + '</div>' +
+      (hasStatus
+        ? '<select class="aitem-status" data-annotid="' + a.id + '" style="background:' + (statusColors[status] || '#fff') + '">' +
+          STATUS_CYCLE.map(s => '<option value="' + s + '"' + (s === status ? ' selected' : '') + '>' + STATUS_LABEL[s] + '</option>').join('') +
+          '</select>'
+        : '') +
+      '<div class="apreview">' + (preview || '') + '</div>' +
+      '<div class="aauthor">● ' + (a.author || 'Unknown') + '</div>' +
+      '<div class="ats">' + tsStr + ' · Pg ' + a.pageNum + '</div>' +
+      (canEdit ? '<button class="aedit-btn" title="Edit text" onclick="event.stopPropagation();editAnnotById(' + a.id + ')">Edit</button>' : '');
+
     item.querySelector('.adel').onclick = ev => { ev.stopPropagation(); deleteAnnotById(a.id); };
+
+    if (hasStatus) {
+      item.querySelector('.aitem-status').onchange = function(ev) {
+        ev.stopPropagation();
+        const ann = annots.find(x => x.id === a.id);
+        if (!ann) return;
+        ann.status = this.value;
+        this.style.background = statusColors[this.value] || '#fff';
+        syncAnnots(); updateAnnotPanel(); updateEmmaRegister(); pushHistory();
+      };
+    }
+
     item.onclick = () => {
       document.querySelectorAll('.aitem').forEach(i => i.classList.remove('selected'));
       item.classList.add('selected');
@@ -3996,6 +4539,8 @@ function updateAnnotPanel() {
     };
     panel.insertBefore(item, empty);
   });
+
+  updateAnnotNavBar();
 }
 
 function editAnnotById(id) {
@@ -4040,13 +4585,17 @@ document.addEventListener('click', e => {
 function switchTab(tab, btn) {
   document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('sp-pages').classList.toggle('hidden', tab !== 'pages');
-  document.getElementById('sp-notes').classList.toggle('hidden', tab !== 'notes');
-  document.getElementById('sp-search').classList.toggle('hidden', tab !== 'search');
+  document.getElementById('sp-pages').classList.toggle('hidden',   tab !== 'pages');
+  document.getElementById('sp-notes').classList.toggle('hidden',   tab !== 'notes');
+  document.getElementById('sp-search').classList.toggle('hidden',  tab !== 'search');
+  document.getElementById('sp-measure').classList.toggle('hidden', tab !== 'measure');
+  document.getElementById('sp-layers').classList.toggle('hidden',  tab !== 'layers');
   const emmaPanel = document.getElementById('sp-emma');
   emmaPanel.classList.toggle('visible', tab === 'emma');
   document.getElementById('sidebar').classList.toggle('emma-open', tab === 'emma');
-  if (tab === 'search') setTimeout(() => document.getElementById('search-input').focus(), 50);
+  if (tab === 'search')  setTimeout(() => document.getElementById('search-input').focus(), 50);
+  if (tab === 'measure') updateMeasurementTable();
+  if (tab === 'layers')  updateLayerPanel();
 }
 
 /* ═══════════════════════════════════════════════
@@ -5735,10 +6284,6 @@ window._pushAnnotHooked = true;
 // ═══════════════════════════════════════════════
 //  PATCH syncAnnots TO UPDATE DASHBOARD
 // ═══════════════════════════════════════════════
-const _origSyncAnnots = syncAnnots;
-// We cannot reassign const functions; instead hook into updateAnnotPanel
-const _origUpdateAnnotPanel = updateAnnotPanel;
-
 // ═══════════════════════════════════════════════
 //  WIRE AREA EVENTS + POINTER SUPPORT INTO PAGE RENDER
 // ═══════════════════════════════════════════════
@@ -5774,12 +6319,7 @@ setTool = function(t) {
   });
 };
 
-// Patch buildAnnotEl to handle area type
-const _origBuildAnnotEl = buildAnnotEl;
-buildAnnotEl = function(a) {
-  if (a.type === 'area') return buildAreaAnnotEl(a);
-  return _origBuildAnnotEl(a);
-};
+// area type handled in core buildAnnotEl via buildAreaAnnotEl
 
 // ═══════════════════════════════════════════════
 //  PATCH pushAnnot to trigger autosave + dashboard
@@ -5878,19 +6418,7 @@ async function mergeSession(e) {
   }
 }
 
-// Override buildAnnotEl to add author colour stripe on merged annotations
-const _buildAnnotElBase = buildAnnotEl;
-buildAnnotEl = function(a) {
-  const el = _buildAnnotElBase(a);
-  if (el && a.mergedFrom && a.author) {
-    const c = getAuthorColour(a.author);
-    if (el.style) {
-      el.style.outline = `2px solid ${c}`;
-      el.style.outlineOffset = '1px';
-    }
-  }
-  return el;
-};
+// Author colour stripe for merged annotations handled in core buildAnnotEl
 
 // ═══════════════════════════════════════════════
 //  REVISION COMPARISON
@@ -7185,6 +7713,149 @@ function clearTextSelection() {
   window.getSelection()?.removeAllRanges();
 }
 
+// ═══════════════════════════════════════════════
+//  MOBILE UI FUNCTIONS
+// ═══════════════════════════════════════════════
+
+function toggleMobSidebar() {
+  const sidebar  = document.getElementById('sidebar');
+  const overlay  = document.getElementById('mob-sidebar-overlay');
+  const isOpen   = sidebar.classList.contains('mob-open');
+  if (isOpen) {
+    sidebar.classList.remove('mob-open');
+    overlay.classList.remove('open');
+  } else {
+    sidebar.classList.add('mob-open');
+    overlay.classList.add('open');
+    closeMobDrawer();
+  }
+}
+
+function closeMobSidebar() {
+  document.getElementById('sidebar').classList.remove('mob-open');
+  document.getElementById('mob-sidebar-overlay').classList.remove('open');
+}
+
+let _drawerOpen = false;
+function toggleMobDrawer() {
+  _drawerOpen = !_drawerOpen;
+  const drawer = document.getElementById('mob-tool-drawer');
+  const btn    = document.getElementById('mob-btn-tools');
+  drawer.classList.toggle('open', _drawerOpen);
+  btn.classList.toggle('active', _drawerOpen);
+  if (_drawerOpen) closeMobSidebar();
+}
+
+function closeMobDrawer() {
+  _drawerOpen = false;
+  document.getElementById('mob-tool-drawer').classList.remove('open');
+  document.getElementById('mob-btn-tools').classList.remove('active');
+}
+
+function mobSetTool(t) {
+  setTool(t);
+  closeMobDrawer();
+  // Update bottom bar active state
+  document.querySelectorAll('.mob-btn').forEach(b => b.classList.remove('active'));
+  const map = { pan:'mob-btn-pan', select:'mob-btn-select' };
+  if (map[t]) document.getElementById(map[t])?.classList.add('active');
+  else document.getElementById('mob-btn-tools')?.classList.add('active');
+  // Update drawer active tool button
+  document.querySelectorAll('.mob-tool-btn').forEach(b => b.classList.remove('active'));
+  // Find the matching tool button by onclick attr pattern
+  document.querySelectorAll('.mob-tool-btn').forEach(b => {
+    if (b.getAttribute('onclick')?.includes("'" + t + "'")) b.classList.add('active');
+  });
+}
+
+async function mobileZoom(factor) {
+  if (!pdf) return;
+  const newZoom = Math.min(Math.max(zoom * factor, 0.25), 4);
+  zoom = newZoom;
+  // Update zoom select if present
+  const sel = document.getElementById('zsel');
+  if (sel) {
+    // Try to match a preset
+    const pct = Math.round(zoom * 100) / 100;
+    let matched = false;
+    for (const opt of sel.options) {
+      if (parseFloat(opt.value) === pct) { sel.value = opt.value; matched = true; break; }
+    }
+    if (!matched) sel.value = pct;
+  }
+  // Update zoom display labels
+  const pctStr = Math.round(zoom * 100) + '%';
+  const sbZoom = document.getElementById('sb-zoom');
+  if (sbZoom) sbZoom.innerHTML = '<div class="sbdot b"></div>' + pctStr;
+  const mobLabel = document.getElementById('mob-zoom-label');
+  if (mobLabel) mobLabel.textContent = pctStr;
+  // Re-render
+  await rerenderAll();
+}
+
+// On mobile: tap a note to show its action bar (since hover isn't available)
+document.addEventListener('click', ev => {
+  if (!('ontouchstart' in window)) return; // desktop only uses hover
+  const note = ev.target.closest('.an[data-aid]');
+  if (note) {
+    // Toggle mob-tapped class for CSS hover simulation
+    const wasOpen = note.classList.contains('mob-tapped');
+    document.querySelectorAll('.an.mob-tapped').forEach(n => n.classList.remove('mob-tapped'));
+    if (!wasOpen) note.classList.add('mob-tapped');
+  } else {
+    document.querySelectorAll('.an.mob-tapped').forEach(n => n.classList.remove('mob-tapped'));
+  }
+});
+
+// Close drawer when switching tool via keyboard
+const _origSetToolMob = setTool;
+setTool = function(t) {
+  _origSetToolMob(t);
+  // Keep mob zoom label in sync when zoom changes
+  const mobLabel = document.getElementById('mob-zoom-label');
+  if (mobLabel) mobLabel.textContent = Math.round(zoom * 100) + '%';
+};
+
+// Pinch-to-zoom on the viewer (touch devices)
+(function initPinchZoom() {
+  const viewer = document.getElementById('viewer');
+  let _pinch = null;
+
+  viewer.addEventListener('touchstart', ev => {
+    if (ev.touches.length === 2) {
+      ev.preventDefault();
+      const dx = ev.touches[0].clientX - ev.touches[1].clientX;
+      const dy = ev.touches[0].clientY - ev.touches[1].clientY;
+      _pinch = { dist: Math.hypot(dx, dy), zoom };
+    }
+  }, { passive: false });
+
+  viewer.addEventListener('touchmove', ev => {
+    if (ev.touches.length === 2 && _pinch) {
+      ev.preventDefault();
+      const dx = ev.touches[0].clientX - ev.touches[1].clientX;
+      const dy = ev.touches[0].clientY - ev.touches[1].clientY;
+      const newDist = Math.hypot(dx, dy);
+      const scale   = newDist / _pinch.dist;
+      zoom = Math.min(Math.max(_pinch.zoom * scale, 0.25), 4);
+      // Live-update zoom label without re-rendering every frame
+      const pct = Math.round(zoom * 100) + '%';
+      const lbl = document.getElementById('mob-zoom-label');
+      if (lbl) lbl.textContent = pct;
+      const sbZ = document.getElementById('sb-zoom');
+      if (sbZ) sbZ.innerHTML = '<div class="sbdot b"></div>' + pct;
+    }
+  }, { passive: false });
+
+  viewer.addEventListener('touchend', ev => {
+    if (_pinch && ev.touches.length < 2) {
+      // Commit the zoom on finger lift
+      _pinch = null;
+      rerenderAll();
+    }
+  }, { passive: true });
+})();
+
 // ── Keyboard shortcuts: Z = marquee zoom, S = select text, Escape = back to pan ──
 document.addEventListener('keydown', ev => {
   if (ev.target.closest('input,textarea,select')) return;
@@ -7198,6 +7869,548 @@ document.addEventListener('keydown', ev => {
     }
   }
 });
+
+// ═══════════════════════════════════════════════
+//  STAMPS
+//  Pre-built approval/review stamps rendered as
+//  styled SVG overlays on the page.
+// ═══════════════════════════════════════════════
+const STAMPS = [
+  { id:'approved',    label:'Approved',         color:'#16a34a', textColor:'#fff', icon:'✓' },
+  { id:'for-constr',  label:'For Construction', color:'#2563eb', textColor:'#fff', icon:'⚙' },
+  { id:'ifc',         label:'Issued for Comment',color:'#7c3aed', textColor:'#fff', icon:'✎' },
+  { id:'checked',     label:'Checked',          color:'#0891b2', textColor:'#fff', icon:'✔' },
+  { id:'superseded',  label:'Superseded',       color:'#dc2626', textColor:'#fff', icon:'✕' },
+  { id:'preliminary', label:'Preliminary',      color:'#d97706', textColor:'#fff', icon:'~' },
+  { id:'draft',       label:'Draft',            color:'#6b7280', textColor:'#fff', icon:'D' },
+  { id:'void',        label:'Void',             color:'#991b1b', textColor:'#fff', icon:'∅' },
+  { id:'returned',    label:'Returned',         color:'#c2410c', textColor:'#fff', icon:'↩' },
+];
+
+let _pendingStamp = null;
+
+function openStampPicker() {
+  const grid = document.getElementById('stamp-grid');
+  grid.innerHTML = '';
+  STAMPS.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'stamp-opt';
+    div.innerHTML =
+      '<svg width="60" height="28" viewBox="0 0 60 28">' +
+      '<rect x="1" y="1" width="58" height="26" rx="4" fill="' + s.color + '" opacity=".15" stroke="' + s.color + '" stroke-width="1.5"/>' +
+      '<text x="30" y="17" text-anchor="middle" font-size="9" font-weight="700" font-family="monospace" fill="' + s.color + '">' + s.label.toUpperCase() + '</text>' +
+      '</svg>' +
+      '<div class="stamp-opt-label">' + s.label + '</div>';
+    div.onclick = () => { _pendingStamp = s; closeM('mstamp'); activateStampPlacement(); };
+    grid.appendChild(div);
+  });
+  openM('mstamp');
+}
+
+function activateStampPlacement() {
+  toast('Click on the drawing to place the "' + _pendingStamp.label + '" stamp · Esc to cancel', 3000);
+  // One-shot click listener on all overlays
+  const handler = ev => {
+    if (!_pendingStamp) return;
+    const ov = ev.currentTarget;
+    const pn = parseInt(ov.dataset.page);
+    const r  = ov.getBoundingClientRect();
+    const x  = (ev.clientX - r.left) / ov.offsetWidth  * 100;
+    const y  = (ev.clientY - r.top)  / ov.offsetHeight * 100;
+    pushAnnot({ id: nextId(), pageNum: pn, type: 'stamp',
+      stampId: _pendingStamp.id, x, y, color: _pendingStamp.color,
+      textColor: _pendingStamp.textColor, label: _pendingStamp.label });
+    _pendingStamp = null;
+    document.querySelectorAll('.aoverlay').forEach(o => o.removeEventListener('click', handler, true));
+  };
+  document.querySelectorAll('.aoverlay').forEach(o => o.addEventListener('click', handler, true));
+  document.addEventListener('keydown', function esc(ev) {
+    if (ev.key === 'Escape') {
+      _pendingStamp = null;
+      document.querySelectorAll('.aoverlay').forEach(o => o.removeEventListener('click', handler, true));
+      document.removeEventListener('keydown', esc);
+    }
+  });
+}
+
+function buildStampEl(a) {
+  const stamp = STAMPS.find(s => s.id === a.stampId) || STAMPS[0];
+  const wrap = document.createElement('div');
+  wrap.className = 'astamp';
+  wrap.style.cssText = 'position:absolute;left:' + a.x + '%;top:' + a.y + '%';
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '110'); svg.setAttribute('height', '36');
+  svg.setAttribute('viewBox', '0 0 110 36');
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x','1'); rect.setAttribute('y','1');
+  rect.setAttribute('width','108'); rect.setAttribute('height','34');
+  rect.setAttribute('rx','4'); rect.setAttribute('fill', a.color || stamp.color);
+  rect.setAttribute('fill-opacity','0.12');
+  rect.setAttribute('stroke', a.color || stamp.color); rect.setAttribute('stroke-width','2');
+  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  text.setAttribute('x','55'); text.setAttribute('y','23');
+  text.setAttribute('text-anchor','middle');
+  text.setAttribute('font-size','11'); text.setAttribute('font-weight','700');
+  text.setAttribute('font-family','monospace'); text.setAttribute('fill', a.color || stamp.color);
+  text.textContent = (a.label || stamp.label).toUpperCase();
+  svg.appendChild(rect); svg.appendChild(text);
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+// Add stamp to buildAnnotEl
+typeLabels['stamp'] = 'Stamp';
+
+// ═══════════════════════════════════════════════
+//  ANNOTATION STATUS TRACKING
+//  STATUS_CYCLE and STATUS_LABEL defined at top of state block.
+// ═══════════════════════════════════════════════
+
+function cycleAnnotStatus(id, ev) {
+  if (ev) ev.stopPropagation();
+  const a = annots.find(x => x.id === id);
+  if (!a) return;
+  const cur = a.status || 'open';
+  const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length];
+  a.status = next;
+  syncAnnots(); updateAnnotPanel(); updateEmmaRegister(); pushHistory();
+  toast('Status → ' + STATUS_LABEL[next]);
+}
+
+// Status tracking is integrated directly into updateAnnotPanel above
+
+// Status badge is now rendered directly in buildAnnotEl
+
+// ═══════════════════════════════════════════════
+//  ANNOTATION KEYBOARD NAVIGATION
+//  Tab / Shift+Tab cycles through annotations.
+//  The view scrolls to each one and highlights it.
+// ═══════════════════════════════════════════════
+let _annotNavIdx = -1;
+
+function updateAnnotNavBar() {
+  const label = document.getElementById('ann-nav-label');
+  const prev  = document.getElementById('ann-nav-prev');
+  const next  = document.getElementById('ann-nav-next');
+  if (!label) return;
+  const n = annots.length;
+  label.textContent = n === 0 ? 'No annotations' : (_annotNavIdx >= 0 ? (_annotNavIdx + 1) + ' / ' + n : n + ' annotation' + (n !== 1 ? 's' : ''));
+  if (prev) prev.disabled = n === 0;
+  if (next) next.disabled = n === 0;
+}
+
+function navAnnot(dir) {
+  if (!annots.length) return;
+  _annotNavIdx = (_annotNavIdx + dir + annots.length) % annots.length;
+  const a = annots[_annotNavIdx];
+  scrollToPage(a.pageNum);
+  updateAnnotNavBar();
+  // Highlight the annotation
+  setTimeout(() => {
+    const el = document.querySelector('[data-aid="' + a.id + '"]');
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    el.classList.add('ann-keynav-highlight');
+    setTimeout(() => el.classList.remove('ann-keynav-highlight'), 1800);
+  }, 300);
+}
+
+// Tab / Shift+Tab shortcut in markup panel
+document.addEventListener('keydown', ev => {
+  if (ev.target.closest('input,textarea,select')) return;
+  const inMarkup = document.getElementById('stab-notes')?.classList.contains('active');
+  if (!inMarkup) return;
+  if (ev.key === 'Tab') {
+    ev.preventDefault();
+    navAnnot(ev.shiftKey ? -1 : 1);
+  }
+});
+
+// ═══════════════════════════════════════════════
+//  MEASUREMENT TABLE
+//  Lists all measure and area annotations with
+//  their values. Exportable to CSV.
+// ═══════════════════════════════════════════════
+function updateMeasurementTable() {
+  const wrap = document.getElementById('meas-table-wrap');
+  if (!wrap) return;
+  const measAnnots = annots.filter(a => a.type === 'measure' || a.type === 'area');
+  if (!measAnnots.length) {
+    wrap.innerHTML = '<div class="meas-empty">No measurements yet.<br>Use the Distance or Area tools.</div>';
+    return;
+  }
+  let html = '<table class="meas-table"><thead><tr><th>Type</th><th>Value</th><th>Page</th><th>Scale</th></tr></thead><tbody>';
+  measAnnots.forEach(a => {
+    const type  = a.type === 'area' ? 'Area' : 'Distance';
+    const value = a.label || (a.type === 'area' ? '—' : Math.round(a.pxDist || 0) + ' px');
+    const scale = a.unit && a.unit !== 'px' ? '1:set (' + a.unit + ')' : 'uncalibrated';
+    html += '<tr><td>' + type + '</td><td style="font-weight:600">' + value + '</td><td>' + a.pageNum + '</td><td>' + scale + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function exportMeasurementsCsv() {
+  const measAnnots = annots.filter(a => a.type === 'measure' || a.type === 'area');
+  if (!measAnnots.length) { toast('No measurements to export'); return; }
+  const rows = [['Type','Value','Page','Scale','Author']];
+  measAnnots.forEach(a => {
+    rows.push([
+      a.type === 'area' ? 'Area' : 'Distance',
+      a.label || (Math.round(a.pxDist || 0) + ' px'),
+      a.pageNum,
+      a.unit && a.unit !== 'px' ? '1:set (' + a.unit + ')' : 'uncalibrated',
+      a.author || '',
+    ]);
+  });
+  const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = (pdfName || 'measurements').replace(/\.pdf$/i,'') + '_measurements.csv';
+  a.click(); URL.revokeObjectURL(url);
+  toast('Measurements exported to CSV');
+}
+
+// Keep table in sync when annotations change
+const _origPushAnnotMeas = pushAnnot;
+pushAnnot = function(a) {
+  _origPushAnnotMeas(a);
+  if (a.type === 'measure' || a.type === 'area') updateMeasurementTable();
+};
+
+// ═══════════════════════════════════════════════
+//  PDF LAYER VISIBILITY
+//  Reads Optional Content Groups from pdf.js and
+//  provides toggle checkboxes.
+// ═══════════════════════════════════════════════
+let _pdfLayers = []; // [{ name, id, visible }]
+
+async function loadPdfLayers() {
+  _pdfLayers = [];
+  if (!pdf) return;
+  try {
+    const optContent = await pdf.getOptionalContentConfig();
+    if (!optContent) return;
+    const groups = optContent.getGroups?.() || {};
+    Object.entries(groups).forEach(([id, group]) => {
+      _pdfLayers.push({ id, name: group.name || id, visible: group.visible !== false });
+    });
+  } catch(e) { /* PDF may not have layers */ }
+}
+
+function updateLayerPanel() {
+  const list = document.getElementById('layer-list');
+  if (!list) return;
+  if (!_pdfLayers.length) {
+    list.innerHTML = '<div class="meas-empty">No layers found in this PDF.<br>Layers require Optional Content Groups.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  _pdfLayers.forEach(layer => {
+    const item = document.createElement('div');
+    item.className = 'layer-item' + (layer.visible ? '' : ' hidden-layer');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = layer.visible;
+    cb.onchange = async () => {
+      layer.visible = cb.checked;
+      item.classList.toggle('hidden-layer', !cb.checked);
+      await applyLayerVisibility();
+    };
+    const lbl = document.createElement('span');
+    lbl.textContent = layer.name;
+    item.appendChild(cb); item.appendChild(lbl);
+    list.appendChild(item);
+  });
+}
+
+async function applyLayerVisibility() {
+  if (!pdf || !_pdfLayers.length) return;
+  try {
+    const optContent = await pdf.getOptionalContentConfig();
+    _pdfLayers.forEach(layer => optContent.setVisibility(layer.id, layer.visible));
+    // Re-render visible pages with updated layer config
+    const saved = curPg;
+    renderedPages.clear();
+    Object.keys(_pageCache).forEach(k => delete _pageCache[k]);
+    scheduleRender();
+    toast('Layer visibility updated');
+  } catch(e) { toast('Layer toggle not supported for this PDF'); }
+}
+
+function openLayerPanel() {
+  const tab = document.getElementById('stab-layers');
+  if (tab) switchTab('layers', tab);
+}
+
+// Load layers when PDF opens — patch loadPDF
+const _origLoadPDFLayers = loadPDF;
+loadPDF = async function(file) {
+  await _origLoadPDFLayers(file);
+  await loadPdfLayers();
+  updateLayerPanel();
+};
+
+// ═══════════════════════════════════════════════
+//  BATCH EMMA EXPORT
+//  Exports all drawings in the Drawing Set
+//  register to a single consolidated EMMA register.
+// ═══════════════════════════════════════════════
+async function batchExportEmma() {
+  if (!drawingSet.length) {
+    toast('Add drawings to the Drawing Set Register first (Review tab)', 4000); return;
+  }
+  if (!emmaTemplateBuf) {
+    toast('⚠ Load your EMMA Checksheet template first', 4000); return;
+  }
+
+  toast('Building consolidated EMMA register…');
+  await loadJSZip();
+  const { PDFDocument } = await (window.PDFLib ? Promise.resolve(window) : loadPdfLib().then(() => window));
+
+  // We build one workbook per drawing then combine rows
+  // Reuse exportEmma logic but collect all annotations across drawing set
+  const allRows = [];
+  drawingSet.forEach(drawing => {
+    const drawingAnnots = (drawing.annots || []).filter(a =>
+      ['note','text','callout','textbox','measure'].includes(a.type) && !a.emmaExclude
+    );
+    drawingAnnots.forEach(a => {
+      allRows.push({
+        docNo:  drawing.name.replace(/\.pdf$/i,''),
+        text:   a.text || a.label || '',
+        author: a.author || '',
+        status: a.status || 'open',
+        priority: a.priority || '',
+        pageNum: a.pageNum,
+        type:   a.type,
+      });
+    });
+  });
+
+  // Also include current open drawing
+  const curAnnots = annots.filter(a =>
+    ['note','text','callout','textbox','measure'].includes(a.type) && !a.emmaExclude
+  );
+  curAnnots.forEach(a => {
+    allRows.push({
+      docNo:   pdfName ? pdfName.replace(/\.pdf$/i,'') : 'Current',
+      text:    a.text || a.label || '',
+      author:  a.author || '',
+      status:  a.status || 'open',
+      priority: a.priority || '',
+      pageNum: a.pageNum,
+      type:    a.type,
+    });
+  });
+
+  if (!allRows.length) { toast('No EMMA comments found across drawing set'); return; }
+
+  try {
+    const zip = await JSZip.loadAsync(emmaTemplateBuf);
+
+    // Get sheet paths
+    const wbXml  = await zip.file('xl/workbook.xml').async('string');
+    const relXml = await zip.file('xl/_rels/workbook.xml.rels').async('string');
+    const getPath = name => {
+      const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      const m = wbXml.match(new RegExp('sheet[^>]+name="'+esc(name)+'"[^>]+r:id="([^"]+)"')) ||
+                wbXml.match(new RegExp('sheet[^>]+r:id="([^"]+)"[^>]+name="'+esc(name)+'"'));
+      if (!m) return null;
+      const rm = relXml.match(new RegExp('Id="'+m[1]+'"[^>]+Target="([^"]+)"'));
+      if (!rm) return null;
+      return 'xl/' + rm[1].replace(/^\/?xl\//,'');
+    };
+
+    let ssXml = await zip.file('xl/sharedStrings.xml').async('string');
+    const ssEntries = [...ssXml.matchAll(/<si>[\s\S]*?<\/si>/g)].map(m => {
+      return [...m[0].matchAll(/<t[^>]*>([^<]*)<\/t>/g)].map(x=>x[1]).join('');
+    });
+    const ssIndex = str => {
+      const s = String(str);
+      const i = ssEntries.indexOf(s);
+      if (i !== -1) return i;
+      ssEntries.push(s);
+      const esc = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      ssXml = ssXml.replace('</sst>', '<si><t>' + esc + '</t></si></sst>');
+      return ssEntries.length - 1;
+    };
+    const writeCell = (xml, ref, idx) => {
+      const re = new RegExp('(<c\\s+r="'+ref+'"(?:\\s+[^>]*)?)(?:\\s*/>|>[\\s\\S]*?</c>)', 'i');
+      const rep = (_, open) => open.replace(/\s+t="[^"]*"/,'') + ' t="s"><v>' + idx + '</v></c>';
+      if (re.test(xml)) return xml.replace(re, rep);
+      const row = ref.match(/\d+$/)[0];
+      return xml.replace(new RegExp('(<row\\b[^>]*\\br="'+row+'"[^>]*>)([\\s\\S]*?)(</row>)'),
+        (_,o,b,cl) => o+b+'<c r="'+ref+'" t="s"><v>'+idx+'</v></c>'+cl);
+    };
+
+    const crPath = getPath('Checking Review');
+    if (!crPath) { toast('Checking Review sheet not found in template'); return; }
+    let crXml = await zip.file(crPath).async('string');
+
+    const today = new Date().toLocaleDateString('en-GB');
+    allRows.forEach((row, idx) => {
+      const r = 11 + idx;
+      crXml = writeCell(crXml, 'C'+r, ssIndex(row.docNo));
+      crXml = writeCell(crXml, 'E'+r, ssIndex(today));
+      crXml = writeCell(crXml, 'F'+r, ssIndex(row.author));
+      crXml = writeCell(crXml, 'G'+r, ssIndex(row.author));
+      crXml = writeCell(crXml, 'H'+r, ssIndex(row.priority));
+      crXml = writeCell(crXml, 'I'+r, ssIndex(row.text));
+      crXml = writeCell(crXml, 'M'+r, ssIndex(row.status === 'resolved' ? 'Yes' : 'No'));
+    });
+    zip.file(crPath, crXml);
+
+    // Update shared strings count
+    const cnt = ssEntries.length;
+    ssXml = ssXml.replace(/(<sst[^>]+count=")[^"]*(")/,'$1'+cnt+'$2')
+                 .replace(/(<sst[^>]+uniqueCount=")[^"]*(")/,'$1'+cnt+'$2');
+    zip.file('xl/sharedStrings.xml', ssXml);
+
+    const out = await zip.generateAsync({ type:'uint8array', compression:'DEFLATE',
+      compressionOptions:{ level:6 }, mimeType:'application/vnd.ms-excel.sheet.macroEnabled.12' });
+
+    dl(out, 'EMMA_Consolidated_' + new Date().toISOString().slice(0,10) + '.xlsm');
+    toast('✓ Consolidated EMMA exported — ' + allRows.length + ' comments from ' + (drawingSet.length + 1) + ' drawings');
+  } catch(e) {
+    console.error('[EngDoc] batchExportEmma:', e);
+    toast('Batch export failed: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  REPLY THREADS ON NOTES
+//  Replies stored on annotation: a.replies = [{author, text, ts}]
+// ═══════════════════════════════════════════════
+function addNoteReply(annotId, text) {
+  if (!text.trim()) return;
+  const a = annots.find(x => x.id === annotId);
+  if (!a) return;
+  if (!a.replies) a.replies = [];
+  a.replies.push({ author: currentAuthor || 'Unknown', text: text.trim(), ts: Date.now() });
+  syncAnnots(); updateAnnotPanel(); pushHistory();
+}
+
+function buildNoteReplies(a, el) {
+  if (!a.replies || !a.replies.length) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'an-replies';
+  a.replies.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'an-reply';
+    const auth = document.createElement('div');
+    auth.className = 'an-reply-author';
+    auth.textContent = r.author + ' · ' + new Date(r.ts).toLocaleDateString('en-GB');
+    const txt = document.createElement('div');
+    txt.textContent = r.text;
+    div.appendChild(auth); div.appendChild(txt);
+    wrap.appendChild(div);
+  });
+  el.appendChild(wrap);
+}
+
+function buildNoteReplyInput(a, el) {
+  const wrap = document.createElement('div');
+  wrap.className = 'an-reply-input-wrap';
+  const inp = document.createElement('textarea');
+  inp.className = 'an-reply-input';
+  inp.placeholder = 'Reply…';
+  inp.rows = 1;
+  inp.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' && !ev.shiftKey) {
+      ev.preventDefault();
+      addNoteReply(a.id, inp.value);
+    }
+  });
+  const btn = document.createElement('button');
+  btn.className = 'an-reply-send';
+  btn.textContent = '↵';
+  btn.title = 'Send reply (Enter)';
+  btn.onclick = ev => { ev.stopPropagation(); addNoteReply(a.id, inp.value); };
+  wrap.appendChild(inp); wrap.appendChild(btn);
+  el.appendChild(wrap);
+}
+
+// Reply threads are now rendered directly in buildAnnotEl
+
+// ═══════════════════════════════════════════════
+//  SEARCH — persist highlights across navigation
+//  When a search result is clicked, keep the
+//  highlight visible until search is cleared.
+// ═══════════════════════════════════════════════
+let _searchPersistHits = []; // [{pageNum, x, y, w, h}]
+
+function clearSearchHighlights() {
+  document.querySelectorAll('.search-hit-persist').forEach(el => el.remove());
+  _searchPersistHits = [];
+}
+
+// Patch highlightSearchHit to also add persistent highlight
+const _origHighlightSearchHit = highlightSearchHit;
+highlightSearchHit = function(hit) {
+  _origHighlightSearchHit(hit);
+  // Add persistent highlight div to the overlay
+  const ov = document.querySelector('.aoverlay[data-page="' + hit.pageNum + '"]');
+  if (!ov) return;
+  // Remove existing on same page+position
+  ov.querySelectorAll('.search-hit-persist').forEach(e => e.remove());
+  const ph = document.createElement('div');
+  ph.className = 'search-hit-persist';
+  ph.style.cssText =
+    'left:' + (hit.x * 100) + '%;top:' + (hit.y * 100) + '%;' +
+    'width:' + Math.max(hit.width * 100, 3) + '%;' +
+    'height:' + Math.max((hit.fontSize || 0.015) * 100 * 1.6, 1.5) + '%';
+  ov.appendChild(ph);
+  _searchPersistHits.push(hit);
+};
+
+// Clear highlights when search input is cleared
+const _origOnSearchInput = onSearchInput;
+onSearchInput = function(query) {
+  _origOnSearchInput(query);
+  if (!query.trim()) clearSearchHighlights();
+};
+
+// ═══════════════════════════════════════════════
+//  TOUCH / STYLUS SUPPORT
+//  Convert pointer events to mouse events so all
+//  drawing tools work on touchscreens and tablets.
+// ═══════════════════════════════════════════════
+function initPointerSupport() {
+  document.querySelectorAll('.aoverlay').forEach(ov => {
+    if (ov._pointerInited) return;
+    ov._pointerInited = true;
+    ov.addEventListener('pointerdown', ev => {
+      if (ev.pointerType === 'mouse') return;
+      ov.setPointerCapture(ev.pointerId);
+      ov.dispatchEvent(Object.assign(new MouseEvent('mousedown', ev), { button: 0 }));
+    }, { passive: false });
+    ov.addEventListener('pointermove', ev => {
+      if (ev.pointerType === 'mouse') return;
+      ov.dispatchEvent(new MouseEvent('mousemove', ev));
+    }, { passive: true });
+    ov.addEventListener('pointerup', ev => {
+      if (ev.pointerType === 'mouse') return;
+      ov.dispatchEvent(new MouseEvent('mouseup', ev));
+    });
+  });
+}
+
+// Hook into renderPageContent to init pointer support on new pages
+const _origRenderPagePointer = renderPageContent;
+renderPageContent = async function(pageNum) {
+  await _origRenderPagePointer(pageNum);
+  initPointerSupport();
+};
+
+// ═══════════════════════════════════════════════
+//  UPDATE ANNOTATION NAV when annots change
+// ═══════════════════════════════════════════════
+const _origDeleteAnnotByIdNav = deleteAnnotById;
+deleteAnnotById = function(id) {
+  _origDeleteAnnotByIdNav(id);
+  _annotNavIdx = Math.min(_annotNavIdx, annots.length - 1);
+  updateAnnotNavBar();
+};
 
 // Initialise tool state without auto-switching ribbon tab
 _ribbonSetTool('pan');

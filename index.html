@@ -6,35 +6,31 @@
 <title>EngDoc — Engineering PDF Suite</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
-/* ── PDF TEXT LAYER — selectable text overlay ─── */
-.textLayer {
+/* ── PDF TEXT SELECTION — custom hit-test overlay ──
+   We don't use DOM text selection (broken with transforms).
+   Instead we draw SVG highlight rects over matched text items
+   and write directly to the clipboard.
+─────────────────────────────────────────────────────── */
+.sel-overlay {
   position: absolute;
   inset: 0;
-  overflow: visible;   /* visible — never clip transformed spans */
-  line-height: 1;
-  text-size-adjust: none;
-  -webkit-text-size-adjust: none;
-  forced-color-adjust: none;
+  pointer-events: none;
+  z-index: 4;
+  overflow: visible;
 }
-.textLayer span {
-  color: transparent;
+.sel-rect {
+  /* Drag rectangle shown while selecting and as selection indicator after release */
   position: absolute;
-  white-space: pre;
-  cursor: text;
-  transform-origin: 0% 100%; /* bottom-left — matches PDF coordinate origin */
-  user-select: text;
-  -webkit-user-select: text;
+  background: rgba(37,99,235,0.06);
+  border: 1.5px solid rgba(37,99,235,0.45);
+  border-radius: 2px;
+  pointer-events: none;
+  box-sizing: border-box;
 }
-.textLayer ::selection {
-  background: rgba(37,99,235,0.28);
-  color: transparent;
-}
-.textLayer ::-moz-selection {
-  background: rgba(37,99,235,0.28);
-  color: transparent;
-}
-body.dark .textLayer ::selection {
-  background: rgba(96,165,250,0.35);
+/* Highlight rects drawn over matched text items */
+.sel-hit {
+  fill: rgba(37,99,235,0.22);
+  stroke: none;
 }
 </style>
 <style>
@@ -94,9 +90,9 @@ body.dark select, body.dark input { color-scheme: dark; }
 /* Area tool */
 .area-preview { position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10; }
 /* Autosave indicator */
-#autosave-dot { width:6px;height:6px;border-radius:50%;background:#22c55e;
+#autosave-dot, #rat-autosave { width:6px;height:6px;border-radius:50%;background:#22c55e;
   opacity:0;transition:opacity .5s;flex-shrink:0; }
-#autosave-dot.pulse { opacity:1; }
+#autosave-dot.pulse, #rat-autosave.pulse { opacity:1; }
 .aoverlay.cur-move { cursor: move; }
 .aoverlay.cur-zoombox { cursor: crosshair; }
 [data-aid].moveable { cursor: move; }
@@ -605,74 +601,101 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 /* annotation elements */
 .ah{position:absolute;mix-blend-mode:multiply;border-radius:1px}
 .ar{position:absolute;border:2px solid #2563eb;background:rgba(37,99,235,.07);border-radius:1px}
-/* ── STICKY NOTE ── */
+/* ── STICKY NOTE — Adobe-style comment box ────────────
+   Always shows text. Leader arrow points from anchor
+   corner to any point on the drawing.
+───────────────────────────────────────────────────── */
 .an {
   position: absolute;
-  width: 28px; height: 28px;
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
+  min-width: 140px;
+  max-width: 220px;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.08);
   cursor: pointer;
   z-index: 5;
-  transition: transform .15s, box-shadow .15s;
-  box-shadow: 0 1px 4px rgba(0,0,0,.25);
-  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font);
+  transition: box-shadow .12s;
+  overflow: hidden;
 }
 .an:hover {
-  transform: rotate(-45deg) scale(1.15);
-  box-shadow: 0 3px 10px rgba(0,0,0,.3);
+  box-shadow: 0 4px 16px rgba(0,0,0,.22), 0 0 0 1px rgba(0,0,0,.12);
 }
-.an-inner {
-  transform: rotate(45deg);
-  font-size: 9px; font-weight: 700;
+/* Coloured header bar */
+.an-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 700;
   font-family: var(--mono);
-  color: rgba(0,0,0,.6);
-  line-height: 1;
-  pointer-events: none;
-  user-select: none;
+  color: rgba(0,0,0,.65);
+  letter-spacing: .3px;
 }
-/* Expanded note bubble — appears on click */
-.an-bubble {
-  position: absolute;
-  left: 28px; top: -4px;
-  min-width: 180px; max-width: 260px;
-  background: var(--white);
-  border: 1px solid var(--gray-300);
-  border-radius: 0 var(--radius) var(--radius) var(--radius);
-  padding: 8px 10px;
-  box-shadow: var(--shadow-lg);
-  z-index: 10;
+.an-header-icon {
+  font-size: 11px;
+  opacity: .7;
+}
+.an-author {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: .7;
+}
+/* Text body */
+.an-body {
+  padding: 5px 8px 7px;
   font-size: 11.5px;
+  line-height: 1.45;
   color: var(--gray-800);
-  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
-  cursor: default;
-  pointer-events: all;
-  transform: rotate(45deg);  /* counter-rotate — parent is rotated -45 */
+  border-top: 1px solid rgba(0,0,0,.07);
+  min-height: 24px;
+  background: #fff;
 }
-.an-bubble:empty::before {
-  content: '(empty note)';
+.an-body:empty::before {
+  content: 'Click to edit…';
   color: var(--gray-400);
   font-style: italic;
 }
-.an-bubble-actions {
-  display: flex; gap: 5px; margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--gray-200);
+/* Expand/collapse chevron — shown on hover */
+.an-actions {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-top: 1px solid rgba(0,0,0,.06);
+  background: var(--gray-50);
 }
-.an-bubble-btn {
-  font-size: 10px; padding: 2px 8px;
-  border-radius: 3px; border: 1px solid var(--gray-300);
-  background: var(--gray-50); color: var(--gray-700);
-  cursor: pointer; font-family: var(--font);
+.an:hover .an-actions { display: flex; }
+.an-act-btn {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 3px;
+  border: 1px solid var(--gray-300);
+  background: var(--white);
+  color: var(--gray-600);
+  cursor: pointer;
+  font-family: var(--font);
+  white-space: nowrap;
 }
-.an-bubble-btn:hover { background: var(--gray-100); }
-.an-bubble-btn.primary { background: var(--blue-500); color: #fff; border-color: var(--blue-500); }
-.an-bubble-btn.primary:hover { background: var(--blue-600); }
-.an-bubble-btn.danger { color: var(--red-500); }
-.an-bubble-btn.danger:hover { background: var(--red-50); border-color: #fca5a5; }
-/* Leader line SVG sits on the page overlay behind the note */
-.an-leader { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 4; }
+.an-act-btn:hover { background: var(--gray-100); }
+.an-act-btn.primary { background: var(--blue-500); color: #fff; border-color: var(--blue-500); }
+.an-act-btn.primary:hover { background: var(--blue-600); }
+.an-act-btn.danger { color: var(--red-500); }
+.an-act-btn.danger:hover { background: var(--red-50); border-color: #fca5a5; }
+
+/* Leader SVG — sits behind the note box */
+.an-leader {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 4;
+}
 /* SVG annot wrappers — the div itself must NEVER block pointer events.
    Only the actual SVG strokes get pointer-events (set in JS for erase mode). */
 .asvg-wrap{position:absolute;inset:0;overflow:visible;pointer-events:none}
@@ -698,6 +721,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 .aoverlay.cur-pan{cursor:grab}
 .aoverlay.cur-pan.panning{cursor:grabbing}
 .aoverlay.cur-measure{cursor:crosshair}
+.aoverlay.cur-crosshair{cursor:crosshair}
 
 /* ── CONTEXT MENU ────────────────── */
 #ctx-menu{position:fixed;background:var(--white);border:1px solid var(--gray-200);
@@ -872,6 +896,10 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
           <button class="rbtn" id="t-pan" data-tip="Pan / scroll (V · hold Space)" onclick="setTool('pan')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 00-4 0M14 10V4a2 2 0 00-4 0v2M10 10.5V6a2 2 0 00-4 0v8"/><path d="M6 14a3 3 0 00-3 3c0 2 1 3 2 4h9c1-1 2-2 2-4v-2a2 2 0 00-2-2h-1"/></svg>
             <span class="rbtn-label">Pan</span>
+          </button>
+          <button class="rbtn" id="t-select" data-tip="Select &amp; copy text from the drawing (S)" onclick="setTool('select')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h3"/><path d="M4 17v3h3"/><path d="M17 4h3v3"/><path d="M20 17v3h-3"/><path d="M9 12h6"/><path d="M12 9l3 3-3 3"/></svg>
+            <span class="rbtn-label">Select</span>
           </button>
           <button class="rbtn" id="t-zoombox" data-tip="Marquee zoom — drag a rectangle to zoom in (Z)" onclick="setTool('zoombox')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>
@@ -1146,16 +1174,16 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
     <span id="rat-name">Highlight</span>
     <span class="rat-hint" id="rat-hint">Drag to highlight a region &middot; colour and weight in Style group</span>
     <div style="flex:1"></div>
-    <span id="sb-zoom" class="rat-hint"><span id="sb-zoom-val">100%</span></span>
+    <span id="rat-zoom" class="rat-hint"><span id="sb-zoom-val">100%</span></span>
     <span class="rat-hint" style="margin:0 5px">&middot;</span>
-    <span class="rat-hint" id="sb-count">0 annotations</span>
+    <span class="rat-hint" id="rat-count">0 annotations</span>
     <span class="rat-hint" style="margin:0 5px">&middot;</span>
-    <span class="rat-hint" id="sb-pos">&mdash;</span>
+    <span class="rat-hint" id="rat-pos">&mdash;</span>
     <span class="rat-hint" style="margin:0 5px">&middot;</span>
-    <span id="sb-measure" class="rat-hint" style="color:#7c3aed;font-weight:600"></span>
+    <span id="rat-measure" class="rat-hint" style="color:#7c3aed;font-weight:600"></span>
     <span class="rat-hint" style="margin:0 5px">&middot;</span>
-    <span id="sb-scale" class="rat-hint" style="cursor:pointer;color:var(--blue-500)" onclick="openM('mscale')">&#9878; Scale: unset</span>
-    <div id="autosave-dot" title="Auto-saved" style="margin-left:8px"></div>
+    <span id="rat-scale" class="rat-hint" style="cursor:pointer;color:var(--blue-500)" onclick="openM('mscale')">&#9878; Scale: unset</span>
+    <div id="rat-autosave" title="Auto-saved" style="margin-left:8px"></div>
   </div>
 
 </div>
@@ -1438,7 +1466,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 
 <!-- KEYBOARD SHORTCUTS MODAL -->
 <div class="overlay" id="mkeys">
-  <div class="modal" id="mkeys">
+  <div class="modal">
     <div class="mhead"><span class="mtitle">Keyboard Shortcuts</span><button class="mclose" onclick="closeM('mkeys')">✕</button></div>
     <div class="mbody" style="column-count:2;column-gap:32px">
       <div style="break-inside:avoid">
@@ -1452,9 +1480,13 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
         <div class="krow"><span class="kbd">G</span><span class="kdesc">Area Measurement</span></div>
         <div class="krow"><span class="kbd">D</span><span class="kdesc">Measure Distance</span></div>
         <div class="krow"><span class="kbd">N</span><span class="kdesc">Sticky Note (EMMA)</span></div>
-        <div class="krow"><span class="kbd">T</span><span class="kdesc">Text Label</span></div>
+        <div class="krow"><span class="kbd">T</span><span class="kdesc">Text Label / Text Box</span></div>
+        <div class="krow"><span class="kbd">L</span><span class="kdesc">Straight Line</span></div>
         <div class="krow"><span class="kbd">E</span><span class="kdesc">Eraser</span></div>
-        <div class="krow"><span class="kbd">V</span> <span class="kdesc">Pan / Select</span></div>
+        <div class="krow"><span class="kbd">V</span><span class="kdesc">Pan</span></div>
+        <div class="krow"><span class="kbd">S</span><span class="kdesc">Select &amp; Copy Text</span></div>
+        <div class="krow"><span class="kbd">Ctrl A</span><span class="kdesc">Select all text on page</span></div>
+        <div class="krow"><span class="kbd">Z</span><span class="kdesc">Marquee Zoom</span></div>
       </div>
       <div style="break-inside:avoid">
         <div style="font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Actions</div>
@@ -1765,7 +1797,8 @@ const CHex  = { yellow: '#fbbf24', teal: '#2dd4bf', rose: '#fb7185' };
 const typeLabels = { highlight:'Highlight', rect:'Rectangle', strike:'Strikethrough',
   pen:'Freehand', arrow:'Arrow', note:'Note', text:'Text Label',
   texthighlight:'Text Highlight', cloud:'Cloud', measure:'Measure', area:'Area',
-  line:'Line', rectfill:'Fill Box', callout:'Callout', textbox:'Text Box' };
+  line:'Line', rectfill:'Fill Box', callout:'Callout', textbox:'Text Box',
+  pan:'Pan', select:'Select Text', zoombox:'Zoom', erase:'Erase' };
 
 // ── HISTORY/UNDO stubs — full implementation below in ANNOTATION DATA MANAGEMENT ──
 
@@ -1783,7 +1816,8 @@ let measureVp = null;   // viewport at time of measurement
 let measureLiveSvg = null; // persistent SVG on overlay during 2-click flow
 
 // PDF text content cache — { pageNum: [{str, x, y, w, h, fontSize}] }
-const pdfTextContent = {};
+const pdfTextContent  = {};  // { pageNum: string } — for standards checker
+const _pageTextItems  = {};  // { pageNum: [{str,x,y,w,h,angle}] } — for select tool
 
 function nextId() { return ++annotIdSeq; }
 function strokeW() { return parseFloat(document.getElementById('stroke-w').value) || 2.5; }
@@ -1908,6 +1942,7 @@ async function loadPDF(file) {
   nPages = pdf.numPages; curPg = 1; annots = []; emmaRows = {};
   renderedPages.clear(); renderQueue.clear();
   Object.keys(pdfTextContent).forEach(k => delete pdfTextContent[k]);
+  Object.keys(_pageTextItems).forEach(k => delete _pageTextItems[k]);
   // Reset undo/redo history for new document
   history = []; historyIdx = -1; updateUndoRedoButtons();
 
@@ -2380,97 +2415,33 @@ async function renderPageContent(pageNum) {
   });
 
   // ── Text layer (selectable text) ──
-  // Build in parallel with canvas render for speed.
-  // overflow:visible is critical — overflow:hidden clips rotated/transformed spans,
-  // causing the visual text and the selection hitbox to diverge.
-  const textLayerDiv = document.createElement('div');
-  textLayerDiv.className = 'textLayer';
-  textLayerDiv.style.cssText = [
-    'position:absolute',
-    'top:0', 'left:0',
-    'width:' + vp.width + 'px',
-    'height:' + vp.height + 'px',
-    'overflow:visible',
-    'pointer-events:none',
-    'z-index:2',
-    'line-height:1',
-    'transform-origin:0 0',
-    // Prevent browser from applying its own text-size adjustments
-    'text-size-adjust:none',
-    '-webkit-text-size-adjust:none',
-  ].join(';');
-
-  wrap.insertBefore(textLayerDiv, ov);
-
-  // Run canvas render and text content fetch in parallel
+  // Store raw text content for this page — used by the custom select tool.
+  // We keep the data, not DOM spans, so we can do proper hit-testing in page space.
   const [, textContent] = await Promise.all([
     renderTask.promise,
     page.getTextContent({ includeMarkedContent: false }),
   ]);
 
-  // Build the text layer manually for precise hit-box alignment.
-  // pdf.js's renderTextLayer in 3.x positions spans correctly but their
-  // selection box can be off when text has a rotation transform.
-  // Manual placement gives us full control over transform-origin.
-  try {
-    const pageH = vp.height;
-    const scale  = zoom;
-
-    textContent.items.forEach(item => {
-      if (!item.str || !item.str.trim()) return;
-
-      const [a, b, c, d, e, f] = item.transform;
-
-      const span = document.createElement('span');
-
-      // Position: pdf coords have origin at bottom-left; CSS at top-left
-      const tx = e * scale;
-      const ty = pageH - f * scale;
-
-      // Font size from the transform scale factor
-      const fontSize = Math.sqrt(a * a + b * b) * scale;
-
-      // Rotation angle from the transform matrix
+  // Cache text items with their page-space bounding boxes for the select tool.
+  // Each item: { str, x, y, w, h, angle } in CSS-pixel space (zoom applied).
+  _pageTextItems[pageNum] = textContent.items
+    .filter(item => item.str && item.str.trim())
+    .map(item => {
+      const [a, b, , d, e, f] = item.transform;
+      // Width from item.width (in PDF user units), height from font size
+      const scaleX = Math.sqrt(a * a + b * b);
+      const scaleY = Math.sqrt(b * b + d * d); // approximate
+      const w = (item.width  || 0) * zoom;
+      const h = (item.height || scaleX) * zoom;
       const angle = Math.atan2(b, a);
-
-      span.style.cssText = [
-        'position:absolute',
-        'left:' + tx.toFixed(2) + 'px',
-        'top:' + ty.toFixed(2) + 'px',
-        'font-size:' + fontSize.toFixed(2) + 'px',
-        'font-family:sans-serif',
-        'transform-origin:0% 100%',  // bottom-left — matches pdf coord origin
-        'transform:' + (angle !== 0
-          ? 'rotate(' + (-angle * 180 / Math.PI).toFixed(3) + 'deg)scaleX(' + (item.width ? (item.width * scale / Math.max(span.offsetWidth || 1, 1)) : 1).toFixed(4) + ')'
-          : 'none'),
-        'white-space:pre',
-        'cursor:text',
-        'color:transparent',
-        'user-select:text',
-        '-webkit-user-select:text',
-      ].join(';');
-
-      span.textContent = item.str;
-      textLayerDiv.appendChild(span);
+      return {
+        str:   item.str,
+        // CSS-pixel position of bottom-left corner (PDF origin is bottom-left)
+        x:     e * zoom,
+        y:     vp.height - f * zoom,
+        w, h, angle,
+      };
     });
-
-    // After spans are in the DOM, apply correct scaleX to match visual width
-    textLayerDiv.querySelectorAll('span').forEach((span, i) => {
-      const item = textContent.items.filter(it => it.str && it.str.trim())[i];
-      if (!item || !item.width) return;
-      const [a, b] = item.transform;
-      const angle = Math.atan2(b, a);
-      const visualW = item.width * scale;
-      const naturalW = span.getBoundingClientRect().width || visualW;
-      const scaleX = naturalW > 0 ? visualW / naturalW : 1;
-      const rot = angle !== 0 ? 'rotate(' + (-angle * 180 / Math.PI).toFixed(3) + 'deg)' : '';
-      span.style.transform = rot + 'scaleX(' + scaleX.toFixed(4) + ')';
-    });
-
-    textLayerDiv.style.pointerEvents = 'auto';
-  } catch (e) {
-    textLayerDiv.remove();
-  }
 
   wrap.classList.remove('unrendered');
   renderedPages.add(pageNum);
@@ -2599,24 +2570,37 @@ function setTool(t) {
 
   document.getElementById('sb-tool').textContent = typeLabels[t] || t;
 
-  // All tools keep overlay active so it receives mouse events.
+  // In select mode the overlay is completely transparent so text spans get events.
+  // We also set cursor:text on the page wrappers themselves so there's no
+  // visual gap between the overlay (transparent) and the canvas (no cursor).
   document.querySelectorAll('.aoverlay').forEach(o => {
-    o.className = 'aoverlay active';
-    if (['highlight','rect','rectfill','strike','pen','arrow','line',
-         'measure','texthighlight','cloud','area'].includes(t)) o.classList.add('cur-cross');
-    else if (t === 'note')    o.classList.add('cur-cell');
-    else if (t === 'text')    o.classList.add('cur-text');
-    else if (t === 'erase')   o.classList.add('cur-erase');
-    else if (t === 'pan')     o.classList.add('cur-pan');
-    else if (t === 'zoombox') o.classList.add('cur-zoombox');
+    if (t === 'select') {
+      // Active — receives mousedown for custom selection engine
+      // Annotations inside are disabled via refreshAnnotPointerEvents
+      o.style.pointerEvents = '';
+      o.style.cursor = '';
+      o.className = 'aoverlay active cur-crosshair';
+    } else {
+      o.style.pointerEvents = '';
+      o.style.cursor = '';
+      o.className = 'aoverlay active';
+      if (['highlight','rect','rectfill','strike','pen','arrow','line',
+           'measure','texthighlight','cloud','area'].includes(t)) o.classList.add('cur-cross');
+      else if (t === 'note')    o.classList.add('cur-cell');
+      else if (t === 'text')    o.classList.add('cur-text');
+      else if (t === 'erase')   o.classList.add('cur-erase');
+      else if (t === 'pan')     o.classList.add('cur-pan');
+      else if (t === 'zoombox') o.classList.add('cur-zoombox');
+    }
   });
 
-  // Text layer pointer-events: enabled only in pan mode (allows text selection)
-  // Disabled during drawing tools so the overlay captures mouse events
-  const textSelectable = (t === 'pan');
-  document.querySelectorAll('.textLayer').forEach(tl => {
-    tl.style.pointerEvents = textSelectable ? 'auto' : 'none';
+  // Page wrappers: text cursor in select mode so it shows over the canvas too
+  document.querySelectorAll('.pwrap').forEach(pw => {
+    pw.style.cursor = t === 'select' ? 'crosshair' : '';
   });
+
+  // Clear any active selection when switching away from select
+  if (tool === 'select' && t !== 'select') clearTextSelection();
 
   refreshAnnotPointerEvents();
 }
@@ -2635,7 +2619,14 @@ function refreshAnnotPointerEvents() {
     const isTextable = el.classList.contains('an') || el.classList.contains('atxt') ||
                        el.classList.contains('atextbox') || el.classList.contains('acallout');
 
-    if (tool === 'pan') {
+    if (tool === 'select') {
+      // Select mode: overlay IS active (receives mousedown for selection)
+      // but all annotation elements must be non-interactive
+      el.style.pointerEvents = 'none';
+      el.style.cursor = '';
+      if (isSvgWrap) el.querySelectorAll('path, line, polyline, polygon').forEach(s => { s.style.pointerEvents = 'none'; });
+      if (isCallout) { const box = el.querySelector('.acallout-box'); if (box) box.style.pointerEvents = 'none'; }
+    } else if (tool === 'pan') {
       if (isSvgWrap) {
         // SVG annotation wrappers: allow pointer events for dragging
         el.style.pointerEvents = 'all';
@@ -2712,9 +2703,15 @@ function setOpacity(v) {
 function attachEvents(ov, pageNum, vp) {
   const viewer = document.getElementById('viewer');
 
+  // Attach custom text selection handler for this page
+  attachSelectEvents(ov, pageNum);
+
   ov.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
     hideCtx();
+
+    // Select tool handled by attachSelectEvents above
+    if (tool === 'select') return;
 
     // ── PAN: drag-scroll the viewer ──
     if (tool === 'pan') {
@@ -3217,7 +3214,7 @@ document.addEventListener('keydown', e => {
   if (!inInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const toolKeys = { h:'highlight', m:'texthighlight', r:'rect', p:'pen',
       a:'arrow', c:'cloud', g:'area', d:'measure', n:'note', t:'text',
-      e:'erase', v:'pan', z:'zoombox', l:'line', f:'rectfill' };
+      e:'erase', v:'pan', z:'zoombox', l:'line', f:'rectfill', s:'select' };
     if (toolKeys[e.key.toLowerCase()]) { setTool(toolKeys[e.key.toLowerCase()]); return; }
   }
 });
@@ -3257,153 +3254,84 @@ document.addEventListener('mouseup', () => {
 ═══════════════════════════════════════════════ */
 
 function buildNoteLeaderSvg(a, ov) {
-  // Remove any existing leader for this note
   ov.querySelector('[data-leader="' + a.id + '"]')?.remove();
   if (a.leaderX === undefined || a.leaderY === undefined) return;
 
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.className = 'an-leader';
-  svg.setAttribute('viewBox', '0 0 100 100');
-  svg.setAttribute('preserveAspectRatio', 'none');
-  svg.dataset.leader = a.id;
+  const vp = pageViewports[a.pageNum];
+  if (!vp) return;
 
   const c = CHex[a.color] || CHex.yellow;
 
-  // Line from pin centre to leader tip
-  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  // Pin is at a.x, a.y — add ~1% to get pin centre
-  line.setAttribute('x1', (a.x + 0.5).toFixed(2));
-  line.setAttribute('y1', (a.y + 0.5).toFixed(2));
-  line.setAttribute('x2', a.leaderX.toFixed(2));
-  line.setAttribute('y2', a.leaderY.toFixed(2));
-  line.setAttribute('stroke', c);
-  line.setAttribute('stroke-width', '1');
-  line.setAttribute('stroke-dasharray', '3 2');
-  line.setAttribute('stroke-linecap', 'round');
-  line.setAttribute('vector-effect', 'non-scaling-stroke');
-
-  // Dot at tip
-  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  dot.setAttribute('cx', a.leaderX.toFixed(2));
-  dot.setAttribute('cy', a.leaderY.toFixed(2));
-  dot.setAttribute('r', '0.8');
-  dot.setAttribute('fill', c);
-
-  svg.appendChild(line); svg.appendChild(dot);
-  // Insert leader BEFORE the pin so it renders underneath
+  // Get the rendered pin element to find its actual pixel position
   const pin = ov.querySelector('[data-aid="' + a.id + '"]');
+
+  // Anchor point: bottom-left corner of the note box in CSS px
+  // a.x, a.y are percentages of the overlay
+  const anchorPxX = a.x / 100 * vp.width;
+  const anchorPxY = a.y / 100 * vp.height;
+
+  // Actual box size — use pin's rendered size if available, else estimate
+  const boxW = pin ? pin.offsetWidth  : 140;
+  const boxH = pin ? pin.offsetHeight : 60;
+
+  // Leader tip in px
+  const tipPxX = a.leaderX / 100 * vp.width;
+  const tipPxY = a.leaderY / 100 * vp.height;
+
+  // Choose the anchor corner closest to the tip
+  const corners = [
+    [anchorPxX,         anchorPxY        ],  // top-left
+    [anchorPxX + boxW,  anchorPxY        ],  // top-right
+    [anchorPxX,         anchorPxY + boxH ],  // bottom-left
+    [anchorPxX + boxW,  anchorPxY + boxH ],  // bottom-right
+  ];
+  const [fromX, fromY] = corners.reduce((best, corner) => {
+    const d = Math.hypot(corner[0] - tipPxX, corner[1] - tipPxY);
+    const bd = Math.hypot(best[0]  - tipPxX, best[1]  - tipPxY);
+    return d < bd ? corner : best;
+  }, corners[2]); // default bottom-left
+
+  // Build SVG in pixel space — fills the overlay exactly
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.className = 'an-leader';
+  svg.setAttribute('width',  vp.width);
+  svg.setAttribute('height', vp.height);
+  svg.dataset.leader = a.id;
+
+  // Arrow marker
+  const markerId = 'nl-arr-' + a.id;
+  const defs   = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  marker.setAttribute('id', markerId);
+  marker.setAttribute('viewBox', '0 0 8 8');
+  marker.setAttribute('refX', '7'); marker.setAttribute('refY', '4');
+  marker.setAttribute('markerWidth', '6'); marker.setAttribute('markerHeight', '6');
+  marker.setAttribute('orient', 'auto');
+  const arrowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  arrowPath.setAttribute('d', 'M0,0 L8,4 L0,8 Z');
+  arrowPath.setAttribute('fill', c);
+  marker.appendChild(arrowPath); defs.appendChild(marker); svg.appendChild(defs);
+
+  // Line
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', fromX.toFixed(1)); line.setAttribute('y1', fromY.toFixed(1));
+  line.setAttribute('x2', tipPxX.toFixed(1)); line.setAttribute('y2', tipPxY.toFixed(1));
+  line.setAttribute('stroke', c);
+  line.setAttribute('stroke-width', '1.5');
+  line.setAttribute('stroke-linecap', 'round');
+  line.setAttribute('marker-end', 'url(#' + markerId + ')');
+  svg.appendChild(line);
+
+  // Insert behind the pin
   if (pin) ov.insertBefore(svg, pin);
   else ov.appendChild(svg);
 }
 
-function openNoteBubble(a, pinEl, ov) {
-  // Close any existing bubble first
-  closeNoteBubble();
-  _openBubbleId = a.id;
-  pinEl.dataset.bubbleOpen = '1';
-
-  const c = CHex[a.color] || CHex.yellow;
-
-  const bubble = document.createElement('div');
-  bubble.className = 'an-bubble';
-  bubble.id = 'note-bubble-' + a.id;
-
-  // Text content
-  const textDiv = document.createElement('div');
-  textDiv.style.cssText = 'font-size:12px;line-height:1.5;white-space:pre-wrap;color:var(--gray-800);margin-bottom:6px;max-width:220px;word-break:break-word';
-  textDiv.textContent = a.text || '';
-  bubble.appendChild(textDiv);
-
-  // Priority badge if set
-  if (a.priority) {
-    const colors = { Critical:'#fee2e2', Major:'#ffedd5', Minor:'#fef9c3', Info:'#dbeafe' };
-    const textc  = { Critical:'#b91c1c', Major:'#c2410c', Minor:'#854d0e', Info:'#1d4ed8' };
-    const badge  = document.createElement('span');
-    badge.style.cssText = 'display:inline-block;font-size:9px;font-weight:700;font-family:var(--mono);' +
-      'text-transform:uppercase;letter-spacing:.4px;padding:1px 6px;border-radius:3px;margin-bottom:5px;' +
-      'background:' + (colors[a.priority]||'#f1f5f9') + ';color:' + (textc[a.priority]||'#475569');
-    badge.textContent = a.priority;
-    bubble.insertBefore(badge, textDiv);
-  }
-
-  // EMMA index
-  const emmaIdx = !a.emmaExclude ? getEmmaIndex(a.id) : 0;
-  if (emmaIdx > 0) {
-    const ref = document.createElement('div');
-    ref.style.cssText = 'font-size:9px;font-family:var(--mono);color:#7c3aed;margin-bottom:4px;font-weight:600';
-    ref.textContent = 'EMMA #' + emmaIdx;
-    bubble.insertBefore(ref, bubble.firstChild);
-  }
-
-  // Action buttons
-  const actions = document.createElement('div');
-  actions.className = 'an-bubble-actions';
-
-  const editBtn = document.createElement('button');
-  editBtn.className = 'an-bubble-btn primary';
-  editBtn.textContent = 'Edit';
-  editBtn.onclick = ev => { ev.stopPropagation(); closeNoteBubble(); editAnnotById(a.id); };
-
-  const leaderBtn = document.createElement('button');
-  leaderBtn.className = 'an-bubble-btn';
-  leaderBtn.textContent = a.leaderX !== undefined ? 'Move arrow' : '+ Arrow';
-  leaderBtn.title = 'Click anywhere on the drawing to place / reposition the leader arrow';
-  leaderBtn.onclick = ev => {
-    ev.stopPropagation();
-    closeNoteBubble();
-    startLeaderPlacement(a.id, ov);
-  };
-
-  const delBtn = document.createElement('button');
-  delBtn.className = 'an-bubble-btn danger';
-  delBtn.textContent = 'Delete';
-  delBtn.onclick = ev => { ev.stopPropagation(); closeNoteBubble(); deleteAnnotById(a.id); };
-
-  if (a.leaderX !== undefined) {
-    const rmLeaderBtn = document.createElement('button');
-    rmLeaderBtn.className = 'an-bubble-btn';
-    rmLeaderBtn.textContent = '✕ Arrow';
-    rmLeaderBtn.title = 'Remove leader arrow';
-    rmLeaderBtn.onclick = ev => {
-      ev.stopPropagation();
-      a.leaderX = undefined; a.leaderY = undefined;
-      closeNoteBubble();
-      syncAnnots(); pushHistory();
-    };
-    actions.appendChild(rmLeaderBtn);
-  }
-
-  actions.appendChild(editBtn);
-  actions.appendChild(leaderBtn);
-  actions.appendChild(delBtn);
-  bubble.appendChild(actions);
-
-  pinEl.appendChild(bubble);
-
-  // Close bubble when clicking elsewhere
-  setTimeout(() => {
-    document.addEventListener('mousedown', _bubbleOutsideHandler, { capture: true, once: true });
-  }, 10);
-}
-
-function _bubbleOutsideHandler(e) {
-  const bubble = document.getElementById('note-bubble-' + _openBubbleId);
-  const pin = bubble?.closest('[data-aid]');
-  if (bubble && !bubble.contains(e.target) && e.target !== pin && !pin?.contains(e.target)) {
-    closeNoteBubble();
-  } else if (!bubble) {
-    closeNoteBubble();
-  }
-}
-
-function closeNoteBubble() {
-  if (_openBubbleId === null) return;
-  const bubble = document.getElementById('note-bubble-' + _openBubbleId);
-  if (bubble) bubble.remove();
-  // Remove bubbleOpen marker from pin
-  document.querySelectorAll('[data-bubble-open]').forEach(el => delete el.dataset.bubbleOpen);
-  _openBubbleId = null;
-}
+// Note is now always expanded (text always visible in box).
+// These stubs keep compatibility with any remaining call sites.
+function openNoteBubble() {}
+function _bubbleOutsideHandler() {}
+function closeNoteBubble() { _openBubbleId = null; }
 
 function startLeaderPlacement(annotId, ov) {
   _leaderPlaceId = annotId;
@@ -3501,18 +3429,11 @@ function attachAnnotListeners(el, a, ov) {
     el.addEventListener('click', ev => {
       if (tool !== 'pan') return;
       ev.stopPropagation();
-      if (a.type === 'note') {
-        // Toggle bubble open/closed
-        if (_openBubbleId === a.id) { closeNoteBubble(); }
-        else { openNoteBubble(a, el, el.closest('.aoverlay')); }
-      } else {
-        editAnnotById(a.id);
-      }
+      editAnnotById(a.id);
     });
     el.addEventListener('dblclick', ev => {
       ev.stopPropagation();
-      if (a.type === 'note') { closeNoteBubble(); editAnnotById(a.id); }
-      else { editAnnotById(a.id); }
+      editAnnotById(a.id);
     });
   }
 
@@ -3553,22 +3474,92 @@ function buildAnnotEl(a) {
     el = document.createElement('div'); el.className = 'astrike';
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;background:${CHex[a.color] || CHex.rose}55;border-top:2.5px solid ${CHex[a.color] || CHex.rose};border-bottom:2.5px solid ${CHex[a.color] || CHex.rose}`;
   } else if (a.type === 'note') {
-    // Build the pin icon container
     el = document.createElement('div');
     el.className = 'an';
     const c = CHex[a.color] || CHex.yellow;
-    el.style.cssText = 'position:absolute;left:' + a.x + '%;top:' + a.y + '%;background:' + c;
+    el.style.cssText = 'position:absolute;left:' + a.x + '%;top:' + a.y + '%';
 
-    // Inner label — EMMA index or priority initial
-    const inner = document.createElement('span');
-    inner.className = 'an-inner';
+    // Coloured header bar
+    const header = document.createElement('div');
+    header.className = 'an-header';
+    header.style.background = c;
+
+    // Icon + EMMA index or priority
+    const icon = document.createElement('span');
+    icon.className = 'an-header-icon';
+    icon.textContent = '✎';
+    header.appendChild(icon);
+
     const emmaIdx = !a.emmaExclude ? getEmmaIndex(a.id) : 0;
-    const priorityInitial = { Critical:'!', Major:'M', Minor:'m', Info:'i' }[a.priority] || '';
-    inner.textContent = emmaIdx > 0 ? emmaIdx : (priorityInitial || '✎');
-    el.appendChild(inner);
+    if (emmaIdx > 0) {
+      const badge = document.createElement('span');
+      badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;' +
+        'width:15px;height:15px;background:rgba(0,0,0,.25);color:#fff;border-radius:50%;' +
+        'font-size:9px;font-weight:700;font-family:var(--mono);flex-shrink:0';
+      badge.textContent = emmaIdx;
+      header.appendChild(badge);
+    }
 
-    // Leader SVG — rendered as sibling in overlay, not child of pin
-    // (drawn separately in syncAnnots via buildNoteLeader)
+    if (a.priority) {
+      const pri = document.createElement('span');
+      pri.style.cssText = 'font-size:9px;opacity:.8;margin-left:auto';
+      pri.textContent = { Critical:'🔴', Major:'🟠', Minor:'🟡', Info:'🔵' }[a.priority] || '';
+      header.appendChild(pri);
+    } else {
+      const authorEl = document.createElement('span');
+      authorEl.className = 'an-author';
+      authorEl.textContent = a.author || '';
+      header.appendChild(authorEl);
+    }
+
+    el.appendChild(header);
+
+    // Text body — always visible
+    const body = document.createElement('div');
+    body.className = 'an-body';
+    body.textContent = a.text || '';
+    el.appendChild(body);
+
+    // Hover action bar
+    const actions = document.createElement('div');
+    actions.className = 'an-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'an-act-btn primary';
+    editBtn.textContent = 'Edit';
+    editBtn.onclick = ev => { ev.stopPropagation(); editAnnotById(a.id); };
+
+    const leaderBtn = document.createElement('button');
+    leaderBtn.className = 'an-act-btn';
+    leaderBtn.textContent = a.leaderX !== undefined ? '↗ Arrow' : '+ Arrow';
+    leaderBtn.title = 'Click on drawing to place leader arrow';
+    leaderBtn.onclick = ev => {
+      ev.stopPropagation();
+      const ov = el.closest('.aoverlay');
+      startLeaderPlacement(a.id, ov);
+    };
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'an-act-btn danger';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Delete note';
+    delBtn.onclick = ev => { ev.stopPropagation(); deleteAnnotById(a.id); };
+
+    if (a.leaderX !== undefined) {
+      const rmBtn = document.createElement('button');
+      rmBtn.className = 'an-act-btn';
+      rmBtn.textContent = '✕ Arrow';
+      rmBtn.onclick = ev => {
+        ev.stopPropagation();
+        a.leaderX = undefined; a.leaderY = undefined;
+        syncAnnots(); pushHistory();
+      };
+      actions.appendChild(rmBtn);
+    }
+    actions.appendChild(editBtn);
+    actions.appendChild(leaderBtn);
+    actions.appendChild(delBtn);
+    el.appendChild(actions);
 
   } else if (a.type === 'text') {
     el = document.createElement('div'); el.className = 'atxt';
@@ -4884,8 +4875,9 @@ async function idbSave() {
       emmaFields: captureEmmaFields(), savedAt: new Date().toISOString() };
     const tx = idb.transaction('sessions', 'readwrite');
     tx.objectStore('sessions').put(data);
-    const dot = document.getElementById('autosave-dot');
-    if (dot) { dot.classList.add('pulse'); setTimeout(() => dot.classList.remove('pulse'), 1500); }
+    const dot  = document.getElementById('autosave-dot');
+    const dot2 = document.getElementById('rat-autosave');
+    [dot, dot2].forEach(d => { if (d) { d.classList.add('pulse'); setTimeout(() => d.classList.remove('pulse'), 1500); } });
   } catch(e) { /* silent */ }
 }
 
@@ -4912,22 +4904,20 @@ function captureEmmaFields() {
 function updateTemplateUI(filename) {
   const btn = document.querySelector('.emma-import-btn');
   if (!btn) return;
-  const fileInput = '<input type="file" id="emma-template-file" accept=".xlsm,.xlsx" style="display:none" onchange="loadEmmaTemplate(event)">';
+  // The static <input id="emma-template-file"> is always in the DOM — don't inject a duplicate
   if (filename) {
     const short = filename.replace(/\.xlsm$/i,'').replace(/\.xlsx$/i,'').slice(0, 24);
     btn.innerHTML =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 11l3 3L22 4"/></svg> ' +
       short +
-      ' <span onclick="clearEmmaTemplate(event)" style="margin-left:6px;color:#b91c1c;font-weight:700;cursor:pointer" title="Remove saved template">&times;</span>' +
-      fileInput;
+      ' <span onclick="clearEmmaTemplate(event)" style="margin-left:6px;color:#b91c1c;font-weight:700;cursor:pointer" title="Remove saved template">&times;</span>';
     btn.style.color = '#166534';
     btn.style.borderColor = '#bbf7d0';
     btn.style.background = '#f0fdf4';
   } else {
     btn.innerHTML =
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ' +
-      'Load Template' +
-      fileInput;
+      'Load Template';
     btn.style.color = '';
     btn.style.borderColor = '';
     btn.style.background = '';
@@ -6352,6 +6342,7 @@ async function extractPdfText() {
 
 const TOOL_HINTS = {
   pan:          'Click and drag to scroll · drag any annotation to move it · Space to temporarily pan',
+  select:       'Drag to select text · Ctrl+C to copy · Ctrl+A to select all text on this page · Esc or V to return to Pan',
   erase:        'Click any annotation to delete it · works on all annotation types',
   highlight:    'Drag to highlight a region · colour set in Style group',
   texthighlight:'Swipe across text like a physical highlighter pen',
@@ -6372,7 +6363,7 @@ const TOOL_HINTS = {
 };
 
 const TOOL_TABS = {
-  pan:'markup', erase:'markup', zoombox:'markup',
+  pan:'markup', select:'markup', erase:'markup', zoombox:'markup',
   highlight:'markup', texthighlight:'markup', rect:'markup', rectfill:'markup',
   strike:'markup', line:'markup', callout:'markup', textbox:'markup',
   note:'markup', text:'markup',
@@ -6408,24 +6399,23 @@ function setStrokeW(val, optEl) {
 // Patch setTool to update ribbon active states and hint strip
 const _ribbonSetTool = setTool;
 setTool = function(t) {
+  // Close any open note bubble when switching tools
+  if (typeof closeNoteBubble === 'function') closeNoteBubble();
+  // Clear text selection when leaving select tool
+  if (tool === 'select' && t !== 'select') clearTextSelection();
+
   _ribbonSetTool(t);
 
   // Update ribbon button active states — clear all, set new
   document.querySelectorAll('.rbtn').forEach(b => {
-    b.classList.remove('active');
-    if (b.id !== 't-erase') b.classList.remove('eraser-active');
+    b.classList.remove('active', 'eraser-active');
   });
   const btn = document.getElementById('t-' + t);
-  if (btn) {
-    if (t === 'erase') btn.classList.add('active');
-    else btn.classList.add('active');
-  }
-  // Restore eraser passive style
+  if (btn) btn.classList.add('active');
+
+  // Restore eraser passive style when not erasing
   const erBtn = document.getElementById('t-erase');
-  if (erBtn && t !== 'erase') {
-    erBtn.classList.remove('active');
-    erBtn.classList.add('eraser-active');
-  }
+  if (erBtn && t !== 'erase') erBtn.classList.add('eraser-active');
 
   // Update active tool strip
   const ratName = document.getElementById('rat-name');
@@ -6436,8 +6426,8 @@ setTool = function(t) {
   // Auto-switch ribbon tab to match tool
   const targetTab = TOOL_TABS[t];
   if (targetTab) {
-    const tabBtn = document.getElementById(`rtab-${targetTab}`);
-    switchRibbon(targetTab, tabBtn);
+    const tabBtn = document.getElementById('rtab-' + targetTab);
+    if (tabBtn) switchRibbon(targetTab, tabBtn);
   }
 };
 
@@ -6462,41 +6452,50 @@ document.addEventListener('keydown', e => {
 const _origApplyZoomRibbon = applyZoom;
 applyZoom = async function(val) {
   await _origApplyZoomRibbon(val);
-  const pct = Math.round(zoom * 100);
-  const el = document.getElementById('sb-zoom-val');
-  if (el) el.textContent = pct + '%';
-  // Keep select in sync
+  const pct = Math.round(zoom * 100) + '%';
+  // Update both the ribbon strip and the status bar
+  const ratZoom = document.getElementById('rat-zoom');
+  const sbZoom  = document.getElementById('sb-zoom');
+  const zoomVal = document.getElementById('sb-zoom-val');
+  if (ratZoom) ratZoom.textContent = pct;
+  if (sbZoom)  sbZoom.innerHTML = '<div class="sbdot b"></div>' + pct;
+  if (zoomVal) zoomVal.textContent = pct;
   const sel = document.getElementById('zsel');
   if (sel && !isNaN(parseFloat(val))) sel.value = String(parseFloat(val));
 };
 
-// Patch updateStatusCount to also update ribbon indicator
+// Patch updateStatusCount to also update ribbon strip
 const _origUpdateStatusCount = updateStatusCount;
 updateStatusCount = function() {
   _origUpdateStatusCount();
-  const el = document.getElementById('sb-count');
-  if (el) el.textContent = `${annots.length} annotation${annots.length !== 1 ? 's' : ''}`;
+  const txt = `${annots.length} annotation${annots.length !== 1 ? 's' : ''}`;
+  const el = document.getElementById('rat-count');
+  if (el) el.textContent = txt;
 };
 
-// Patch scale display to update ribbon measure tab
+// Patch scale display to update both ribbon strip and status bar
 const _origApplyScale = applyScale;
 applyScale = function() {
   _origApplyScale();
   updateRibbonScale();
 };
 function updateRibbonScale() {
-  const el = document.getElementById('sb-scale-r');
-  const sb = document.getElementById('sb-scale');
+  const ratScale = document.getElementById('rat-scale');
+  const sbScale  = document.getElementById('sb-scale');
+  const ratR     = document.getElementById('sb-scale-r');
   if (measureScale) {
-    const txt = `1:set (${measureScale.unit})`;
-    if (el) el.innerHTML = `<strong style="color:var(--blue-600)">${txt}</strong>`;
-    if (sb) sb.textContent = '⚖ ' + txt;
+    const txt = '⚖ 1:set (' + measureScale.unit + ')';
+    if (ratScale) ratScale.textContent = txt;
+    if (sbScale)  sbScale.textContent = txt;
+    if (ratR)     ratR.innerHTML = '<strong style="color:var(--blue-600)">1:set (' + measureScale.unit + ')</strong>';
   }
 }
 
-// Mouse position update for ribbon strip
-document.getElementById('viewer').addEventListener('mousemove', e => {
-  // sb-pos already handled in renderPageContent via wrap.addEventListener
+// Mouse position: mirror sb-pos to rat-pos
+document.getElementById('viewer').addEventListener('mousemove', () => {
+  const sbPos  = document.getElementById('sb-pos');
+  const ratPos = document.getElementById('rat-pos');
+  if (sbPos && ratPos) ratPos.textContent = sbPos.textContent;
 });
 
 // ═══════════════════════════════════════════════
@@ -6898,11 +6897,274 @@ loadPDF = async function(file) {
   if (pdf) check3DContent(pdf);
 };
 
-// ── Keyboard shortcuts: Z = marquee zoom, Escape = back to pan ──
+// ── Copy feedback in select mode — handled by _selEnd in selection engine ──
+
+// ═══════════════════════════════════════════════
+//  CUSTOM TEXT SELECTION ENGINE
+//  Works in any direction, with any text rotation.
+//  Uses page-space hit testing, not DOM selection.
+// ═══════════════════════════════════════════════
+let _selState = null; // { pageNum, ov, svgEl, rectEl, x0, y0 }
+let _selHits  = [];   // currently highlighted text items
+
+function _selStart(ev, pageNum, ov) {
+  if (tool !== 'select') return;
+  if (ev.button !== 0) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+
+  // Always clear any previous selection before starting a new one
+  _selClear();
+
+  const r = ov.getBoundingClientRect();
+  const x0 = ev.clientX - r.left;
+  const y0 = ev.clientY - r.top;
+
+  // Drag rectangle (CSS div — stays visible after release showing selection bounds)
+  const rectEl = document.createElement('div');
+  rectEl.className = 'sel-rect';
+  rectEl.style.cssText = 'left:' + x0 + 'px;top:' + y0 + 'px;width:0;height:0';
+  ov.appendChild(rectEl);
+
+  // SVG overlay for text highlight rects — data attribute for reliable cleanup
+  const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svgEl.dataset.selSvg = '1';
+  svgEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:5';
+  ov.appendChild(svgEl);
+
+  _selState = { pageNum, ov, svgEl, rectEl, x0, y0, x1: x0, y1: y0 };
+}
+
+function _selMove(ev) {
+  if (!_selState || tool !== 'select') return;
+  const { ov, rectEl, x0, y0 } = _selState;
+  const r = ov.getBoundingClientRect();
+  const x1 = ev.clientX - r.left;
+  const y1 = ev.clientY - r.top;
+  _selState.x1 = x1; _selState.y1 = y1;
+
+  // Update drag rect — works in all directions
+  const lx = Math.min(x0, x1), ly = Math.min(y0, y1);
+  const lw = Math.abs(x1 - x0), lh = Math.abs(y1 - y0);
+  rectEl.style.cssText = 'left:' + lx + 'px;top:' + ly + 'px;width:' + lw + 'px;height:' + lh + 'px';
+
+  // Live hit-test and highlight
+  _selHighlight(_selState);
+}
+
+function _selEnd(ev) {
+  if (!_selState || tool !== 'select') return;
+
+  _selHighlight(_selState);
+
+  const text = _selHits.map(h => h.str).join(' ').replace(/\s+/g, ' ').trim();
+
+  // Tiny drag with no hits = click = try to select the item under the cursor
+  const isDot = Math.abs(_selState.x1 - _selState.x0) < 4 &&
+                Math.abs(_selState.y1 - _selState.y0) < 4;
+
+  if (isDot) {
+    // Point-select: find the single text item the cursor is over
+    const cx = _selState.x0, cy = _selState.y0;
+    const items = _pageTextItems[_selState.pageNum] || [];
+    const hit = items.find(item => _rectHitsItem(cx - 2, cy - 2, 4, 4, item));
+    if (hit) {
+      // Highlight just that item
+      const { svgEl } = _selState;
+      while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
+      _selHits = [hit];
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('class', 'sel-hit');
+      rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
+      rect.setAttribute('width', hit.w.toFixed(1)); rect.setAttribute('height', hit.h.toFixed(1));
+      const tx = hit.x, ty = hit.y - hit.h;
+      const deg = -(hit.angle * 180 / Math.PI);
+      rect.setAttribute('transform',
+        'translate(' + tx.toFixed(1) + ',' + ty.toFixed(1) + ')' +
+        (deg !== 0 ? ' rotate(' + deg.toFixed(2) + ')' : '')
+      );
+      svgEl.appendChild(rect);
+      // Keep a tiny invisible rect el
+      rectEl.style.cssText = 'left:' + (cx-2) + 'px;top:' + (cy-2) + 'px;width:4px;height:4px;border:none;background:none';
+    } else {
+      _selClear();
+      _selState = null;
+      return;
+    }
+  }
+
+  if (!_selHits.length) {
+    _selClear();
+    _selState = null;
+    return;
+  }
+
+  // Keep rectEl and svgEl visible as selection indicator
+  // Remove the drag rect's border animation, keep the fill to show selected area
+  const { rectEl } = _selState;
+  rectEl.style.borderStyle = 'solid';
+  rectEl.style.borderColor = 'rgba(37,99,235,0.35)';
+  rectEl.style.background  = 'rgba(37,99,235,0.04)';
+
+  // Copy to clipboard
+  navigator.clipboard.writeText(text)
+    .then(() => toast('Copied ' + text.length + ' chars · drag to reselect · Esc to clear', 2800))
+    .catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      try { document.execCommand('copy'); toast('Copied · Esc to clear', 2400); }
+      catch(e) { toast('Press Ctrl+C to copy selection', 2400); }
+      ta.remove();
+    });
+
+  _selState = null; // clear state ref but leave DOM elements for visual feedback
+}
+
+function _selHighlight(state) {
+  const { pageNum, svgEl, x0, y0, x1, y1 } = state;
+  // Selection rect in page CSS-pixel coords
+  const rx = Math.min(x0, x1), ry = Math.min(y0, y1);
+  const rw = Math.abs(x1 - x0), rh = Math.abs(y1 - y0);
+
+  // Clear previous SVG rects
+  while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
+  _selHits = [];
+
+  const items = _pageTextItems[pageNum];
+  if (!items) return;
+
+  items.forEach(item => {
+    // item.x, item.y = CSS pixels, bottom-left origin (y increases downward from top)
+    // Convert to top-left bounding box for the hit test
+    if (!_rectHitsItem(rx, ry, rw, rh, item)) return;
+
+    _selHits.push(item);
+
+    // Draw highlight rect in SVG — use item's own transform for rotated text
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('class', 'sel-hit');
+    rect.setAttribute('x', '0');
+    rect.setAttribute('y', '0');
+    rect.setAttribute('width',  item.w.toFixed(1));
+    rect.setAttribute('height', item.h.toFixed(1));
+    // Transform: translate to item position, then rotate
+    const tx = item.x;
+    const ty = item.y - item.h; // y is baseline; move up by height
+    const deg = -(item.angle * 180 / Math.PI);
+    rect.setAttribute('transform',
+      'translate(' + tx.toFixed(1) + ',' + ty.toFixed(1) + ')' +
+      (deg !== 0 ? ' rotate(' + deg.toFixed(2) + ')' : '')
+    );
+    svgEl.appendChild(rect);
+  });
+}
+
+function _rectHitsItem(rx, ry, rw, rh, item) {
+  // Axis-aligned bounding box check for the selection rect vs item.
+  // For rotated text we use the item's AABB (good enough for most cases).
+  const ix = item.x;
+  const iy = item.y - item.h; // top-left y
+  const iw = item.w;
+  const ih = item.h;
+
+  // For rotated items, compute AABB of all 4 corners
+  if (item.angle !== 0) {
+    const cos = Math.cos(item.angle), sin = Math.sin(item.angle);
+    const corners = [
+      [ix, iy], [ix + iw, iy], [ix + iw, iy + ih], [ix, iy + ih]
+    ].map(([cx, cy]) => {
+      // Rotate around item origin (ix, item.y)
+      const dx = cx - ix, dy = cy - item.y;
+      return [ix + dx * cos - dy * sin, item.y + dx * sin + dy * cos];
+    });
+    const minX = Math.min(...corners.map(c => c[0]));
+    const maxX = Math.max(...corners.map(c => c[0]));
+    const minY = Math.min(...corners.map(c => c[1]));
+    const maxY = Math.max(...corners.map(c => c[1]));
+    return rx < maxX && rx + rw > minX && ry < maxY && ry + rh > minY;
+  }
+
+  return rx < ix + iw && rx + rw > ix && ry < iy + ih && ry + rh > iy;
+}
+
+function _selClear() {
+  // Remove drag rect and highlight SVG from any page overlay
+  document.querySelectorAll('.aoverlay [data-sel-svg]').forEach(el => el.remove());
+  document.querySelectorAll('.aoverlay .sel-rect').forEach(el => el.remove());
+  if (_selState) {
+    _selState.rectEl?.remove?.();
+    _selState = null;
+  }
+  _selHits = [];
+}
+
+// Wire up select events to page overlays on each render
+// Called from attachEvents in renderPageContent
+function attachSelectEvents(ov, pageNum) {
+  ov.addEventListener('mousedown', ev => {
+    if (tool !== 'select') return;
+    _selStart(ev, pageNum, ov);
+  });
+}
+
+// Global mousemove and mouseup for the drag (works even if mouse leaves overlay)
+document.addEventListener('mousemove', ev => { if (_selState) _selMove(ev); });
+document.addEventListener('mouseup',   ev => { if (_selState) _selEnd(ev); });
+
+// Ctrl+A: select all text on current visible page
+document.addEventListener('keydown', ev => {
+  if (tool !== 'select') return;
+  if (ev.target.closest('input,textarea,select')) return;
+  if (!(ev.ctrlKey || ev.metaKey) || ev.key !== 'a') return;
+  ev.preventDefault();
+  const wrap = document.getElementById('pw-' + curPg);
+  const ov   = wrap?.querySelector('.aoverlay');
+  if (!ov || !wrap) return;
+  _selClear();
+  // Fake a full-page selection rect
+  const vp = pageViewports[curPg];
+  if (!vp) return;
+  _selState = { pageNum: curPg, ov,
+    svgEl: (() => {
+      const s = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      s.dataset.selSvg = '1';
+      s.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:5';
+      ov.appendChild(s); return s;
+    })(),
+    rectEl: { remove: () => {}, style: {} },
+    x0: 0, y0: 0, x1: vp.width, y1: vp.height,
+  };
+  _selHighlight(_selState);
+  // Auto-copy
+  const text = _selHits.map(h => h.str).join(' ').replace(/\s+/g, ' ').trim();
+  if (text) {
+    navigator.clipboard.writeText(text).catch(() => {});
+    toast('Copied all text on page (' + text.length + ' chars)', 2400);
+  }
+  _selState.rectEl = { remove: () => {} }; // keep SVG, clear state ref
+  const svgRef = _selState.svgEl;
+  _selState = null;
+});
+
+// Clear selection when leaving select mode
+function clearTextSelection() {
+  _selClear();
+  window.getSelection()?.removeAllRanges();
+}
+
+// ── Keyboard shortcuts: Z = marquee zoom, S = select text, Escape = back to pan ──
 document.addEventListener('keydown', ev => {
   if (ev.target.closest('input,textarea,select')) return;
   if (ev.key === 'z' && !ev.ctrlKey && !ev.metaKey) setTool('zoombox');
-  if (ev.key === 'Escape') { _mqStart = null; document.getElementById('zoom-marquee').style.display='none'; }
+  if (ev.key === 'Escape') {
+    _mqStart = null;
+    document.getElementById('zoom-marquee').style.display = 'none';
+    if (tool === 'select' || tool === 'zoombox') {
+      clearTextSelection();
+      setTool('pan');
+    }
+  }
 });
 
 // Initialise tool state without auto-switching ribbon tab

@@ -597,6 +597,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 /* annotation overlay */
 .aoverlay{position:absolute;inset:0;pointer-events:none;border-radius:2px;overflow:visible;z-index:3}
 .aoverlay.active{pointer-events:all}
+.aoverlay.active{pointer-events:all}
 .aoverlay.cur-cross{cursor:crosshair}
 .aoverlay.cur-cell{cursor:cell}
 .aoverlay.cur-text{cursor:text}
@@ -867,6 +868,20 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 /* eraser hover highlight */
 .annot-hover-del{outline:2px solid var(--red-400)!important;
   background:rgba(239,68,68,.08)!important}
+
+/* Move overlay — transparent div covering each annotation in pan mode */
+.ann-move-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none; /* enabled only in pan mode via refreshAnnotMoveHandles */
+  border-radius: inherit;
+}
+/* SVG annotations get a small grip handle instead of inset:0 overlay */
+.ann-move-overlay.ann-svg-handle {
+  inset: auto;
+  width: 22px; height: 22px;
+}
 
 /* ── TEXT INPUT POPOVER ── */
 #txt-pop{position:fixed;z-index:400;background:var(--white);border:1px solid var(--gray-300);
@@ -2763,7 +2778,7 @@ async function buildPageShells() {
     // Overlay sized to match shell — corrected in renderPageContent
     const ov = document.createElement('div');
     // In pan mode the overlay must be pass-through (no 'active' class)
-    ov.className = tool === 'pan' ? 'aoverlay' : 'aoverlay active';
+    ov.className = 'aoverlay active';
     ov.dataset.page = i;
     ov.style.cssText = `position:absolute;top:0;left:0;width:${shellW}px;height:${shellH}px`;
     // Attach events with a deferred viewport — resolved when page renders
@@ -3078,10 +3093,11 @@ function setTool(t) {
       o.style.cursor = '';
       o.className = 'aoverlay active cur-crosshair';
     } else if (t === 'pan') {
-      // Pass-through — no active class so overlay doesn't block annotation drag or viewer scroll
+      // Pan mode: overlay stays active so we can detect clicks on annotations for dragging.
+      // Empty-space clicks scroll the viewer (handled in overlay mousedown below).
       o.style.pointerEvents = '';
       o.style.cursor = '';
-      o.className = 'aoverlay cur-pan';
+      o.className = 'aoverlay active cur-pan';
     } else {
       o.style.pointerEvents = '';
       o.style.cursor = '';
@@ -3121,33 +3137,22 @@ function refreshAnnotPointerEvents() {
                        el.classList.contains('atextbox') || el.classList.contains('acallout');
 
     if (tool === 'select') {
-      // Select mode: overlay IS active (receives mousedown for selection)
-      // but all annotation elements must be non-interactive
+      // Select mode: annotations non-interactive, overlay handles text selection
       el.style.pointerEvents = 'none';
       el.style.cursor = '';
       if (isSvgWrap) el.querySelectorAll('path, line, polyline, polygon').forEach(s => { s.style.pointerEvents = 'none'; });
       if (isCallout) { const box = el.querySelector('.acallout-box'); if (box) box.style.pointerEvents = 'none'; }
     } else if (tool === 'pan') {
-      if (isSvgWrap) {
-        // SVG annotation wrappers: allow pointer events for dragging
-        el.style.pointerEvents = 'all';
-        el.style.cursor = 'move';
-        el.querySelectorAll('path, line, polyline, polygon').forEach(s => {
-          s.style.pointerEvents = 'all';
-          s.style.cursor = 'move';
-        });
-      } else if (isCallout) {
-        // Callout: the SVG leader is pointer-events:none (it's decorative),
-        // the inner .acallout-box handles interaction
+      // Move overlays (.ann-move-overlay) handle interaction — annotation elements themselves are pass-through
+      el.style.pointerEvents = 'none';
+      el.style.cursor = '';
+      if (isSvgWrap) el.querySelectorAll('path, line, polyline, polygon').forEach(s => {
+        s.style.pointerEvents = 'none'; s.style.cursor = '';
+      });
+      if (isCallout) {
         el.style.pointerEvents = 'none';
-        el.style.cursor = 'default';
         const box = el.querySelector('.acallout-box');
-        if (box) { box.style.pointerEvents = 'all'; box.style.cursor = 'move'; }
-        const svgEl = el.querySelector('svg');
-        if (svgEl) svgEl.style.pointerEvents = 'none';
-      } else {
-        el.style.pointerEvents = 'all';
-        el.style.cursor = 'move';
+        if (box) { box.style.pointerEvents = 'none'; box.style.cursor = ''; }
       }
     } else if (tool === 'erase') {
       if (isSvgWrap) {
@@ -3221,8 +3226,15 @@ function attachEvents(ov, pageNum, vp) {
     // Select tool handled by attachSelectEvents above
     if (tool === 'select') return;
 
-    // Pan handled by viewer-level mousedown (see global pan handler)
-    if (tool === 'pan') return;
+    // ── PAN: always scrolls — .ann-move-overlay stopPropagation prevents this when dragging annotation ──
+    if (tool === 'pan') {
+      panDragging = true;
+      panStart = { x: e.clientX, y: e.clientY };
+      panScrollStart = { left: viewer.scrollLeft, top: viewer.scrollTop };
+      ov.classList.add('panning');
+      e.preventDefault();
+      return;
+    }
 
     if (tool === 'erase') return;
 
@@ -3423,7 +3435,12 @@ function attachEvents(ov, pageNum, vp) {
   });
 
   ov.addEventListener('mousemove', e => {
-    // (pan scroll handled by global document mousemove listener)
+    // Pan drag-scroll
+    if (tool === 'pan' && panDragging && panStart) {
+      viewer.scrollLeft = panScrollStart.left - (e.clientX - panStart.x);
+      viewer.scrollTop  = panScrollStart.top  - (e.clientY - panStart.y);
+      return;
+    }
 
     const r = ov.getBoundingClientRect();
     const mx = e.clientX - r.left, my = e.clientY - r.top;
@@ -3488,6 +3505,12 @@ function attachEvents(ov, pageNum, vp) {
   });
 
   ov.addEventListener('mouseup', e => {
+    // End pan
+    if (tool === 'pan' && panDragging) {
+      panDragging = false; panStart = null; panScrollStart = null;
+      ov.classList.remove('panning');
+      return;
+    }
     if (!drawing) return; drawing = false;
     const r = ov.getBoundingClientRect();
     const mx = e.clientX - r.left, my = e.clientY - r.top;
@@ -3551,6 +3574,14 @@ function attachEvents(ov, pageNum, vp) {
     } else if (tool === 'cloud') {
       if (w < 0.5 || h < 0.5) return;
       pushAnnot({ id: nextId(), pageNum, type: 'cloud', x, y, w, h, color });
+    }
+  });
+
+  // Stop pan if mouse leaves overlay mid-drag
+  ov.addEventListener('mouseleave', () => {
+    if (tool === 'pan' && panDragging) {
+      panDragging = false; panStart = null; panScrollStart = null;
+      ov.classList.remove('panning');
     }
   });
 }
@@ -3676,21 +3707,6 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// ── PAN: attach to viewer directly — fires even when overlay has pointer-events:none ──
-(function() {
-  const viewer = document.getElementById('viewer');
-  viewer.addEventListener('mousedown', e => {
-    if (tool !== 'pan') return;
-    if (e.button !== 0) return;
-    // Don't pan if clicking on an annotation element (that should be dragged instead)
-    if (e.target.closest('[data-aid]') || e.target.closest('[data-leader]') || e.target.closest('.resize-handle')) return;
-    panDragging = true;
-    panStart = { x: e.clientX, y: e.clientY };
-    panScrollStart = { left: viewer.scrollLeft, top: viewer.scrollTop };
-    document.querySelectorAll('.aoverlay').forEach(o => o.classList.add('panning'));
-    e.preventDefault();
-  }, true); // capturing — fires before overlay
-})();
 document.addEventListener('keyup', e => {
   if (e.key === ' ' && window._prevTool) {
     setTool(window._prevTool); window._prevTool = null;
@@ -3963,8 +3979,57 @@ function attachAnnotListeners(el, a, ov) {
     menu.classList.add('open');
   });
 
-  // Wire up drag-to-move (ov is passed in so el doesn't need to be in DOM yet)
-  if (ov) makeDraggable(el, a, ov);
+  // Wire move overlay — covers the full annotation for every moveable type
+  if (ov && MOVE_TYPES.has(a.type)) {
+    if (el.classList.contains('asvg-wrap')) {
+      // SVG wraps fill the whole overlay — we inject a sibling bounding-box overlay instead
+      wireSvgBoundingOverlay(a, ov);
+    } else {
+      const box = el.classList.contains('acallout') ? (el.querySelector('.acallout-box') || el) : el;
+      wireMoveOverlay(box, a, ov);
+    }
+  }
+}
+
+// SVG-based annotations (pen, arrow, line, measure, area, texthighlight)
+// Compute their bounding box in page-% coords and inject a transparent
+// sibling overlay of the same size — identical drag behaviour to box types.
+function wireSvgBoundingOverlay(ann, ov) {
+  if (!MOVE_TYPES.has(ann.type)) return;
+
+  // Compute bounding box from annotation data (all coords in 0-100% space)
+  let minX, minY, maxX, maxY;
+
+  if (ann.x1 !== undefined) {
+    minX = Math.min(ann.x1, ann.x2); maxX = Math.max(ann.x1, ann.x2);
+    minY = Math.min(ann.y1, ann.y2); maxY = Math.max(ann.y1, ann.y2);
+  } else if (ann.points && ann.points.length) {
+    const xs = ann.points.map(p => p.x * 100);
+    const ys = ann.points.map(p => p.y * 100);
+    minX = Math.min(...xs); maxX = Math.max(...xs);
+    minY = Math.min(...ys); maxY = Math.max(...ys);
+  } else {
+    return; // can't determine bounding box
+  }
+
+  // Pad by 6px-equivalent (use % — rough but close enough)
+  const pad = 1.5;
+  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  const w = Math.max(maxX - minX, 3);
+  const h = Math.max(maxY - minY, 3);
+
+  const proxy = document.createElement('div');
+  proxy.className = 'ann-move-overlay ann-svg-proxy';
+  proxy.dataset.svgProxyFor = ann.id;
+  proxy.style.cssText =
+    'position:absolute;' +
+    'left:' + minX + '%;top:' + minY + '%;' +
+    'width:' + w + '%;height:' + h + '%;' +
+    'cursor:grab;z-index:15;pointer-events:none;' +
+    'border-radius:2px;';
+
+  wireMoveOverlay(proxy, ann, ov);
+  ov.appendChild(proxy);
 }
 
 /* Returns the 1-based EMMa register index for a given annotation id,
@@ -4689,17 +4754,71 @@ function applyScale() {
    v2  = annotations only  (small file)
    v3  = annotations + embedded base64 PDF  (portable)
 ═══════════════════════════════════════════════ */
+// ── File System Access API handle — stored after first save pick ──
+let _fileHandle = null;
+
+async function _saveToHandle(data, filename) {
+  const json = JSON.stringify(data);
+  const blob = new Blob([json], { type: 'application/json' });
+
+  // If we have a stored handle and it matches the current file, write directly
+  if (_fileHandle) {
+    try {
+      const writable = await _fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true; // overwrote successfully
+    } catch(e) {
+      // Handle became invalid (file moved/deleted) — fall through to picker
+      _fileHandle = null;
+    }
+  }
+
+  // Try File System Access API picker (Chrome/Edge)
+  if (window.showSaveFilePicker) {
+    try {
+      _fileHandle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'EngDoc Session', accept: { 'application/json': ['.engdoc'] } }],
+      });
+      const writable = await _fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch(e) {
+      if (e.name === 'AbortError') return false; // user cancelled
+      _fileHandle = null;
+      // Fall through to legacy download
+    }
+  }
+
+  // Legacy fallback — plain <a download> (Firefox, Safari)
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+// Reset handle when a new PDF is opened (new file = new save location)
+const _origLoadPDFSave = loadPDF;
+loadPDF = async function(file) {
+  _fileHandle = null;
+  await _origLoadPDFSave(file);
+};
+
 function saveSession() {
   if (!pdfName && !annots.length) { toast('Nothing to save'); return; }
   const data = { v: 2, pdfName, annotIdSeq, measureScale, annots, emmaRows };
-  _downloadJSON(data, (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc');
-  toast(`✓ Session saved — ${annots.length} annotation${annots.length !== 1 ? 's' : ''}`);
+  const filename = (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
+  _saveToHandle(data, filename).then(ok => {
+    if (ok) toast(`✓ Session saved — ${annots.length} annotation${annots.length !== 1 ? 's' : ''}`);
+  });
 }
 
 async function saveSessionWithPdf() {
   if (!pdfBytes) { toast('Open a PDF first'); return; }
   toast('Embedding PDF… (may take a moment for large files)', 3000);
-  // Convert ArrayBuffer → base64
   const bytes = new Uint8Array(pdfBytes);
   let binary = '';
   const chunk = 8192;
@@ -4708,12 +4827,14 @@ async function saveSessionWithPdf() {
   }
   const b64 = btoa(binary);
   const data = { v: 3, pdfName, annotIdSeq, measureScale, annots, emmaRows, pdfData: b64 };
-  _downloadJSON(data, (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc');
+  const filename = (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
   const sizeMb = (JSON.stringify(data).length / 1024 / 1024).toFixed(1);
-  toast(`✓ Saved with embedded PDF — ${sizeMb} MB`);
+  const ok = await _saveToHandle(data, filename);
+  if (ok) toast(`✓ Saved with embedded PDF — ${sizeMb} MB`);
 }
 
 function _downloadJSON(data, filename) {
+  // Legacy — kept for any external callers; new code uses _saveToHandle
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -7130,116 +7251,145 @@ document.getElementById('viewer').addEventListener('wheel', async e => {
 }, { passive: false });
 
 // ═══════════════════════════════════════════════
-//  MOVE ANNOTATIONS  (drag in pan mode)
+//  ANNOTATION MOVE — drag-handle system
+//  A small grip handle (⠿) is injected into each
+//  annotation element when in pan mode.
+//  Dragging the grip moves the annotation.
+//  Clicking anywhere else on the page always pans.
+//  This means pan never conflicts with annotations.
 // ═══════════════════════════════════════════════
 let _moveState = null;
 
 function makeDraggable(el, a, ov) {
-  const moveable = ['highlight','rect','rectfill','strike','note','text','textbox','callout','cloud',
-                    'pen','texthighlight','arrow','line','measure','area'];
-  if (!moveable.includes(a.type)) return;
+  // No-op: dragging is handled by per-annotation grip handles
+  // injected by refreshAnnotMoveHandles() on tool change
+}
 
-  const targets = [el];
-  if (el.classList.contains('asvg-wrap')) {
-    el.querySelectorAll('path, line, polyline, polygon').forEach(s => targets.push(s));
-  }
-  // Callout: the interactive box is a child — include it as a drag target
-  if (el.classList.contains('acallout')) {
-    const box = el.querySelector('.acallout-box');
-    if (box) targets.push(box);
-  }
+const MOVE_TYPES = new Set(['highlight','rect','rectfill','strike','note','text','textbox',
+                             'callout','cloud','pen','texthighlight','arrow','line','measure',
+                             'area','stamp']);
 
-  targets.forEach(target => {
-    target.addEventListener('mousedown', ev => {
-      if (tool !== 'pan') return;
-      if (ev.button !== 0) return;
-      if (_moveState) return; // already moving something
-      ev.stopPropagation();
-      ev.preventDefault();
+// ── Ghost shown while dragging ──
+function createGhost(el, ov) {
+  const g = el.cloneNode(true);
+  g.id = 'ann-drag-ghost';
+  g.removeAttribute('data-aid');
+  g.querySelectorAll('input,textarea,button,.an-reply-input-wrap,.ann-move-handle').forEach(c => c.remove());
+  g.style.cssText += ';opacity:0.45;pointer-events:none;z-index:200;transition:none;' +
+    'outline:2px dashed rgba(37,99,235,0.7);box-shadow:0 4px 16px rgba(0,0,0,.18);';
+  ov.appendChild(g);
+  return g;
+}
+function removeGhost() {
+  document.getElementById('ann-drag-ghost')?.remove();
+}
 
-      const vp = pageViewports[a.pageNum];
-      if (!vp) return;
+// ── Wire a move overlay onto each annotation element ──
+// The overlay is a transparent div covering the whole annotation.
+// In pan mode it intercepts mousedown, starts the drag, and prevents
+// the event reaching the page overlay (so pan doesn't also fire).
+function wireMoveOverlay(el, ann, ov) {
+  const movEl = document.createElement('div');
+  movEl.className = 'ann-move-overlay';
+  movEl.title = 'Drag to move';
+  movEl.style.cssText =
+    'position:absolute;inset:0;z-index:10;cursor:grab;' +
+    'pointer-events:none;border-radius:inherit;';
 
-      // Use the overlay's actual rendered bounding rect for pixel→% conversion
-      const ovRect = ov.getBoundingClientRect();
+  movEl.addEventListener('mousedown', ev => {
+    if (tool !== 'pan') return;
+    if (ev.button !== 0) return;
+    ev.stopPropagation();
+    ev.preventDefault();
 
-      _moveState = {
-        id:         a.id,
-        startX:     ev.clientX,
-        startY:     ev.clientY,
-        origX:      a.x,    origY:  a.y,
-        origX1:     a.x1,   origY1: a.y1,
-        origX2:     a.x2,   origY2: a.y2,
-        origPoints: a.points ? JSON.parse(JSON.stringify(a.points)) : null,
-        // Use the overlay's actual rendered pixel size, not the vp which may
-        // differ if CSS scaling is involved
-        ovW: ovRect.width,
-        ovH: ovRect.height,
-        hasMoved: false,
-        el,           // keep reference to top-level element for direct DOM update
-      };
+    const ovRect = ov.getBoundingClientRect();
+    const ovW = ovRect.width, ovH = ovRect.height;
+    const startX = ev.clientX, startY = ev.clientY;
+    const orig = {
+      x: ann.x, y: ann.y,
+      x1: ann.x1, y1: ann.y1, x2: ann.x2, y2: ann.y2,
+      lx: ann.lx, ly: ann.ly,
+      leaderX: ann.leaderX, leaderY: ann.leaderY,
+      points: ann.points ? JSON.parse(JSON.stringify(ann.points)) : null,
+    };
 
-      const onMove = mv => {
-        if (!_moveState) return;
-        const dx = (mv.clientX - _moveState.startX) / _moveState.ovW * 100;
-        const dy = (mv.clientY - _moveState.startY) / _moveState.ovH * 100;
-        if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.05) return;
-        _moveState.hasMoved = true;
+    let hasMoved = false, ghost = null;
+    movEl.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
 
-        const ann = annots.find(x => x.id === _moveState.id);
-        if (!ann) return;
+    const onMove = mv => {
+      const dx = (mv.clientX - startX) / ovW * 100;
+      const dy = (mv.clientY - startY) / ovH * 100;
+      if (!hasMoved && Math.hypot(mv.clientX - startX, mv.clientY - startY) < 4) return;
 
-        // Update data model
+      if (!hasMoved) {
+        hasMoved = true;
+        ghost = createGhost(el, ov);
+        el.style.opacity = '0.2';
+      }
+
+      // Update data model
+      if (orig.x  !== undefined) { ann.x  = orig.x  + dx; ann.y  = orig.y  + dy; }
+      if (orig.x1 !== undefined) {
+        ann.x1 = orig.x1 + dx; ann.y1 = orig.y1 + dy;
+        ann.x2 = orig.x2 + dx; ann.y2 = orig.y2 + dy;
+      }
+      if (orig.points) ann.points = orig.points.map(p => ({ x: p.x + dx/100, y: p.y + dy/100 }));
+      if (orig.lx !== undefined) { ann.lx = orig.lx + dx; ann.ly = orig.ly + dy; }
+      if (orig.leaderX !== undefined) { ann.leaderX = orig.leaderX + dx; ann.leaderY = orig.leaderY + dy; }
+
+      // Move ghost live
+      if (ghost) {
         if (ann.x !== undefined) {
-          ann.x = _moveState.origX + dx;
-          ann.y = _moveState.origY + dy;
+          ghost.style.left = ann.x + '%'; ghost.style.top = ann.y + '%';
+        } else {
+          const px = dx / 100 * ovW, py = dy / 100 * ovH;
+          ghost.style.transform = 'translate(' + px + 'px,' + py + 'px)';
         }
-        if (ann.x1 !== undefined) {
-          ann.x1 = _moveState.origX1 + dx;  ann.y1 = _moveState.origY1 + dy;
-          ann.x2 = _moveState.origX2 + dx;  ann.y2 = _moveState.origY2 + dy;
-        }
-        if (ann.points && _moveState.origPoints) {
-          ann.points = _moveState.origPoints.map(p => ({
-            x: p.x + dx / 100,
-            y: p.y + dy / 100,
-          }));
-        }
+      }
+    };
 
-        // Update DOM directly — avoid full syncAnnots re-render during drag
-        const domEl = ov.querySelector('[data-aid="' + _moveState.id + '"]');
-        if (domEl) {
-          if (ann.x !== undefined) {
-            domEl.style.left = ann.x + '%';
-            domEl.style.top  = ann.y + '%';
-          } else if (ann.x1 !== undefined) {
-            // SVG wrap — easiest to use a CSS translate so we don't rebuild the SVG
-            const tdx = dx / 100 * _moveState.ovW;
-            const tdy = dy / 100 * _moveState.ovH;
-            domEl.style.transform = 'translate(' + (dx * _moveState.ovW / 100) + 'px,' + (dy * _moveState.ovH / 100) + 'px)';
-          } else if (ann.points) {
-            domEl.style.transform = 'translate(' + (dx * _moveState.ovW / 100) + 'px,' + (dy * _moveState.ovH / 100) + 'px)';
-          }
-        }
-      };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      movEl.style.cursor = 'grab';
+      document.body.style.userSelect = '';
+      removeGhost();
+      el.style.opacity = '';
+      if (hasMoved) { syncAnnots(); pushHistory(); }
+    };
 
-      const onUp = () => {
-        if (_moveState && _moveState.hasMoved) {
-          // Remove translate and do a proper re-render now drag is done
-          const domEl = ov.querySelector('[data-aid="' + _moveState.id + '"]');
-          if (domEl) domEl.style.transform = '';
-          syncAnnots();
-          pushHistory();
-        }
-        _moveState = null;
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-      };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
 
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-    });
+  // Keep position covering the annotation
+  el.style.position = 'absolute';
+  el.style.overflow = 'visible';
+  el.appendChild(movEl);
+  return movEl;
+}
+
+function refreshAnnotMoveHandles() {
+  // Enable/disable move overlays based on tool
+  document.querySelectorAll('.ann-move-overlay').forEach(m => {
+    m.style.pointerEvents = tool === 'pan' ? 'all' : 'none';
+    m.style.cursor = tool === 'pan' ? 'grab' : '';
   });
 }
+
+// Refresh handles whenever tool changes or annotations change
+const _origSetToolMove = setTool;
+setTool = function(t) {
+  _origSetToolMove(t);
+  setTimeout(refreshAnnotMoveHandles, 50);
+};
+
+const _origSyncAnnotsMove = syncAnnots;
+syncAnnots = function() {
+  _origSyncAnnotsMove();
+  if (tool === 'pan') setTimeout(refreshAnnotMoveHandles, 60);
+};
 
 // Helper: snapshot current state to undo history
 function pushHistory() {
@@ -7364,28 +7514,13 @@ function removeResizeHandles() {
 
 // Attach resize-handle trigger to annotation elements in pan mode
 // Called from makeDraggable — on mousedown in pan mode, show handles
-const _origMakeDraggable = makeDraggable;
-makeDraggable = function(el, a, ov) {
-  _origMakeDraggable(el, a, ov);
-  if (!RESIZABLE.includes(a.type)) return;
-  // On click (not drag), show resize handles
-  el.addEventListener('click', ev => {
-    if (tool !== 'pan') return;
-    if (_resizing) return;
-    ev.stopPropagation();
-    if (_selectedAnnotId === a.id) {
-      removeResizeHandles(); // deselect on second click
-    } else {
-      showResizeHandles(el, a, ov);
-    }
-  });
-};
-
+// Resize handles are shown by clicking annotations in pan mode (see showResizeHandles)
 // Clicking empty overlay in pan mode deselects
 document.addEventListener('mousedown', ev => {
   if (tool !== 'pan') return;
   if (ev.target.closest('.resize-handle')) return;
   if (ev.target.closest('[data-aid]')) return;
+  if (ev.target.closest('.ann-move-handle')) return;
   removeResizeHandles();
 });
 

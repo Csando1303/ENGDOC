@@ -3074,10 +3074,14 @@ function setTool(t) {
   document.querySelectorAll('.aoverlay').forEach(o => {
     if (t === 'select') {
       // Active — receives mousedown for custom selection engine
-      // Annotations inside are disabled via refreshAnnotPointerEvents
       o.style.pointerEvents = '';
       o.style.cursor = '';
       o.className = 'aoverlay active cur-crosshair';
+    } else if (t === 'pan') {
+      // Pass-through — no active class so overlay doesn't block annotation drag or viewer scroll
+      o.style.pointerEvents = '';
+      o.style.cursor = '';
+      o.className = 'aoverlay cur-pan';
     } else {
       o.style.pointerEvents = '';
       o.style.cursor = '';
@@ -3087,7 +3091,6 @@ function setTool(t) {
       else if (t === 'note')    o.classList.add('cur-cell');
       else if (t === 'text')    o.classList.add('cur-text');
       else if (t === 'erase')   o.classList.add('cur-erase');
-      else if (t === 'pan')     o.classList.add('cur-pan');
       else if (t === 'zoombox') o.classList.add('cur-zoombox');
     }
   });

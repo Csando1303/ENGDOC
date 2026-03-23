@@ -2954,6 +2954,7 @@ async function renderPageContent(pageNum) {
   if (ov._pendingAttach) {
     ov._pendingAttach = false;
     attachEvents(ov, pageNum, vp);
+    attachOverlayCtxMenu(ov); // right-click works from first render
     syncAnnotsOnOverlay(ov, pageNum);
   }
 
@@ -3956,10 +3957,53 @@ function startLeaderPlacement(annotId, ov) {
   document.addEventListener('keydown', onEsc);
 }
 
+// ── Overlay-level right-click handler — works in ALL tool modes ──
+// Attached once per overlay. Uses capture phase so pointer-events:none is irrelevant.
+function attachOverlayCtxMenu(ov) {
+  if (ov._ctxHandlerAttached) return;
+  ov._ctxHandlerAttached = true;
+  ov.addEventListener('contextmenu', ev => {
+    ev.preventDefault();
+    // 1. Try to find [data-aid] or [data-svg-proxy-for] by walking up DOM
+    let annotId = null;
+    let t = ev.target;
+    while (t && t !== ov) {
+      if (t.dataset && t.dataset.aid)         { annotId = parseInt(t.dataset.aid);         break; }
+      if (t.dataset && t.dataset.svgProxyFor) { annotId = parseInt(t.dataset.svgProxyFor); break; }
+      t = t.parentNode;
+    }
+    // 2. Fallback: hit-test annotation data by position (catches pointer-events:none elements)
+    if (!annotId) {
+      const pageN = parseInt(ov.dataset.page);
+      const r = ov.getBoundingClientRect();
+      const xPct = (ev.clientX - r.left) / ov.offsetWidth  * 100;
+      const yPct = (ev.clientY - r.top)  / ov.offsetHeight * 100;
+      const hits = annots.filter(a => {
+        if (a.pageNum !== pageN) return false;
+        if (a.x !== undefined)
+          return xPct >= a.x && xPct <= a.x + (a.w || 10) &&
+                 yPct >= a.y && yPct <= a.y + (a.h || 10);
+        if (a.x1 !== undefined) {
+          const minX = Math.min(a.x1,a.x2)-2, maxX = Math.max(a.x1,a.x2)+2;
+          const minY = Math.min(a.y1,a.y2)-2, maxY = Math.max(a.y1,a.y2)+2;
+          return xPct >= minX && xPct <= maxX && yPct >= minY && yPct <= maxY;
+        }
+        return false;
+      });
+      if (hits.length) annotId = hits[hits.length - 1].id;
+    }
+    if (annotId) { ev.stopPropagation(); openCtxMenu(annotId, ev.clientX, ev.clientY); }
+  }, true); // capture — fires regardless of child pointer-events
+}
+
 function syncAnnotsOnOverlay(ov, pn) {
-  // Remove all existing annotation elements AND leader SVGs
+  // Remove all existing annotation elements, leader SVGs, and move overlays
   ov.querySelectorAll('[data-aid]').forEach(el => el.remove());
   ov.querySelectorAll('[data-leader]').forEach(el => el.remove());
+  ov.querySelectorAll('[data-svg-proxy-for]').forEach(el => el.remove());
+  ov.querySelectorAll('.ann-move-overlay').forEach(el => el.remove());
+
+  attachOverlayCtxMenu(ov);
 
   annots.filter(a => a.pageNum === pn).forEach(a => {
     const el = buildAnnotEl(a);
@@ -3978,6 +4022,9 @@ function syncAnnots() {
     const pn = parseInt(ov.dataset.page);
     ov.querySelectorAll('[data-aid]').forEach(el => el.remove());
     ov.querySelectorAll('[data-leader]').forEach(el => el.remove());
+    ov.querySelectorAll('[data-svg-proxy-for]').forEach(el => el.remove());
+    ov.querySelectorAll('.ann-move-overlay').forEach(el => el.remove());
+    attachOverlayCtxMenu(ov);
 
     annots.filter(a => a.pageNum === pn).forEach(a => {
       const el = buildAnnotEl(a, ov);
@@ -4024,11 +4071,6 @@ function attachAnnotListeners(el, a, ov) {
     });
   }
 
-  el.addEventListener('contextmenu', ev => {
-    ev.preventDefault(); ev.stopPropagation();
-    openCtxMenu(a.id, ev.clientX, ev.clientY);
-  });
-
   // Wire move overlay — covers the full annotation for every moveable type
   if (ov && MOVE_TYPES.has(a.type)) {
     if (el.classList.contains('asvg-wrap')) {
@@ -4062,11 +4104,11 @@ function wireSvgBoundingOverlay(ann, ov) {
     return; // can't determine bounding box
   }
 
-  // Pad by 6px-equivalent (use % — rough but close enough)
-  const pad = 1.5;
+  // Minimal padding — just enough to catch clicks on thin lines
+  const pad = 0.3;
   minX -= pad; minY -= pad; maxX += pad; maxY += pad;
-  const w = Math.max(maxX - minX, 3);
-  const h = Math.max(maxY - minY, 3);
+  const w = Math.max(maxX - minX, 1.5);
+  const h = Math.max(maxY - minY, 1.5);
 
   const proxy = document.createElement('div');
   proxy.className = 'ann-move-overlay ann-svg-proxy';
@@ -4639,10 +4681,24 @@ function updateAnnotPanel() {
       };
     }
 
-    item.onclick = () => {
+    item.onclick = (ev) => {
+      // Ignore clicks on interactive children (status select, edit/delete buttons)
+      if (ev.target.closest('select,button')) return;
+
       document.querySelectorAll('.aitem').forEach(i => i.classList.remove('selected'));
       item.classList.add('selected');
+
+      // Scroll to page first, then after a short delay scroll to the annotation itself
       scrollToPage(a.pageNum);
+      setTimeout(() => {
+        const annotEl = document.querySelector('[data-aid="' + a.id + '"]');
+        if (annotEl) {
+          annotEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Flash highlight so user can see which annotation was clicked
+          annotEl.classList.add('ann-keynav-highlight');
+          setTimeout(() => annotEl.classList.remove('ann-keynav-highlight'), 1800);
+        }
+      }, 180);
     };
     panel.insertBefore(item, empty);
   });
@@ -4870,43 +4926,87 @@ function applyScale() {
 ═══════════════════════════════════════════════ */
 // ── File System Access API handle — stored after first save pick ──
 let _fileHandle = null;
+let _loadedEngdocName = null; // filename of the loaded .engdoc, for suggested save name
+
+// Prompt: overwrite existing file or save as new?
+// Returns 'overwrite' | 'saveas' | 'cancel'
+function _promptSaveMode(filename) {
+  return new Promise(resolve => {
+    // Build a small inline modal — avoid blocking browser confirm()
+    const overlay = document.createElement('div');
+    overlay.style.cssText =
+      'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;' +
+      'display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)';
+
+    const box = document.createElement('div');
+    box.style.cssText =
+      'background:#fff;border-radius:10px;padding:24px 28px;max-width:380px;width:90%;' +
+      'box-shadow:0 12px 40px rgba(0,0,0,.18);font-family:var(--font)';
+
+    box.innerHTML =
+      '<div style="font-size:16px;font-weight:700;color:var(--gray-900);margin-bottom:8px">Save session</div>' +
+      '<div style="font-size:13px;color:var(--gray-600);margin-bottom:20px;line-height:1.5">' +
+        'Overwrite <strong>' + filename + '</strong> or save to a new file?' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
+        '<button id="_sp-cancel" style="padding:8px 16px;border:1px solid var(--gray-300);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;font-family:var(--font)">Cancel</button>' +
+        '<button id="_sp-saveas" style="padding:8px 16px;border:1px solid var(--gray-300);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;font-family:var(--font)">Save As…</button>' +
+        '<button id="_sp-overwrite" style="padding:8px 16px;border:none;border-radius:6px;background:var(--blue-500);color:#fff;cursor:pointer;font-size:13px;font-weight:600;font-family:var(--font)">Overwrite</button>' +
+      '</div>';
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', e => { if (e.target === overlay) { overlay.remove(); resolve('cancel'); } });
+    box.querySelector('#_sp-cancel').onclick    = () => { overlay.remove(); resolve('cancel'); };
+    box.querySelector('#_sp-saveas').onclick    = () => { overlay.remove(); resolve('saveas'); };
+    box.querySelector('#_sp-overwrite').onclick = () => { overlay.remove(); resolve('overwrite'); };
+  });
+}
 
 async function _saveToHandle(data, filename) {
   const json = JSON.stringify(data);
   const blob = new Blob([json], { type: 'application/json' });
 
-  // If we have a stored handle and it matches the current file, write directly
+  // If we have an existing handle, ask whether to overwrite or save as new
   if (_fileHandle) {
-    try {
-      const writable = await _fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return true; // overwrote successfully
-    } catch(e) {
-      // Handle became invalid (file moved/deleted) — fall through to picker
+    const mode = await _promptSaveMode(_loadedEngdocName || filename);
+    if (mode === 'cancel') return false;
+    if (mode === 'overwrite') {
+      try {
+        const writable = await _fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return true;
+      } catch(e) {
+        _fileHandle = null;
+        // Handle invalid — fall through to picker
+      }
+    } else {
+      // Save As — clear handle so picker opens below
       _fileHandle = null;
     }
   }
 
-  // Try File System Access API picker (Chrome/Edge)
+  // File System Access API picker (Chrome/Edge)
   if (window.showSaveFilePicker) {
     try {
       _fileHandle = await window.showSaveFilePicker({
         suggestedName: filename,
         types: [{ description: 'EngDoc Session', accept: { 'application/json': ['.engdoc'] } }],
       });
+      _loadedEngdocName = _fileHandle.name;
       const writable = await _fileHandle.createWritable();
       await writable.write(blob);
       await writable.close();
       return true;
     } catch(e) {
-      if (e.name === 'AbortError') return false; // user cancelled
+      if (e.name === 'AbortError') return false;
       _fileHandle = null;
-      // Fall through to legacy download
     }
   }
 
-  // Legacy fallback — plain <a download> (Firefox, Safari)
+  // Legacy fallback — <a download> (Firefox, Safari)
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
@@ -4914,17 +5014,18 @@ async function _saveToHandle(data, filename) {
   return true;
 }
 
-// Reset handle when a new PDF is opened (new file = new save location)
+// Reset handle when a new PDF is opened
 const _origLoadPDFSave = loadPDF;
 loadPDF = async function(file) {
   _fileHandle = null;
+  _loadedEngdocName = null;
   await _origLoadPDFSave(file);
 };
 
 function saveSession() {
   if (!pdfName && !annots.length) { toast('Nothing to save'); return; }
   const data = { v: 2, pdfName, annotIdSeq, measureScale, annots, emmaRows };
-  const filename = (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
+  const filename = _loadedEngdocName || (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
   _saveToHandle(data, filename).then(ok => {
     if (ok) toast(`✓ Session saved — ${annots.length} annotation${annots.length !== 1 ? 's' : ''}`);
   });
@@ -4941,8 +5042,7 @@ async function saveSessionWithPdf() {
   }
   const b64 = btoa(binary);
   const data = { v: 3, pdfName, annotIdSeq, measureScale, annots, emmaRows, pdfData: b64 };
-  const filename = (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
-  const sizeMb = (JSON.stringify(data).length / 1024 / 1024).toFixed(1);
+  const filename = _loadedEngdocName || (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
   const ok = await _saveToHandle(data, filename);
   if (ok) toast(`✓ Saved with embedded PDF — ${sizeMb} MB`);
 }
@@ -4964,6 +5064,17 @@ async function loadSession(e) {
     const data = JSON.parse(text);
     if (!data.annots) throw new Error('Invalid session file');
 
+    // Remember the source filename so Save can suggest overwriting it
+    _loadedEngdocName = file.name;
+    // If the file came from showOpenFilePicker (File System Access API), store its handle
+    if (e._fileHandle) {
+      _fileHandle = e._fileHandle;
+    } else {
+      // No handle available (drag-drop / legacy input) — clear handle so
+      // first Save opens the picker with the original name pre-filled
+      _fileHandle = null;
+    }
+
     // v3: embedded PDF — auto-load it first
     if (data.v === 3 && data.pdfData) {
       toast('Loading embedded PDF…', 2000);
@@ -4972,6 +5083,9 @@ async function loadSession(e) {
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       const pdfFile = new File([bytes], data.pdfName || 'document.pdf', { type: 'application/pdf' });
       await loadPDF(pdfFile);
+      // loadPDF resets _fileHandle — restore it
+      _fileHandle = e._fileHandle || null;
+      _loadedEngdocName = file.name;
     }
 
     annots = data.annots;
@@ -7410,12 +7524,6 @@ function wireMoveOverlay(el, ann, ov) {
     'position:absolute;inset:0;z-index:10;cursor:grab;' +
     'pointer-events:none;border-radius:inherit;';
 
-  movEl.addEventListener('contextmenu', ev => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    openCtxMenu(ann.id, ev.clientX, ev.clientY);
-  });
-
   movEl.addEventListener('mousedown', ev => {
     if (tool !== 'pan') return;
     if (ev.button !== 0) return;
@@ -7476,7 +7584,14 @@ function wireMoveOverlay(el, ann, ov) {
       document.body.style.userSelect = '';
       removeGhost();
       el.style.opacity = '';
-      if (hasMoved) { syncAnnots(); pushHistory(); }
+      if (hasMoved) {
+        // Immediately clear all move overlays/proxies before syncAnnots rebuilds them
+        // This prevents a flash of the old-position bounding box
+        ov.querySelectorAll('[data-svg-proxy-for]').forEach(e => e.remove());
+        ov.querySelectorAll('.ann-move-overlay').forEach(e => e.remove());
+        syncAnnots();
+        pushHistory();
+      }
     };
 
     document.addEventListener('mousemove', onMove);
@@ -8155,29 +8270,105 @@ function openStampPicker() {
 }
 
 function activateStampPlacement() {
-  toast('Click on the drawing to place the "' + _pendingStamp.label + '" stamp · Esc to cancel', 3000);
-  // One-shot click listener on all overlays
-  const handler = ev => {
+  const stamp = _pendingStamp;
+  toast('Click to place the "' + stamp.label + '" stamp · Esc to cancel', 3500);
+
+  // Build a ghost stamp that follows the cursor
+  let _ghostStamp = null;
+  let _ghostOv    = null;
+
+  function buildGhostStamp() {
+    const g = document.createElement('div');
+    g.id = 'stamp-ghost';
+    g.style.cssText =
+      'position:absolute;pointer-events:none;z-index:200;opacity:0.65;' +
+      'transform:translate(-50%,-50%);transition:none;';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width','110'); svg.setAttribute('height','36');
+    svg.setAttribute('viewBox','0 0 110 36');
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x','1'); rect.setAttribute('y','1');
+    rect.setAttribute('width','108'); rect.setAttribute('height','34');
+    rect.setAttribute('rx','4');
+    rect.setAttribute('fill', stamp.color);
+    rect.setAttribute('fill-opacity','0.15');
+    rect.setAttribute('stroke', stamp.color);
+    rect.setAttribute('stroke-width','2');
+    rect.setAttribute('stroke-dasharray','5,3');
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x','55'); text.setAttribute('y','23');
+    text.setAttribute('text-anchor','middle');
+    text.setAttribute('font-size','11'); text.setAttribute('font-weight','700');
+    text.setAttribute('font-family','monospace');
+    text.setAttribute('fill', stamp.color);
+    text.textContent = stamp.label.toUpperCase();
+    svg.appendChild(rect); svg.appendChild(text);
+    g.appendChild(svg);
+    return g;
+  }
+
+  function removeGhostStamp() {
+    const g = document.getElementById('stamp-ghost');
+    if (g) g.remove();
+    _ghostStamp = null; _ghostOv = null;
+  }
+
+  function onMouseMove(ev) {
+    if (!_pendingStamp) { removeGhostStamp(); return; }
+    const ov = ev.target.closest('.aoverlay');
+    if (!ov) { removeGhostStamp(); return; }
+
+    // Move ghost to a different overlay if needed
+    if (_ghostOv !== ov) {
+      removeGhostStamp();
+      _ghostStamp = buildGhostStamp();
+      _ghostOv = ov;
+      ov.appendChild(_ghostStamp);
+    }
+
+    const r = ov.getBoundingClientRect();
+    const xPct = (ev.clientX - r.left) / ov.offsetWidth  * 100;
+    const yPct = (ev.clientY - r.top)  / ov.offsetHeight * 100;
+    _ghostStamp.style.left = xPct + '%';
+    _ghostStamp.style.top  = yPct + '%';
+  }
+
+  // Click to commit
+  const onClick = ev => {
     if (!_pendingStamp) return;
+    ev.stopPropagation();
+    ev.preventDefault();
     const ov = ev.currentTarget;
     const pn = parseInt(ov.dataset.page);
     const r  = ov.getBoundingClientRect();
     const x  = (ev.clientX - r.left) / ov.offsetWidth  * 100;
     const y  = (ev.clientY - r.top)  / ov.offsetHeight * 100;
+    cleanup();
     pushAnnot({ id: nextId(), pageNum: pn, type: 'stamp',
-      stampId: _pendingStamp.id, x, y, color: _pendingStamp.color,
-      textColor: _pendingStamp.textColor, label: _pendingStamp.label });
-    _pendingStamp = null;
-    document.querySelectorAll('.aoverlay').forEach(o => o.removeEventListener('click', handler, true));
+      stampId: stamp.id, x, y, color: stamp.color,
+      textColor: stamp.textColor, label: stamp.label });
   };
-  document.querySelectorAll('.aoverlay').forEach(o => o.addEventListener('click', handler, true));
-  document.addEventListener('keydown', function esc(ev) {
-    if (ev.key === 'Escape') {
-      _pendingStamp = null;
-      document.querySelectorAll('.aoverlay').forEach(o => o.removeEventListener('click', handler, true));
-      document.removeEventListener('keydown', esc);
-    }
+
+  function cleanup() {
+    _pendingStamp = null;
+    removeGhostStamp();
+    document.removeEventListener('mousemove', onMouseMove, true);
+    document.querySelectorAll('.aoverlay').forEach(o => {
+      o.removeEventListener('click', onClick, true);
+      o.style.cursor = '';
+    });
+    document.removeEventListener('keydown', onEsc);
+  }
+
+  const onEsc = ev => { if (ev.key === 'Escape') cleanup(); };
+
+  // Set crosshair on all overlays and attach listeners
+  document.querySelectorAll('.aoverlay').forEach(o => {
+    o.style.cursor = 'crosshair';
+    o.addEventListener('click', onClick, true);
   });
+  document.addEventListener('mousemove', onMouseMove, true);
+  document.addEventListener('keydown', onEsc);
 }
 
 function buildStampEl(a) {

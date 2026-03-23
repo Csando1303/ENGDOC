@@ -1881,6 +1881,10 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
     Duplicate
   </div>
+  <div class="ctx-item" id="ctx-resize" onclick="ctxResizeImage()" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+    Resize image
+  </div>
   <div class="ctx-sep"></div>
   <div class="ctx-item" id="ctx-col-label" style="pointer-events:none;opacity:.5;font-size:10px;padding:4px 14px;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono)">Colour</div>
   <div style="display:flex;gap:8px;padding:4px 14px 8px">
@@ -2177,9 +2181,10 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
         </div>
         <div id="spell-idle" style="padding:28px;text-align:center">
           <div style="font-size:32px;margin-bottom:12px">✍</div>
-          <div style="font-size:13px;color:var(--gray-700);font-weight:600;margin-bottom:6px">AI Spelling &amp; Grammar Check</div>
+          <div style="font-size:13px;color:var(--gray-700);font-weight:600;margin-bottom:6px">British English Spell Check</div>
           <div style="font-size:12px;color:var(--gray-500);line-height:1.6;margin-bottom:18px">
-            Scans all text on the drawing for spelling errors, grammar issues and punctuation problems.<br>
+            Scans all text on the drawing for spelling errors (British English), American spellings,
+            grammar issues and repeated words. No internet connection required.<br>
             Suggests corrected annotations you can add with one click.
           </div>
           <button class="hbtn primary" onclick="runSpellCheck()">
@@ -3086,26 +3091,16 @@ async function rerenderAll() {
   const oldZoom = pageViewports[1] ? (pageViewports[1].width / unscaledVp.width) : zoom;
   const scaleFactor = zoom / oldZoom;
 
-  if (scaleFactor !== 1) {
+  if (scaleFactor !== 1 && scaleFactor > 0) {
     document.querySelectorAll('.pwrap').forEach(wrap => {
-      const pg = parseInt(wrap.id.replace('pw-', ''));
-      const pv = pageViewports[pg];
-      if (!pv) return;
       const canvas = wrap.querySelector('canvas');
-      if (canvas) {
-        canvas.style.transformOrigin = 'top left';
-        canvas.style.transform = 'scale(' + scaleFactor + ')';
-      }
-      const newW = pv.width  * scaleFactor;
-      const newH = pv.height * scaleFactor;
-      wrap.style.width  = newW + 'px';
-      wrap.style.height = newH + 'px';
-      const ov = wrap.querySelector('.aoverlay');
-      if (ov) { ov.style.width = newW + 'px'; ov.style.height = newH + 'px'; }
+      if (!canvas) return;
+      // Only scale the canvas visually — do NOT resize the wrapper or overlay.
+      // Resizing those would corrupt coordinate calculations in syncAnnots/select tool
+      // before renderPageContent has updated pageViewports to the new zoom.
+      canvas.style.transformOrigin = 'top left';
+      canvas.style.transform = 'scale(' + scaleFactor + ')';
     });
-    // Restore scroll position at new scale
-    const savedEl = document.getElementById('pw-' + savedPg);
-    if (savedEl) savedEl.scrollIntoView({ block: 'start' });
   }
 
   // ── Hi-res re-render ──
@@ -4195,6 +4190,9 @@ function wireSvgBoundingOverlay(ann, ov) {
   if (ann.x1 !== undefined) {
     minX = Math.min(ann.x1, ann.x2); maxX = Math.max(ann.x1, ann.x2);
     minY = Math.min(ann.y1, ann.y2); maxY = Math.max(ann.y1, ann.y2);
+  } else if (ann.x !== undefined && ann.w !== undefined) {
+    // Box-type SVG (cloud, area rendered as SVG, etc.) — use x/y/w/h directly
+    minX = ann.x; minY = ann.y; maxX = ann.x + ann.w; maxY = ann.y + ann.h;
   } else if (ann.points && ann.points.length) {
     const xs = ann.points.map(p => p.x * 100);
     const ys = ann.points.map(p => p.y * 100);
@@ -4908,7 +4906,9 @@ function openCtxMenu(annotId, cx, cy) {
   // Show/hide items based on annotation type
   const isTextable = a && ['note','text','callout','textbox'].includes(a.type);
   const hasStatus  = a && ['note','text','callout','textbox'].includes(a.type);
-  document.getElementById('ctx-edit').style.display = isTextable ? 'flex' : 'none';
+  const isImage    = a && a.type === 'image';
+  document.getElementById('ctx-edit').style.display   = isTextable ? 'flex' : 'none';
+  document.getElementById('ctx-resize').style.display = isImage    ? 'flex' : 'none';
 
   // Show status items only for text-bearing annotations
   ['ctx-status-label','ctx-status-open','ctx-status-progress',
@@ -4943,9 +4943,27 @@ function ctxEdit() {
   hideCtx(); ctxAnnotId = null;
 }
 
+function ctxResizeImage() {
+  if (ctxAnnotId == null) { hideCtx(); return; }
+  const a = annots.find(x => x.id === ctxAnnotId);
+  hideCtx();
+  if (!a || a.type !== 'image') return;
+  // Switch to pan mode so resize handles are accessible
+  if (tool !== 'pan') setTool('pan');
+  // Find the annotation element and its overlay, then show resize handles
+  setTimeout(() => {
+    const el  = document.querySelector('[data-aid="' + a.id + '"]');
+    const ov  = el?.closest('.aoverlay');
+    if (el && ov) {
+      showResizeHandles(el, a, ov);
+      toast('Drag the handles to resize · click elsewhere to deselect', 3000);
+    }
+  }, 80);
+  ctxAnnotId = null;
+}
+
 function ctxDuplicate() {
   if (ctxAnnotId == null) { hideCtx(); return; }
-  const src = annots.find(x => x.id === ctxAnnotId);
   if (!src) { hideCtx(); return; }
   const copy = JSON.parse(JSON.stringify(src));
   copy.id = nextId();
@@ -8047,7 +8065,16 @@ function _selEnd(ev) {
 
   _selHighlight(_selState);
 
-  const text = _selHits.map(h => h.str).join(' ').replace(/\s+/g, ' ').trim();
+  // Sort hits into reading order: top-to-bottom, then left-to-right within each line.
+  // PDF extraction order is draw order, not reading order — this is why text copies backwards.
+  const LINE_THRESHOLD = 0.6; // fraction of avg font height — items within this are on the same line
+  const readingOrder = [..._selHits].sort((a, b) => {
+    const avgH = ((a.h || 12) + (b.h || 12)) / 2;
+    const lineDiff = (a.y - b.y) / avgH;
+    if (Math.abs(lineDiff) > LINE_THRESHOLD) return a.y - b.y; // different lines: top first
+    return a.x - b.x; // same line: left to right
+  });
+  const text = readingOrder.map(h => h.str).join(' ').replace(/\s+/g, ' ').trim();
 
   // Tiny drag with no hits = click = try to select the item under the cursor
   const isDot = Math.abs(_selState.x1 - _selState.x0) < 4 &&
@@ -8226,8 +8253,14 @@ document.addEventListener('keydown', ev => {
     x0: 0, y0: 0, x1: vp.width, y1: vp.height,
   };
   _selHighlight(_selState);
-  // Auto-copy
-  const text = _selHits.map(h => h.str).join(' ').replace(/\s+/g, ' ').trim();
+  // Sort into reading order before copying
+  const _ctrlAOrdered = [..._selHits].sort((a, b) => {
+    const avgH = ((a.h || 12) + (b.h || 12)) / 2;
+    const lineDiff = (a.y - b.y) / avgH;
+    if (Math.abs(lineDiff) > 0.6) return a.y - b.y;
+    return a.x - b.x;
+  });
+  const text = _ctrlAOrdered.map(h => h.str).join(' ').replace(/\s+/g, ' ').trim();
   if (text) {
     navigator.clipboard.writeText(text).catch(() => {});
     toast('Copied all text on page (' + text.length + ' chars)', 2400);
@@ -8412,6 +8445,142 @@ function switchCheckTab(tab) {
 //  returns structured suggestions you can add as
 //  annotations with one click.
 // ═══════════════════════════════════════════════
+// ── British English dictionaries (client-side, no API needed) ──
+const AMERICAN_TO_BRITISH = {
+  // -ize → -ise
+  'organize':'organise','organize':'organise','organized':'organised','organizing':'organising',
+  'recognize':'recognise','recognized':'recognised','recognizing':'recognising',
+  'authorize':'authorise','authorized':'authorised','authorizing':'authorising',
+  'prioritize':'prioritise','prioritized':'prioritised','prioritizing':'prioritising',
+  'utilize':'utilise','utilized':'utilised','utilizing':'utilising',
+  'realize':'realise','realized':'realised','realizing':'realising',
+  'minimize':'minimise','minimized':'minimised','maximize':'maximise','maximized':'maximised',
+  'analyze':'analyse','analyzed':'analysed','analyzing':'analysing',
+  'standardize':'standardise','standardized':'standardised',
+  'finalize':'finalise','finalized':'finalised','finalizing':'finalising',
+  'specialize':'specialise','specialized':'specialised',
+  'characterize':'characterise','characterised':'characterised',
+  // -or → -our
+  'color':'colour','colors':'colours','colored':'coloured',
+  'labor':'labour','labors':'labours',
+  'harbor':'harbour','harbors':'harbours',
+  'flavor':'flavour','flavors':'flavours',
+  'honor':'honour','honors':'honours','honored':'honoured',
+  'behavior':'behaviour','behaviors':'behaviours',
+  'neighbor':'neighbour','neighbors':'neighbours',
+  // -er → -re
+  'center':'centre','centers':'centres','centered':'centred',
+  'meter':'metre','meters':'metres',
+  'fiber':'fibre','fibers':'fibres',
+  'theater':'theatre','theaters':'theatres',
+  'liter':'litre','liters':'litres',
+  // -ense → -ence / misc
+  'defense':'defence','offense':'offence','license':'licence',
+  'program':'programme','programs':'programmes',
+  'aluminum':'aluminium',
+  'tire':'tyre','tires':'tyres',
+  'gray':'grey','grays':'greys',
+  'ax':'axe','draft':'draught','pajamas':'pyjamas',
+  'practice':'practise',
+  'catalog':'catalogue','analog':'analogue','dialog':'dialogue',
+  'check':'cheque',
+  'connection':'connexion',
+};
+
+const COMMON_MISSPELLINGS = {
+  // Common engineering/drawing misspellings
+  'accomodation':'accommodation','accomodations':'accommodations',
+  'accomodate':'accommodate','accomodated':'accommodated',
+  'accessable':'accessible','accessiblity':'accessibility',
+  'adress':'address','adresses':'addresses',
+  'agrement':'agreement','agrements':'agreements',
+  'apparant':'apparent','apparantly':'apparently',
+  'approximatly':'approximately','aproximate':'approximate',
+  'assesment':'assessment','assesments':'assessments',
+  'calulate':'calculate','calulation':'calculation',
+  'catagory':'category','catagories':'categories',
+  'clearence':'clearance','clearences':'clearances',
+  'comission':'commission','commision':'commission',
+  'compatable':'compatible','compatability':'compatibility',
+  'completly':'completely','compleed':'completed',
+  'conrete':'concrete','constuction':'construction',
+  'critial':'critical','critcal':'critical',
+  'defenitely':'definitely','definately':'definitely',
+  'dependant':'dependent',
+  'developement':'development','devlopment':'development',
+  'dimention':'dimension','dimentions':'dimensions',
+  'dissapear':'disappear','dissapeared':'disappeared',
+  'drainege':'drainage',
+  'eletrical':'electrical','electic':'electric',
+  'enviroment':'environment','enviromental':'environmental',
+  'exsiting':'existing','exisiting':'existing',
+  'expantion':'expansion',
+  'feild':'field',
+  'founation':'foundation','foundaton':'foundation',
+  'fourm':'forum',
+  'goverment':'government',
+  'guarentee':'guarantee','guarenteed':'guaranteed',
+  'hieght':'height','higth':'height',
+  'horizonal':'horizontal','horizantal':'horizontal',
+  'imapct':'impact',
+  'implmentation':'implementation',
+  'inculde':'include','inlcude':'include',
+  'infomation':'information',
+  'insallation':'installation','installtion':'installation',
+  'integeration':'integration',
+  'lenght':'length','lentgh':'length',
+  'maintenace':'maintenance','maintanance':'maintenance','maintainance':'maintenance',
+  'managment':'management',
+  'measurment':'measurement','measurments':'measurements',
+  'minumum':'minimum','maxiumum':'maximum',
+  'neccessary':'necessary','necesary':'necessary',
+  'occured':'occurred','occurance':'occurrence',
+  'opertion':'operation','opeartion':'operation',
+  'overide':'override',
+  'paremeter':'parameter','paramater':'parameter','perameter':'parameter',
+  'performace':'performance','perfomance':'performance',
+  'perpendicular':'perpendicular',
+  'postion':'position','positon':'position',
+  'practial':'practical',
+  'prefered':'preferred',
+  'proceedure':'procedure','procedue':'procedure',
+  'procured':'procured',
+  'propsed':'proposed',
+  'provison':'provision','provisons':'provisions',
+  'rasius':'radius',
+  'recieve':'receive','recieved':'received',
+  'refrence':'reference','refrences':'references',
+  'reguirement':'requirement','requirment':'requirement','requirments':'requirements',
+  'removeal':'removal',
+  'renforced':'reinforced','reinforced':'reinforced',
+  'repacement':'replacement',
+  'responsibilty':'responsibility',
+  'retaning':'retaining','retaing':'retaining',
+  'revison':'revision','revisons':'revisions',
+  'seperare':'separate','seperator':'separator','seperate':'separate',
+  'settelment':'settlement','setlement':'settlement',
+  'siganl':'signal','signaling':'signalling',
+  'simalar':'similar','similiar':'similar',
+  'specificaton':'specification','specifiaction':'specification',
+  'stucture':'structure','strcuture':'structure',
+  'substatial':'substantial',
+  'suficient':'sufficient','sufficent':'sufficient',
+  'superceed':'supersede','superced':'supersede',
+  'surounding':'surrounding','surrouding':'surrounding',
+  'temperory':'temporary','tempory':'temporary',
+  'thier':'their',
+  'treshold':'threshold','threshhold':'threshold',
+  'transfered':'transferred',
+  'tunnell':'tunnel',
+  'unkown':'unknown',
+  'utilites':'utilities',
+  'vetical':'vertical','verticle':'vertical',
+  'verical':'vertical',
+  'visabilty':'visibility','visibily':'visibility',
+  'wieght':'weight',
+  'wiggly':'wiggly',
+};
+
 let _spellSuggestions = []; // [{original, corrected, type, pageNum, x, y}]
 
 async function runSpellCheck() {
@@ -8467,72 +8636,57 @@ async function runSpellCheck() {
   progEl.style.width = '35%';
   statusEl.textContent = 'Sending to AI for analysis…';
 
-  // ── Call Claude API ──
-  let rawJson = '';
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content:
-            'You are a technical drawing reviewer checking an engineering drawing for spelling, grammar and punctuation errors. ' +
-            'You must use BRITISH English spelling throughout — words like "colour", "centre", "programme", "authorised", "organisation", "labour", "harbour", "metre", "fibre" are correct British spellings and must NEVER be flagged as errors. ' +
-            'American spellings such as "color", "center", "program", "authorized", "organization", "labor", "harbor", "meter", "fiber" should be flagged if found.\n\n' +
-            'Analyse the following text extracted from an engineering drawing and identify genuine errors:\n' +
-            '- Spelling mistakes using British English as the standard (not abbreviations or engineering terms like NTS, BGL, FFL, CL, TBT, OLE, etc.)\n' +
-            '- Obvious grammatical errors in notes and labels\n' +
-            '- Punctuation issues in complete sentences\n\n' +
-            'Engineering abbreviations, drawing codes, dimension notation, technical terms, Network Rail terminology and British Standards references are NOT errors.\n\n' +
-            'Return ONLY a valid JSON array. Each item: {"original":"exact wrong text","corrected":"correct British English version","type":"spelling|grammar|punctuation","page":1,"reason":"brief explanation"}.\n' +
-            'If there are no errors, return an empty array []. Return ONLY the JSON, no other text.\n\n' +
-            'Drawing text:\n' + corpus.slice(0, 8000)
-        }]
-      })
+  // ── Client-side British English spell check (no API required) ──
+  progEl.style.width = '60%';
+  statusEl.textContent = 'Checking spelling…';
+  await new Promise(r => setTimeout(r, 30));
+
+  const findings = [];
+
+  Object.entries(textByPage).forEach(([pgStr, lines]) => {
+    const pg = parseInt(pgStr);
+    lines.forEach(line => {
+      const words = line.split(/[\s\-\/\\,;:()\.\[\]{}]+/);
+      words.forEach(rawWord => {
+        const word = rawWord.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, '');
+        if (word.length < 3) return;
+        if (/^[A-Z0-9]+$/.test(word)) return;
+        if (/^\d/.test(word)) return;
+
+        const lower = word.toLowerCase();
+        const british = AMERICAN_TO_BRITISH[lower];
+        if (british) {
+          const items = pdfTextContent[pg] || [];
+          const match = items.find(t => t.str.toLowerCase().includes(lower));
+          findings.push({ id: 'spell-' + findings.length, original: word, corrected: british,
+            type: 'spelling', reason: 'American spelling — British English uses "' + british + '"',
+            pageNum: pg, x: match ? match.x * 100 : 5, y: match ? match.y * 100 : 5 + findings.length * 4, added: false });
+          return;
+        }
+        const correction = COMMON_MISSPELLINGS[lower];
+        if (correction) {
+          const items = pdfTextContent[pg] || [];
+          const match = items.find(t => t.str.toLowerCase().includes(lower));
+          findings.push({ id: 'spell-' + findings.length, original: word, corrected: correction,
+            type: 'spelling', reason: 'Possible misspelling',
+            pageNum: pg, x: match ? match.x * 100 : 5, y: match ? match.y * 100 : 5 + findings.length * 4, added: false });
+        }
+      });
+
+      const doubleWord = line.match(/\b(\w{2,})\s+\1\b/i);
+      if (doubleWord) {
+        findings.push({ id: 'spell-' + findings.length, original: doubleWord[0], corrected: doubleWord[1],
+          type: 'grammar', reason: 'Repeated word', pageNum: parseInt(pgStr), x: 5, y: 5 + findings.length * 3, added: false });
+      }
     });
+  });
 
-    if (!response.ok) throw new Error('API error ' + response.status);
-    progEl.style.width = '80%';
-    statusEl.textContent = 'Processing results…';
-
-    const data = await response.json();
-    const text = (data.content || []).map(b => b.type === 'text' ? b.text : '').join('').trim();
-    const clean = text.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
-    rawJson = clean;
-    const parsed = JSON.parse(clean);
-
-    _spellSuggestions = parsed.map((s, i) => {
-      // Try to find coordinates of the original text in pdfTextContent
-      const pg = parseInt(s.page) || 1;
-      const items = pdfTextContent[pg] || [];
-      const match = items.find(t => t.str.toLowerCase().includes((s.original||'').toLowerCase().slice(0,10)));
-      return {
-        id: 'spell-' + i,
-        original:  s.original  || '',
-        corrected: s.corrected || '',
-        type:      s.type      || 'spelling',
-        reason:    s.reason    || '',
-        pageNum:   pg,
-        x:         match ? match.x * 100 : 5,
-        y:         match ? match.y * 100 : (5 + i * 4),
-        added:     false
-      };
-    });
-  } catch(e) {
-    document.getElementById('spell-running').style.display = 'none';
-    document.getElementById('spell-idle').style.display    = 'block';
-    document.getElementById('spell-idle').innerHTML =
-      '<div style="padding:28px;text-align:center">' +
-      '<div style="font-size:13px;color:var(--red-500);margin-bottom:8px">⚠ Check failed</div>' +
-      '<div style="font-size:12px;color:var(--gray-500)">' + (e.message || 'Unknown error') + '</div>' +
-      '<button class="hbtn outline" style="margin-top:12px" onclick="document.getElementById(\'spell-idle\').innerHTML=\'\';runSpellCheck()">Retry</button>' +
-      '</div>';
-    return;
-  }
-
+  const seen = new Set();
+  _spellSuggestions = findings.filter(f => {
+    const key = f.original.toLowerCase() + '|' + f.pageNum;
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
   progEl.style.width = '100%';
   document.getElementById('spell-running').style.display = 'none';
   renderSpellResults();

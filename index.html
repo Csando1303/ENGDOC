@@ -1592,6 +1592,10 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
             <span class="rbtn-label">Standards<br>Check</span>
           </button>
+          <button class="rbtn lg" onclick="openM('mcheck');switchCheckTab('spelling')" data-tip="AI spelling and grammar check on drawing text">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/><path d="M15 5l3 3"/></svg>
+            <span class="rbtn-label">Spelling &amp;<br>Grammar</span>
+          </button>
           <button class="rbtn lg" onclick="openM('mcompare')" data-tip="Compare two PDF revisions pixel-by-pixel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="9" height="18" rx="1"/><rect x="13" y="3" width="9" height="18" rx="1"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
             <span class="rbtn-label">Compare<br>Revisions</span>
@@ -2137,22 +2141,60 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 <div class="overlay" id="mcheck">
   <div class="modal" style="width:580px;max-width:96vw">
     <div class="mhead">
-      <span class="mtitle">NR Drawing Standards Check</span>
+      <span class="mtitle">Drawing Checks</span>
       <button class="mclose" onclick="closeM('mcheck')">✕</button>
     </div>
+    <!-- Tab bar -->
+    <div style="display:flex;border-bottom:1px solid var(--gray-200);background:var(--gray-50)">
+      <button id="check-tab-standards" onclick="switchCheckTab('standards')"
+        style="flex:1;padding:10px;font-size:12px;font-weight:600;border:none;background:var(--white);border-bottom:2px solid var(--blue-500);cursor:pointer;color:var(--blue-600);font-family:var(--font)">
+        NR Standards
+      </button>
+      <button id="check-tab-spelling" onclick="switchCheckTab('spelling')"
+        style="flex:1;padding:10px;font-size:12px;font-weight:600;border:none;background:transparent;border-bottom:2px solid transparent;cursor:pointer;color:var(--gray-500);font-family:var(--font)">
+        Spelling &amp; Grammar
+      </button>
+    </div>
     <div class="mbody" style="padding:0">
-      <div id="check-running" style="padding:28px;text-align:center;display:none">
-        <div style="font-size:13px;color:var(--gray-600)">Analysing drawing…</div>
-        <div style="margin-top:10px;height:4px;background:var(--gray-200);border-radius:2px;overflow:hidden">
-          <div id="check-progress" style="height:100%;background:var(--blue-500);border-radius:2px;width:0%;transition:width .4s"></div>
+      <!-- Standards panel -->
+      <div id="check-panel-standards">
+        <div id="check-running" style="padding:28px;text-align:center;display:none">
+          <div style="font-size:13px;color:var(--gray-600)">Analysing drawing…</div>
+          <div style="margin-top:10px;height:4px;background:var(--gray-200);border-radius:2px;overflow:hidden">
+            <div id="check-progress" style="height:100%;background:var(--blue-500);border-radius:2px;width:0%;transition:width .4s"></div>
+          </div>
         </div>
+        <div id="check-results" style="max-height:60vh;overflow-y:auto"></div>
       </div>
-      <div id="check-results" style="max-height:68vh;overflow-y:auto"></div>
+      <!-- Spelling & Grammar panel -->
+      <div id="check-panel-spelling" style="display:none">
+        <div id="spell-running" style="padding:28px;text-align:center;display:none">
+          <div style="font-size:13px;color:var(--gray-600);margin-bottom:6px">Scanning drawing text with AI…</div>
+          <div style="height:4px;background:var(--gray-200);border-radius:2px;overflow:hidden">
+            <div id="spell-progress" style="height:100%;background:var(--blue-500);border-radius:2px;width:0%;transition:width 1s"></div>
+          </div>
+          <div id="spell-status" style="font-size:11px;color:var(--gray-400);margin-top:8px;font-family:var(--mono)"></div>
+        </div>
+        <div id="spell-idle" style="padding:28px;text-align:center">
+          <div style="font-size:32px;margin-bottom:12px">✍</div>
+          <div style="font-size:13px;color:var(--gray-700);font-weight:600;margin-bottom:6px">AI Spelling &amp; Grammar Check</div>
+          <div style="font-size:12px;color:var(--gray-500);line-height:1.6;margin-bottom:18px">
+            Scans all text on the drawing for spelling errors, grammar issues and punctuation problems.<br>
+            Suggests corrected annotations you can add with one click.
+          </div>
+          <button class="hbtn primary" onclick="runSpellCheck()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Scan Drawing Text
+          </button>
+        </div>
+        <div id="spell-results" style="max-height:60vh;overflow-y:auto;display:none"></div>
+      </div>
     </div>
     <div class="mfoot" style="justify-content:space-between">
       <span id="check-summary" style="font-size:12px;color:var(--gray-500)"></span>
       <div style="display:flex;gap:8px">
         <button class="hbtn outline" onclick="addAllCheckFindings()" id="check-add-btn" style="display:none">Add All as EMMA Comments</button>
+        <button class="hbtn outline" onclick="addAllSpellSuggestions()" id="spell-add-btn" style="display:none">Add All as Comments</button>
         <button class="hbtn primary" onclick="closeM('mcheck')">Close</button>
       </div>
     </div>
@@ -6208,6 +6250,7 @@ let checkFindings = [];
 async function runStandardsCheck() {
   if (!pdf) { toast('Open a PDF first'); return; }
   openM('mcheck');
+  switchCheckTab('standards');
   document.getElementById('check-running').style.display = 'block';
   document.getElementById('check-results').innerHTML = '';
   document.getElementById('check-summary').textContent = '';
@@ -8343,7 +8386,235 @@ setTool = function(t) {
   }, { passive: true });
 })();
 
-// ── Keyboard shortcuts: Z = marquee zoom, S = select text, Escape = back to pan ──
+// ═══════════════════════════════════════════════
+//  CHECK MODAL TAB SWITCHER
+// ═══════════════════════════════════════════════
+function switchCheckTab(tab) {
+  const isStandards = tab === 'standards';
+  document.getElementById('check-panel-standards').style.display = isStandards ? '' : 'none';
+  document.getElementById('check-panel-spelling').style.display  = isStandards ? 'none' : '';
+  document.getElementById('check-add-btn').style.display  = isStandards ? (checkFindings.some(f=>f.status==='fail'||f.status==='warn') ? '' : 'none') : 'none';
+  document.getElementById('spell-add-btn').style.display  = isStandards ? 'none' : (_spellSuggestions.length ? '' : 'none');
+
+  const ts = document.getElementById('check-tab-standards');
+  const tg = document.getElementById('check-tab-spelling');
+  ts.style.background = isStandards ? 'var(--white)' : 'transparent';
+  ts.style.borderBottomColor = isStandards ? 'var(--blue-500)' : 'transparent';
+  ts.style.color = isStandards ? 'var(--blue-600)' : 'var(--gray-500)';
+  tg.style.background = isStandards ? 'transparent' : 'var(--white)';
+  tg.style.borderBottomColor = isStandards ? 'transparent' : 'var(--blue-500)';
+  tg.style.color = isStandards ? 'var(--gray-500)' : 'var(--blue-600)';
+}
+
+// ═══════════════════════════════════════════════
+//  AI SPELLING & GRAMMAR CHECK
+//  Uses Claude API to analyse all drawing text,
+//  returns structured suggestions you can add as
+//  annotations with one click.
+// ═══════════════════════════════════════════════
+let _spellSuggestions = []; // [{original, corrected, type, pageNum, x, y}]
+
+async function runSpellCheck() {
+  if (!pdf) { toast('Open a PDF first'); return; }
+
+  // Show progress
+  document.getElementById('spell-idle').style.display    = 'none';
+  document.getElementById('spell-results').style.display = 'none';
+  document.getElementById('spell-running').style.display = 'block';
+  document.getElementById('spell-add-btn').style.display = 'none';
+  _spellSuggestions = [];
+
+  const progEl   = document.getElementById('spell-progress');
+  const statusEl = document.getElementById('spell-status');
+  progEl.style.width = '10%';
+
+  // ── Collect all text from the drawing ──
+  statusEl.textContent = 'Extracting text from drawing…';
+  const textByPage = {};
+  const pagesToScan = Math.min(nPages, 10); // limit to 10 pages to keep API call fast
+  for (let pg = 1; pg <= pagesToScan; pg++) {
+    if (!pdfTextContent[pg]) {
+      try {
+        const page = await pdf.getPage(pg);
+        const tc   = await page.getTextContent();
+        const vp   = page.getViewport({ scale: 1 });
+        pdfTextContent[pg] = tc.items.filter(i => i.str?.trim()).map(i => {
+          const [,,,scaleY,tx,ty] = i.transform;
+          return { str: i.str.trim(), x: tx/vp.width, y: 1-(ty/vp.height),
+            fontSize: Math.abs(scaleY)/vp.height, width: i.width/vp.width };
+        });
+      } catch(e) { pdfTextContent[pg] = []; }
+    }
+    textByPage[pg] = (pdfTextContent[pg] || []).map(t => t.str).filter(s => s.length > 2);
+  }
+
+  // Build text corpus — join page text, skip very short or numeric-only strings
+  const corpus = Object.entries(textByPage).map(([pg, lines]) => {
+    const meaningful = lines.filter(s => /[a-zA-Z]{2,}/.test(s));
+    if (!meaningful.length) return null;
+    return `Page ${pg}:\n${meaningful.join('\n')}`;
+  }).filter(Boolean).join('\n\n');
+
+  if (!corpus.trim()) {
+    document.getElementById('spell-running').style.display = 'none';
+    document.getElementById('spell-idle').style.display    = 'block';
+    document.getElementById('spell-idle').innerHTML =
+      '<div style="padding:28px;text-align:center;color:var(--gray-500);font-size:13px">' +
+      'No readable text found in this drawing.</div>';
+    return;
+  }
+
+  progEl.style.width = '35%';
+  statusEl.textContent = 'Sending to AI for analysis…';
+
+  // ── Call Claude API ──
+  let rawJson = '';
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content:
+            'You are a technical drawing reviewer checking an engineering drawing for spelling, grammar and punctuation errors. ' +
+            'You must use BRITISH English spelling throughout — words like "colour", "centre", "programme", "authorised", "organisation", "labour", "harbour", "metre", "fibre" are correct British spellings and must NEVER be flagged as errors. ' +
+            'American spellings such as "color", "center", "program", "authorized", "organization", "labor", "harbor", "meter", "fiber" should be flagged if found.\n\n' +
+            'Analyse the following text extracted from an engineering drawing and identify genuine errors:\n' +
+            '- Spelling mistakes using British English as the standard (not abbreviations or engineering terms like NTS, BGL, FFL, CL, TBT, OLE, etc.)\n' +
+            '- Obvious grammatical errors in notes and labels\n' +
+            '- Punctuation issues in complete sentences\n\n' +
+            'Engineering abbreviations, drawing codes, dimension notation, technical terms, Network Rail terminology and British Standards references are NOT errors.\n\n' +
+            'Return ONLY a valid JSON array. Each item: {"original":"exact wrong text","corrected":"correct British English version","type":"spelling|grammar|punctuation","page":1,"reason":"brief explanation"}.\n' +
+            'If there are no errors, return an empty array []. Return ONLY the JSON, no other text.\n\n' +
+            'Drawing text:\n' + corpus.slice(0, 8000)
+        }]
+      })
+    });
+
+    if (!response.ok) throw new Error('API error ' + response.status);
+    progEl.style.width = '80%';
+    statusEl.textContent = 'Processing results…';
+
+    const data = await response.json();
+    const text = (data.content || []).map(b => b.type === 'text' ? b.text : '').join('').trim();
+    const clean = text.replace(/^```json\s*/i,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+    rawJson = clean;
+    const parsed = JSON.parse(clean);
+
+    _spellSuggestions = parsed.map((s, i) => {
+      // Try to find coordinates of the original text in pdfTextContent
+      const pg = parseInt(s.page) || 1;
+      const items = pdfTextContent[pg] || [];
+      const match = items.find(t => t.str.toLowerCase().includes((s.original||'').toLowerCase().slice(0,10)));
+      return {
+        id: 'spell-' + i,
+        original:  s.original  || '',
+        corrected: s.corrected || '',
+        type:      s.type      || 'spelling',
+        reason:    s.reason    || '',
+        pageNum:   pg,
+        x:         match ? match.x * 100 : 5,
+        y:         match ? match.y * 100 : (5 + i * 4),
+        added:     false
+      };
+    });
+  } catch(e) {
+    document.getElementById('spell-running').style.display = 'none';
+    document.getElementById('spell-idle').style.display    = 'block';
+    document.getElementById('spell-idle').innerHTML =
+      '<div style="padding:28px;text-align:center">' +
+      '<div style="font-size:13px;color:var(--red-500);margin-bottom:8px">⚠ Check failed</div>' +
+      '<div style="font-size:12px;color:var(--gray-500)">' + (e.message || 'Unknown error') + '</div>' +
+      '<button class="hbtn outline" style="margin-top:12px" onclick="document.getElementById(\'spell-idle\').innerHTML=\'\';runSpellCheck()">Retry</button>' +
+      '</div>';
+    return;
+  }
+
+  progEl.style.width = '100%';
+  document.getElementById('spell-running').style.display = 'none';
+  renderSpellResults();
+}
+
+function renderSpellResults() {
+  const container = document.getElementById('spell-results');
+  const summary   = document.getElementById('check-summary');
+
+  if (!_spellSuggestions.length) {
+    container.innerHTML =
+      '<div style="padding:32px;text-align:center">' +
+      '<div style="font-size:28px;margin-bottom:10px">✓</div>' +
+      '<div style="font-size:13px;font-weight:600;color:var(--gray-700)">No issues found</div>' +
+      '<div style="font-size:12px;color:var(--gray-500);margin-top:4px">Spelling and grammar look good.</div>' +
+      '</div>';
+    container.style.display = '';
+    summary.textContent = 'No issues found';
+    return;
+  }
+
+  const typeIcon  = { spelling:'Sp', grammar:'Gr', punctuation:'Pu' };
+  const typeColor = { spelling:'var(--red-500)', grammar:'#d97706', punctuation:'var(--blue-500)' };
+
+  let html = '';
+  _spellSuggestions.forEach((s, i) => {
+    const icon  = typeIcon[s.type]  || 'Sp';
+    const color = typeColor[s.type] || 'var(--red-500)';
+    html +=
+      '<div id="spell-item-' + i + '" style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid var(--gray-100);' + (s.added ? 'opacity:.45;' : '') + '">' +
+        '<span style="flex-shrink:0;width:24px;height:24px;border-radius:4px;background:' + color + ';color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:var(--mono)">' + icon + '</span>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:2px">' +
+            '<span style="text-decoration:line-through;color:var(--red-500)">' + escHtml(s.original) + '</span>' +
+            ' → <span style="color:var(--gray-900)">' + escHtml(s.corrected) + '</span>' +
+          '</div>' +
+          '<div style="font-size:11px;color:var(--gray-500)">' + escHtml(s.reason) + ' · Pg ' + s.pageNum + '</div>' +
+        '</div>' +
+        '<button onclick="addSpellSuggestion(' + i + ')" id="spell-btn-' + i + '" ' +
+          'style="flex-shrink:0;padding:4px 10px;font-size:11px;border:1px solid var(--gray-300);border-radius:4px;background:var(--white);cursor:pointer;font-family:var(--font);white-space:nowrap" ' +
+          (s.added ? 'disabled' : '') + '>' +
+          (s.added ? '✓ Added' : 'Add Comment') +
+        '</button>' +
+      '</div>';
+  });
+
+  container.innerHTML = html;
+  container.style.display = '';
+  summary.textContent = _spellSuggestions.length + ' issue' + (_spellSuggestions.length !== 1 ? 's' : '') + ' found';
+  document.getElementById('spell-add-btn').style.display = '';
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function addSpellSuggestion(idx) {
+  const s = _spellSuggestions[idx];
+  if (!s || s.added) return;
+  pushAnnot({
+    id: nextId(), pageNum: s.pageNum, type: 'note',
+    x: s.x, y: s.y, color: 'rose',
+    text: '[' + (s.type.charAt(0).toUpperCase() + s.type.slice(1)) + '] ' +
+          '"' + s.original + '" → "' + s.corrected + '"\n' + s.reason
+  });
+  s.added = true;
+  // Update button and row
+  const btn = document.getElementById('spell-btn-' + idx);
+  const row = document.getElementById('spell-item-' + idx);
+  if (btn) { btn.textContent = '✓ Added'; btn.disabled = true; }
+  if (row)   row.style.opacity = '0.45';
+  toast('Comment added on page ' + s.pageNum);
+}
+
+function addAllSpellSuggestions() {
+  let count = 0;
+  _spellSuggestions.forEach((s, i) => {
+    if (!s.added) { addSpellSuggestion(i); count++; }
+  });
+  document.getElementById('spell-add-btn').style.display = 'none';
+  toast(count + ' spelling/grammar comment' + (count !== 1 ? 's' : '') + ' added');
+}
 document.addEventListener('keydown', ev => {
   if (ev.target.closest('input,textarea,select')) return;
   if (ev.key === 'z' && !ev.ctrlKey && !ev.metaKey) setTool('zoombox');

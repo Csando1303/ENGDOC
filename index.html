@@ -716,7 +716,28 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   line-height:1.3;cursor:pointer;white-space:pre-wrap;padding:2px 4px;border-radius:2px}
 .astrike{position:absolute}
 
-/* ── STAMPS ───────────────────────────────────── */
+/* ── IMAGE ANNOTATIONS ──────────────────────── */
+.aimage {
+  position: absolute;
+  cursor: default;
+  user-select: none;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0,0,0,.2);
+}
+.aimage img {
+  width: 100%; height: 100%;
+  object-fit: fill;
+  display: block;
+  pointer-events: none;
+}
+.aimage:hover { box-shadow: 0 2px 12px rgba(0,0,0,.28); }
+
+/* Print styles */
+@media print {
+  body > *:not(#print-frame) { display: none !important; }
+  #print-frame { display: block !important; position: fixed; inset: 0; border: none; }
+}
 .astamp {
   position: absolute;
   pointer-events: all;
@@ -1475,6 +1496,11 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             <span class="rbtn-label">Stamp</span>
           </button>
+          <button class="rbtn" id="t-image" data-tip="Insert an image onto the drawing" onclick="document.getElementById('fimage').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span class="rbtn-label">Image</span>
+          </button>
+          <input type="file" id="fimage" accept="image/*" style="display:none" onchange="onImageFileSelected(event)">
         </div>
         <div class="rgroup-label">Annotate</div>
       </div>
@@ -1596,7 +1622,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></svg>
             <span class="rbtn-label">Drawing<br>Set</span>
           </button>
-          <button class="rbtn lg" onclick="openLayerPanel()" data-tip="Show/hide PDF layers (Optional Content Groups)">
+          <button class="rbtn lg" onclick="openLayerModal()" data-tip="Show/hide PDF layers (Optional Content Groups)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
             <span class="rbtn-label">Layers</span>
           </button>
@@ -1630,6 +1656,10 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
           <button class="rbtn lg" onclick="exportAnnotatedPdf()" data-tip="Export PDF with annotations burned in — shareable with anyone">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l2 2 4-4"/></svg>
             <span class="rbtn-label">Export<br>Annotated PDF</span>
+          </button>
+          <button class="rbtn lg" onclick="printDrawing()" data-tip="Print the current drawing with annotations">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <span class="rbtn-label">Print</span>
           </button>
         </div>
         <div class="rgroup-label">Export</div>
@@ -1698,8 +1728,6 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       <button class="stab" id="stab-notes"          onclick="switchTab('notes',this)">Markup</button>
       <button class="stab emma" id="stab-emma"      onclick="switchTab('emma',this)">EMMA</button>
       <button class="stab" id="stab-search"         onclick="switchTab('search',this)">Search</button>
-      <button class="stab" id="stab-measure"        onclick="switchTab('measure',this)">⬌</button>
-      <button class="stab" id="stab-layers"         onclick="switchTab('layers',this)">Layers</button>
     </div>
     <div class="spanel" id="sp-pages"></div>
     <div class="spanel hidden" id="sp-notes">
@@ -1720,24 +1748,6 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       <div id="search-results"></div>
     </div>
 
-    <!-- MEASUREMENT TABLE PANEL -->
-    <div class="spanel hidden" id="sp-measure">
-      <div style="padding:8px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:11px;font-weight:600;color:var(--gray-600)">Measurements</span>
-        <button onclick="exportMeasurementsCsv()" style="font-size:10px;padding:2px 8px;border:1px solid var(--gray-300);border-radius:3px;background:var(--gray-50);cursor:pointer;font-family:var(--font)">Export CSV</button>
-      </div>
-      <div id="meas-table-wrap"></div>
-    </div>
-
-    <!-- LAYER VISIBILITY PANEL -->
-    <div class="spanel hidden" id="sp-layers">
-      <div style="padding:8px;border-bottom:1px solid var(--gray-200)">
-        <span style="font-size:11px;font-weight:600;color:var(--gray-600)">PDF Layers</span>
-      </div>
-      <div id="layer-list">
-        <div class="meas-empty">Open a PDF to see its layers.<br>Not all PDFs have layers.</div>
-      </div>
-    </div>
     <div id="sp-emma">
       <!-- Project metadata -->
       <div class="emma-meta">
@@ -2816,8 +2826,9 @@ async function buildPageShells() {
   const container = document.getElementById('pdfpages');
   container.innerHTML = '';
 
-  // Get page 1 viewport to use as size estimate for all shells
-  const page1 = await pdf.getPage(1);
+  // Get page 1 viewport to estimate shell sizes — use cache if available
+  const page1 = _pageCache[1] || await pdf.getPage(1);
+  if (!_pageCache[1]) _pageCache[1] = page1;
   const vp1 = page1.getViewport({ scale: zoom });
   const estW = vp1.width, estH = vp1.height;
 
@@ -3015,17 +3026,54 @@ async function renderPageContent(pageNum) {
 
   wrap.classList.remove('unrendered');
   renderedPages.add(pageNum);
+  // Clear the CSS scale preview — hi-res canvas is now in place
+  canvas.style.transform = '';
+  canvas.style.width  = '';
+  canvas.style.height = '';
 }
 
 async function rerenderAll() {
+  if (!pdf) return;
+  const savedPg = curPg;
+
+  // ── Instant CSS scale preview ──
+  // While hi-res renders, scale existing canvases so user sees something immediately.
+  const page1Obj = _pageCache[1] || await pdf.getPage(1);
+  if (!_pageCache[1]) _pageCache[1] = page1Obj;
+  const unscaledVp = page1Obj.getViewport({ scale: 1 });
+  const oldZoom = pageViewports[1] ? (pageViewports[1].width / unscaledVp.width) : zoom;
+  const scaleFactor = zoom / oldZoom;
+
+  if (scaleFactor !== 1) {
+    document.querySelectorAll('.pwrap').forEach(wrap => {
+      const pg = parseInt(wrap.id.replace('pw-', ''));
+      const pv = pageViewports[pg];
+      if (!pv) return;
+      const canvas = wrap.querySelector('canvas');
+      if (canvas) {
+        canvas.style.transformOrigin = 'top left';
+        canvas.style.transform = 'scale(' + scaleFactor + ')';
+      }
+      const newW = pv.width  * scaleFactor;
+      const newH = pv.height * scaleFactor;
+      wrap.style.width  = newW + 'px';
+      wrap.style.height = newH + 'px';
+      const ov = wrap.querySelector('.aoverlay');
+      if (ov) { ov.style.width = newW + 'px'; ov.style.height = newH + 'px'; }
+    });
+    // Restore scroll position at new scale
+    const savedEl = document.getElementById('pw-' + savedPg);
+    if (savedEl) savedEl.scrollIntoView({ block: 'start' });
+  }
+
+  // ── Hi-res re-render ──
+  // Mark all pages unrendered — DO NOT clear _pageCache (page objects are zoom-independent)
   renderedPages.clear();
   renderQueue.clear();
-  // Clear page cache so viewports recalculate at new zoom
-  Object.keys(_pageCache).forEach(k => delete _pageCache[k]);
-  const savedPg = curPg;
-  await buildPageShells();
+  // pageViewports will be updated per-page in renderPageContent
   syncAnnots();
   scheduleRender();
+  // Ensure scroll position after render
   requestAnimationFrame(() => {
     const el = document.getElementById('pw-' + savedPg);
     if (el) el.scrollIntoView({ block: 'start' });
@@ -3108,17 +3156,27 @@ function scrollToPage(n) {
 function changePage(d) { scrollToPage(Math.max(1, Math.min(nPages, curPg + d))); }
 function jumpTo(v) { const p = parseInt(v); if (p >= 1 && p <= nPages) scrollToPage(p); }
 
+let _zoomTimer = null;
 async function applyZoom(val) {
   if (!pdf) return;
+  // Update zoom value and labels immediately for responsiveness
   if (val === 'fit') {
+    const page1 = _pageCache[1] || await pdf.getPage(1);
+    if (!_pageCache[1]) _pageCache[1] = page1;
     const w = document.getElementById('viewer').clientWidth - 64;
-    zoom = w / (await pdf.getPage(1)).getViewport({ scale: 1 }).width;
+    zoom = w / page1.getViewport({ scale: 1 }).width;
   } else {
     zoom = parseFloat(val);
   }
-  document.getElementById('sb-zoom').innerHTML =
-    `<div class="sbdot b"></div>${Math.round(zoom * 100)}%`;
-  await rerenderAll();
+  const pct = Math.round(zoom * 100) + '%';
+  const sbZoom = document.getElementById('sb-zoom');
+  if (sbZoom) sbZoom.innerHTML = '<div class="sbdot b"></div>' + pct;
+  const mobLabel = document.getElementById('mob-zoom-label');
+  if (mobLabel) mobLabel.textContent = pct;
+
+  // Debounce the actual re-render — 150ms collapses rapid changes
+  clearTimeout(_zoomTimer);
+  _zoomTimer = setTimeout(() => rerenderAll(), 150);
 }
 
 /* ═══════════════════════════════════════════════
@@ -4275,6 +4333,14 @@ function buildAnnotEl(a) {
     el = typeof buildAreaAnnotEl !== 'undefined' ? buildAreaAnnotEl(a) : null;
   } else if (a.type === 'stamp') {
     el = buildStampEl(a);
+  } else if (a.type === 'image') {
+    el = document.createElement('div');
+    el.className = 'aimage';
+    el.style.cssText = 'position:absolute;left:' + a.x + '%;top:' + a.y + '%;width:' + a.w + '%;height:' + a.h + '%';
+    const img = document.createElement('img');
+    img.src = a.src;
+    img.draggable = false;
+    el.appendChild(img);
   }
 
   // ── Post-build extensions (applied here, not via patch chain) ──
@@ -4649,61 +4715,124 @@ function updateAnnotPanel() {
   [...annots].reverse().forEach(a => {
     const item = document.createElement('div');
     item.className = 'aitem'; item.dataset.id = a.id;
-    const preview = a.text || (typeLabels[a.type] || a.type);
-    const tsStr = a.ts ? new Date(a.ts).toLocaleString(undefined, {dateStyle:'short',timeStyle:'short'}) : '';
-    const canEdit = ['note','text','callout','textbox'].includes(a.type);
-    const hasStatus = canEdit;
     const status = a.status || 'open';
 
+    // Build a useful preview for every annotation type
+    let preview;
+    if (a.text)                      preview = a.text;
+    else if (a.label)                preview = a.label;                          // measure
+    else if (a.x1 !== undefined)     preview = 'Pg ' + a.pageNum + '  (' + Math.round(a.x1) + ', ' + Math.round(a.y1) + ') → (' + Math.round(a.x2) + ', ' + Math.round(a.y2) + ')';
+    else if (a.points?.length)       preview = a.points.length + ' points';      // pen/area
+    else if (a.stampId)              preview = a.label || a.stampId;             // stamp
+    else                             preview = typeLabels[a.type] || a.type;
+
+    const tsStr = a.ts ? new Date(a.ts).toLocaleString(undefined, {dateStyle:'short',timeStyle:'short'}) : '';
+    const canEdit   = ['note','text','callout','textbox'].includes(a.type);
+    // Status available on all annotation types (useful for any comment workflow)
+    const hasStatus = true;
+
     item.innerHTML =
-      '<button class="adel" title="Delete">✕</button>' +
-      '<div class="atype"><span class="adot" style="background:' + (CHex[a.color] || '#999') + '"></span>' + (typeLabels[a.type] || a.type) + '</div>' +
-      (hasStatus
-        ? '<select class="aitem-status" data-annotid="' + a.id + '" style="background:' + (statusColors[status] || '#fff') + '">' +
-          STATUS_CYCLE.map(s => '<option value="' + s + '"' + (s === status ? ' selected' : '') + '>' + STATUS_LABEL[s] + '</option>').join('') +
-          '</select>'
-        : '') +
-      '<div class="apreview">' + (preview || '') + '</div>' +
-      '<div class="aauthor">● ' + (a.author || 'Unknown') + '</div>' +
-      '<div class="ats">' + tsStr + ' · Pg ' + a.pageNum + '</div>' +
+      '<button class="adel" title="Delete annotation (Del)">✕</button>' +
+      '<div class="atype">' +
+        '<span class="adot" style="background:' + (CHex[a.color] || '#999') + '"></span>' +
+        (typeLabels[a.type] || a.type) +
+      '</div>' +
+      '<select class="aitem-status" data-annotid="' + a.id + '" style="background:' + (statusColors[status] || '#fff') + '">' +
+        STATUS_CYCLE.map(s => '<option value="' + s + '"' + (s === status ? ' selected' : '') + '>' + STATUS_LABEL[s] + '</option>').join('') +
+      '</select>' +
+      '<div class="apreview">' + preview + '</div>' +
+      '<div class="ats">' + (a.author ? '● ' + a.author + '  · ' : '') + 'Pg ' + a.pageNum + (tsStr ? '  · ' + tsStr : '') + '</div>' +
       (canEdit ? '<button class="aedit-btn" title="Edit text" onclick="event.stopPropagation();editAnnotById(' + a.id + ')">Edit</button>' : '');
 
     item.querySelector('.adel').onclick = ev => { ev.stopPropagation(); deleteAnnotById(a.id); };
 
-    if (hasStatus) {
-      item.querySelector('.aitem-status').onchange = function(ev) {
-        ev.stopPropagation();
-        const ann = annots.find(x => x.id === a.id);
-        if (!ann) return;
-        ann.status = this.value;
-        this.style.background = statusColors[this.value] || '#fff';
-        syncAnnots(); updateAnnotPanel(); updateEmmaRegister(); pushHistory();
-      };
-    }
+    item.querySelector('.aitem-status').onchange = function(ev) {
+      ev.stopPropagation();
+      const ann = annots.find(x => x.id === a.id);
+      if (!ann) return;
+      ann.status = this.value;
+      this.style.background = statusColors[this.value] || '#fff';
+      syncAnnots(); updateAnnotPanel(); updateEmmaRegister(); pushHistory();
+    };
 
     item.onclick = (ev) => {
-      // Ignore clicks on interactive children (status select, edit/delete buttons)
       if (ev.target.closest('select,button')) return;
-
       document.querySelectorAll('.aitem').forEach(i => i.classList.remove('selected'));
       item.classList.add('selected');
-
-      // Scroll to page first, then after a short delay scroll to the annotation itself
-      scrollToPage(a.pageNum);
-      setTimeout(() => {
-        const annotEl = document.querySelector('[data-aid="' + a.id + '"]');
-        if (annotEl) {
-          annotEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          // Flash highlight so user can see which annotation was clicked
-          annotEl.classList.add('ann-keynav-highlight');
-          setTimeout(() => annotEl.classList.remove('ann-keynav-highlight'), 1800);
-        }
-      }, 180);
+      scrollToAnnotation(a);
     };
     panel.insertBefore(item, empty);
   });
 
   updateAnnotNavBar();
+}
+
+// Scroll viewer to show an annotation and flash-highlight it.
+// Handles box types (positioned div) and SVG types (inset:0 wrap).
+function scrollToAnnotation(a) {
+  scrollToPage(a.pageNum);
+  setTimeout(() => {
+    const ov = document.querySelector('.aoverlay[data-page="' + a.pageNum + '"]');
+    if (!ov) return;
+    const ovRect = ov.getBoundingClientRect();
+    const viewer = document.getElementById('viewer');
+
+    // Compute the annotation's midpoint in page-% coords
+    let midXpct, midYpct, wPct, hPct;
+
+    if (a.x !== undefined && a.w !== undefined) {
+      // Box type
+      midXpct = a.x + a.w / 2;  midYpct = a.y + a.h / 2;
+      wPct = a.w; hPct = a.h;
+    } else if (a.x !== undefined) {
+      // Point type (note, text, stamp)
+      midXpct = a.x; midYpct = a.y;
+      wPct = 8; hPct = 4;
+    } else if (a.x1 !== undefined) {
+      // Line type (arrow, line, measure)
+      midXpct = (a.x1 + a.x2) / 2; midYpct = (a.y1 + a.y2) / 2;
+      wPct = Math.abs(a.x2 - a.x1) + 4; hPct = Math.abs(a.y2 - a.y1) + 4;
+    } else if (a.points && a.points.length) {
+      // Pen / area / texthighlight
+      const xs = a.points.map(p => p.x * 100);
+      const ys = a.points.map(p => p.y * 100);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      midXpct = (minX + maxX) / 2; midYpct = (minY + maxY) / 2;
+      wPct = maxX - minX + 4; hPct = maxY - minY + 4;
+    } else {
+      return;
+    }
+
+    // Convert % to px within the overlay
+    const midPxX = midXpct / 100 * ov.offsetWidth;
+    const midPxY = midYpct / 100 * ov.offsetHeight;
+
+    // Scroll viewer so the annotation midpoint is centred
+    const viewerRect = viewer.getBoundingClientRect();
+    const targetScrollLeft = (ov.offsetLeft + midPxX) - viewerRect.width / 2;
+    const targetScrollTop  = (ov.offsetTop  + midPxY) - viewerRect.height / 2;
+    viewer.scrollTo({ left: targetScrollLeft, top: targetScrollTop, behavior: 'smooth' });
+
+    // Flash a highlight box at the annotation position
+    const flash = document.createElement('div');
+    flash.style.cssText =
+      'position:absolute;pointer-events:none;z-index:100;border-radius:3px;' +
+      'border:2.5px solid #2563eb;background:rgba(37,99,235,0.08);' +
+      'transition:opacity 0.6s ease;' +
+      'left:' + (midXpct - wPct/2) + '%;' +
+      'top:'  + (midYpct - hPct/2) + '%;' +
+      'width:' + Math.max(wPct, 3) + '%;' +
+      'height:'+ Math.max(hPct, 2) + '%;';
+    ov.appendChild(flash);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      flash.style.opacity = '1';
+      setTimeout(() => {
+        flash.style.opacity = '0';
+        setTimeout(() => flash.remove(), 700);
+      }, 900);
+    }));
+  }, 150);
 }
 
 function editAnnotById(id) {
@@ -4815,14 +4944,10 @@ function switchTab(tab, btn) {
   document.getElementById('sp-pages').classList.toggle('hidden',   tab !== 'pages');
   document.getElementById('sp-notes').classList.toggle('hidden',   tab !== 'notes');
   document.getElementById('sp-search').classList.toggle('hidden',  tab !== 'search');
-  document.getElementById('sp-measure').classList.toggle('hidden', tab !== 'measure');
-  document.getElementById('sp-layers').classList.toggle('hidden',  tab !== 'layers');
   const emmaPanel = document.getElementById('sp-emma');
   emmaPanel.classList.toggle('visible', tab === 'emma');
   document.getElementById('sidebar').classList.toggle('emma-open', tab === 'emma');
-  if (tab === 'search')  setTimeout(() => document.getElementById('search-input').focus(), 50);
-  if (tab === 'measure') updateMeasurementTable();
-  if (tab === 'layers')  updateLayerPanel();
+  if (tab === 'search') setTimeout(() => document.getElementById('search-input').focus(), 50);
 }
 
 /* ═══════════════════════════════════════════════
@@ -7495,7 +7620,7 @@ function makeDraggable(el, a, ov) {
 
 const MOVE_TYPES = new Set(['highlight','rect','rectfill','strike','note','text','textbox',
                              'callout','cloud','pen','texthighlight','arrow','line','measure',
-                             'area','stamp']);
+                             'area','stamp','image']);
 
 // ── Ghost shown while dragging ──
 function createGhost(el, ov) {
@@ -7648,7 +7773,7 @@ function pushHistory() {
 let _selectedAnnotId = null;
 let _resizing = null; // { id, handle, startX, startY, orig{x,y,w,h}, ovW, ovH }
 
-const RESIZABLE = ['highlight','rect','rectfill','strike','cloud','textbox','callout'];
+const RESIZABLE = ['highlight','rect','rectfill','strike','cloud','textbox','callout','image'];
 
 function showResizeHandles(el, a, ov) {
   removeResizeHandles();
@@ -8398,6 +8523,7 @@ function buildStampEl(a) {
 
 // Add stamp to buildAnnotEl
 typeLabels['stamp'] = 'Stamp';
+typeLabels['image'] = 'Image';
 
 // ═══════════════════════════════════════════════
 //  ANNOTATION STATUS TRACKING
@@ -8441,16 +8567,8 @@ function navAnnot(dir) {
   if (!annots.length) return;
   _annotNavIdx = (_annotNavIdx + dir + annots.length) % annots.length;
   const a = annots[_annotNavIdx];
-  scrollToPage(a.pageNum);
   updateAnnotNavBar();
-  // Highlight the annotation
-  setTimeout(() => {
-    const el = document.querySelector('[data-aid="' + a.id + '"]');
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    el.classList.add('ann-keynav-highlight');
-    setTimeout(() => el.classList.remove('ann-keynav-highlight'), 1800);
-  }, 300);
+  scrollToAnnotation(a);
 }
 
 // Tab / Shift+Tab shortcut in markup panel
@@ -8537,7 +8655,7 @@ async function loadPdfLayers() {
 }
 
 function updateLayerPanel() {
-  const list = document.getElementById('layer-list');
+  const list = document.getElementById('layer-modal-list') || document.getElementById('layer-list');
   if (!list) return;
   if (!_pdfLayers.length) {
     list.innerHTML = '<div class="meas-empty">No layers found in this PDF.<br>Layers require Optional Content Groups.</div>';
@@ -8566,8 +8684,6 @@ async function applyLayerVisibility() {
   try {
     const optContent = await pdf.getOptionalContentConfig();
     _pdfLayers.forEach(layer => optContent.setVisibility(layer.id, layer.visible));
-    // Re-render visible pages with updated layer config
-    const saved = curPg;
     renderedPages.clear();
     Object.keys(_pageCache).forEach(k => delete _pageCache[k]);
     scheduleRender();
@@ -8575,12 +8691,33 @@ async function applyLayerVisibility() {
   } catch(e) { toast('Layer toggle not supported for this PDF'); }
 }
 
-function openLayerPanel() {
-  const tab = document.getElementById('stab-layers');
-  if (tab) switchTab('layers', tab);
+function openLayerModal() {
+  // Build a lightweight floating modal for layer visibility
+  const existing = document.getElementById('mlayers');
+  if (existing) { existing.classList.toggle('open'); return; }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay'; overlay.id = 'mlayers';
+  overlay.innerHTML =
+    '<div class="modal" style="width:320px">' +
+      '<div class="mhead">' +
+        '<span class="mtitle">PDF Layers</span>' +
+        '<button class="mclose" onclick="document.getElementById(\'mlayers\').classList.remove(\'open\')">✕</button>' +
+      '</div>' +
+      '<div class="mbody" style="padding:8px 0;max-height:320px;overflow-y:auto">' +
+        '<div id="layer-modal-list"></div>' +
+      '</div>' +
+      '<div class="mfoot">' +
+        '<button class="hbtn outline" onclick="document.getElementById(\'mlayers\').classList.remove(\'open\')">Close</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay.classList.add('open');
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+  updateLayerPanel();
 }
 
-// Load layers when PDF opens — patch loadPDF
+// Load layers when PDF opens
 const _origLoadPDFLayers = loadPDF;
 loadPDF = async function(file) {
   await _origLoadPDFLayers(file);
@@ -8850,7 +8987,208 @@ deleteAnnotById = function(id) {
   updateAnnotNavBar();
 };
 
-// Initialise tool state without auto-switching ribbon tab
+// ═══════════════════════════════════════════════
+//  IMAGE INSERTION
+//  Click the Image button → file picker opens →
+//  image loads as base64 → cursor-following preview
+//  appears → click anywhere on the drawing to place
+//  → resize with the standard 8-handle resize system.
+// ═══════════════════════════════════════════════
+let _pendingImage = null; // { src, naturalW, naturalH }
+
+function onImageFileSelected(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const src = ev.target.result;
+    const img = new Image();
+    img.onload = () => {
+      _pendingImage = { src, naturalW: img.naturalWidth, naturalH: img.naturalHeight };
+      activateImagePlacement();
+    };
+    img.src = src;
+  };
+  reader.readAsDataURL(file);
+}
+
+function activateImagePlacement() {
+  if (!_pendingImage) return;
+  toast('Click on the drawing to place the image · Esc to cancel', 3000);
+
+  let _ghostImg = null, _ghostOv = null;
+
+  function buildGhostImg(ov) {
+    const g = document.createElement('div');
+    g.id = 'image-ghost';
+    g.style.cssText =
+      'position:absolute;pointer-events:none;z-index:200;opacity:0.7;' +
+      'transform:translate(-50%,-50%);border:2px dashed #2563eb;border-radius:2px;' +
+      'background:#fff;overflow:hidden;';
+    // Default display size: 20% page width, proportional height
+    const aspectH = _pendingImage.naturalH / _pendingImage.naturalW;
+    g.style.width  = '20%';
+    g.style.height = (20 * aspectH) + '%';
+    const img = document.createElement('img');
+    img.src = _pendingImage.src;
+    img.style.cssText = 'width:100%;height:100%;object-fit:fill;display:block;pointer-events:none';
+    g.appendChild(img);
+    return g;
+  }
+
+  function removeGhostImg() {
+    document.getElementById('image-ghost')?.remove();
+    _ghostImg = null; _ghostOv = null;
+  }
+
+  function onMouseMove(ev) {
+    if (!_pendingImage) { removeGhostImg(); return; }
+    const ov = ev.target.closest('.aoverlay');
+    if (!ov) { removeGhostImg(); return; }
+    if (_ghostOv !== ov) {
+      removeGhostImg();
+      _ghostImg = buildGhostImg(ov);
+      _ghostOv  = ov;
+      ov.appendChild(_ghostImg);
+    }
+    const r = ov.getBoundingClientRect();
+    _ghostImg.style.left = ((ev.clientX - r.left) / ov.offsetWidth  * 100) + '%';
+    _ghostImg.style.top  = ((ev.clientY - r.top)  / ov.offsetHeight * 100) + '%';
+  }
+
+  function onClick(ev) {
+    if (!_pendingImage) return;
+    ev.stopPropagation(); ev.preventDefault();
+    const ov  = ev.currentTarget;
+    const pn  = parseInt(ov.dataset.page);
+    const r   = ov.getBoundingClientRect();
+    const xPct = (ev.clientX - r.left) / ov.offsetWidth  * 100;
+    const yPct = (ev.clientY - r.top)  / ov.offsetHeight * 100;
+    // Default 20% wide, proportional height
+    const w = 20;
+    const h = w * (_pendingImage.naturalH / _pendingImage.naturalW);
+    const img = _pendingImage;
+    cleanup();
+    const a = { id: nextId(), pageNum: pn, type: 'image',
+      x: xPct - w/2, y: yPct - h/2, w, h,
+      src: img.src, color: 'yellow' };
+    pushAnnot(a);
+    // Select it immediately so resize handles show
+    setTimeout(() => {
+      const el = document.querySelector('[data-aid="' + a.id + '"]');
+      const ov2 = el?.closest('.aoverlay');
+      if (el && ov2) showResizeHandles(el, annots.find(x => x.id === a.id), ov2);
+    }, 80);
+  }
+
+  function cleanup() {
+    _pendingImage = null;
+    removeGhostImg();
+    document.removeEventListener('mousemove', onMouseMove, true);
+    document.querySelectorAll('.aoverlay').forEach(o => {
+      o.removeEventListener('click', onClick, true);
+      o.style.cursor = '';
+    });
+    document.removeEventListener('keydown', onEsc);
+  }
+
+  const onEsc = ev => { if (ev.key === 'Escape') cleanup(); };
+
+  document.querySelectorAll('.aoverlay').forEach(o => {
+    o.style.cursor = 'crosshair';
+    o.addEventListener('click', onClick, true);
+  });
+  document.addEventListener('mousemove', onMouseMove, true);
+  document.addEventListener('keydown', onEsc);
+}
+
+// ═══════════════════════════════════════════════
+//  PRINT
+//  Renders the current PDF page spread with
+//  annotations into a hidden iframe and triggers
+//  the browser print dialog.
+// ═══════════════════════════════════════════════
+async function printDrawing() {
+  if (!pdf) { toast('Open a PDF first'); return; }
+  toast('Preparing print…', 3000);
+
+  // Build a full-page HTML snapshot of all rendered pages + overlays
+  const viewer = document.getElementById('pdfpages');
+  const pages  = viewer.querySelectorAll('.pwrap');
+  if (!pages.length) { toast('No pages rendered — scroll through the document first'); return; }
+
+  // Clone the page wrappers (canvas + overlays) into a print document
+  let bodyHtml = '<style>' +
+    'body{margin:0;background:#fff}' +
+    '.pwrap{position:relative;page-break-after:always;margin:0 auto 0;display:block}' +
+    '.pwrap:last-child{page-break-after:auto}' +
+    'canvas{display:block}' +
+    '.aoverlay{position:absolute;inset:0;pointer-events:none}' +
+    // Copy key annotation CSS
+    '.ah{position:absolute;mix-blend-mode:multiply;border-radius:1px}' +
+    '.ar{position:absolute;border:2px solid #2563eb;background:rgba(37,99,235,.07);border-radius:1px}' +
+    '.an{position:absolute;min-width:140px;background:#fff;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.18);font-family:sans-serif;font-size:11px}' +
+    '.an-header{padding:5px 8px;font-size:10px;font-weight:700;font-family:monospace;border-radius:4px 4px 0 0}' +
+    '.an-body{padding:5px 8px;font-size:11.5px;line-height:1.45;color:#333;background:#fff}' +
+    '.atxt{position:absolute;font-size:13px;font-weight:500;padding:2px 4px}' +
+    '.aimage{position:absolute;overflow:hidden;border-radius:2px}' +
+    '.aimage img{width:100%;height:100%;object-fit:fill;display:block}' +
+    '.astamp{position:absolute}' +
+    '.asvg-wrap{position:absolute;inset:0;overflow:visible}' +
+    '.asvg-wrap svg{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible}' +
+    '.ann-move-overlay{display:none}' +
+    '.pnbadge{display:none}' +
+    '@page{margin:8mm}' +
+    '</style>';
+
+  // Convert each canvas to a data URL and clone overlays
+  for (const wrap of pages) {
+    const canvas = wrap.querySelector('canvas');
+    const ov     = wrap.querySelector('.aoverlay');
+    const w = wrap.style.width || (canvas?.width + 'px') || '800px';
+
+    let canvasDataUrl = '';
+    if (canvas) {
+      try { canvasDataUrl = canvas.toDataURL('image/png'); } catch(e) { /* tainted canvas */ }
+    }
+
+    // Clone overlay HTML — strip interactive elements
+    let ovHtml = '';
+    if (ov) {
+      const clone = ov.cloneNode(true);
+      clone.querySelectorAll('.ann-move-overlay,.resize-handle,[data-leader-handle],.ann-drag-ghost').forEach(e => e.remove());
+      clone.querySelectorAll('.an-reply-input-wrap,.an-actions').forEach(e => e.remove());
+      clone.style.pointerEvents = 'none';
+      ovHtml = clone.outerHTML;
+    }
+
+    bodyHtml +=
+      '<div class="pwrap" style="width:' + w + '">' +
+        (canvasDataUrl ? '<img src="' + canvasDataUrl + '" style="display:block;width:' + w + '">' : '') +
+        ovHtml +
+      '</div>';
+  }
+
+  // Write into hidden iframe and print
+  let frame = document.getElementById('print-frame');
+  if (frame) frame.remove();
+  frame = document.createElement('iframe');
+  frame.id = 'print-frame';
+  frame.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none';
+  document.body.appendChild(frame);
+
+  const doc = frame.contentDocument || frame.contentWindow.document;
+  doc.open();
+  doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' + bodyHtml + '</body></html>');
+  doc.close();
+
+  frame.contentWindow.focus();
+  setTimeout(() => {
+    frame.contentWindow.print();
+    setTimeout(() => frame.remove(), 2000);
+  }, 600);
+}
 _ribbonSetTool('pan');
 const _hBtn = document.getElementById('t-pan');
 if (_hBtn) _hBtn.classList.add('active');

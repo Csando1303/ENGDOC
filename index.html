@@ -3221,15 +3221,8 @@ function attachEvents(ov, pageNum, vp) {
     // Select tool handled by attachSelectEvents above
     if (tool === 'select') return;
 
-    // ── PAN: drag-scroll the viewer ──
-    if (tool === 'pan') {
-      panDragging = true;
-      panStart = { x: e.clientX, y: e.clientY };
-      panScrollStart = { left: viewer.scrollLeft, top: viewer.scrollTop };
-      ov.classList.add('panning');
-      e.preventDefault();
-      return;
-    }
+    // Pan handled by viewer-level mousedown (see global pan handler)
+    if (tool === 'pan') return;
 
     if (tool === 'erase') return;
 
@@ -3430,12 +3423,7 @@ function attachEvents(ov, pageNum, vp) {
   });
 
   ov.addEventListener('mousemove', e => {
-    // Pan drag-scroll
-    if (tool === 'pan' && panDragging && panStart) {
-      viewer.scrollLeft = panScrollStart.left - (e.clientX - panStart.x);
-      viewer.scrollTop  = panScrollStart.top  - (e.clientY - panStart.y);
-      return;
-    }
+    // (pan scroll handled by global document mousemove listener)
 
     const r = ov.getBoundingClientRect();
     const mx = e.clientX - r.left, my = e.clientY - r.top;
@@ -3500,12 +3488,6 @@ function attachEvents(ov, pageNum, vp) {
   });
 
   ov.addEventListener('mouseup', e => {
-    // End pan
-    if (tool === 'pan') {
-      panDragging = false; panStart = null; panScrollStart = null;
-      ov.classList.remove('panning');
-      return;
-    }
     if (!drawing) return; drawing = false;
     const r = ov.getBoundingClientRect();
     const mx = e.clientX - r.left, my = e.clientY - r.top;
@@ -3571,15 +3553,8 @@ function attachEvents(ov, pageNum, vp) {
       pushAnnot({ id: nextId(), pageNum, type: 'cloud', x, y, w, h, color });
     }
   });
-
-  // Release pan if mouse leaves overlay
-  ov.addEventListener('mouseleave', () => {
-    if (panDragging) {
-      panDragging = false; panStart = null; panScrollStart = null;
-      ov.classList.remove('panning');
-    }
-  });
 }
+
 
 /* ═══════════════════════════════════════════════
    ANNOTATION DATA MANAGEMENT — UNDO/REDO HISTORY
@@ -3701,7 +3676,21 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Global pan drag — continues even if mouse leaves the overlay
+// ── PAN: attach to viewer directly — fires even when overlay has pointer-events:none ──
+(function() {
+  const viewer = document.getElementById('viewer');
+  viewer.addEventListener('mousedown', e => {
+    if (tool !== 'pan') return;
+    if (e.button !== 0) return;
+    // Don't pan if clicking on an annotation element (that should be dragged instead)
+    if (e.target.closest('[data-aid]') || e.target.closest('[data-leader]') || e.target.closest('.resize-handle')) return;
+    panDragging = true;
+    panStart = { x: e.clientX, y: e.clientY };
+    panScrollStart = { left: viewer.scrollLeft, top: viewer.scrollTop };
+    document.querySelectorAll('.aoverlay').forEach(o => o.classList.add('panning'));
+    e.preventDefault();
+  }, true); // capturing — fires before overlay
+})();
 document.addEventListener('keyup', e => {
   if (e.key === ' ' && window._prevTool) {
     setTool(window._prevTool); window._prevTool = null;

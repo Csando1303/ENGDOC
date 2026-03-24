@@ -511,6 +511,14 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   border-radius:2px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .tcwrap canvas{max-width:100%;max-height:100%}
 .tlbl{font-family:var(--mono);font-size:10px;color:var(--gray-500);margin-top:2px}
+.tgroup-header{
+  font-size:9px;font-weight:700;font-family:var(--mono);text-transform:uppercase;
+  letter-spacing:.4px;color:var(--gray-400);padding:8px 8px 3px;
+  border-top:1px solid var(--gray-100);margin-top:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  cursor:default;
+}
+.tgroup-header:first-child{border-top:none;margin-top:0;padding-top:4px;}
 .aempty{text-align:center;color:var(--gray-400);font-size:12px;margin-top:28px;line-height:1.7}
 .aitem{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);
   padding:8px 28px 8px 9px;margin-bottom:5px;cursor:pointer;transition:all .12s;position:relative}
@@ -579,12 +587,12 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 /* page wrappers */
 .pwrap{
   position:relative;
-  display:inline-block;  /* shrink-wrap to canvas size; text-align:center on parent centres it */
-  margin:0 auto 24px;
+  display:block;         /* vertical stacking — each page on its own line */
+  width:fit-content;     /* shrink-wrap to canvas size */
+  margin:0 auto 24px;    /* centre horizontally, gap between pages */
   border-radius:2px;
   box-shadow:var(--shadow-page);
   background:#fff;
-  vertical-align:top;
 }
 .pwrap canvas{display:block}
 .pwrap.unrendered{background:var(--gray-200)}
@@ -1848,7 +1856,7 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         </div>
         <div class="drop-h">Open a drawing or spec</div>
-        <div class="drop-s">Drag &amp; drop a PDF or .engdoc session file here, or click to browse</div>
+        <div class="drop-s">Drag &amp; drop a PDF, multiple PDFs (to collate), or .engdoc session file here, or click to browse</div>
         <button class="drop-btn" onclick="document.getElementById('fopen').click()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Browse Files
@@ -2403,6 +2411,9 @@ let annotIdSeq = 0;
 const STATUS_CYCLE = ['open','progress','resolved','rejected'];
 const STATUS_LABEL = { open:'Open', progress:'In Progress', resolved:'Resolved', rejected:'Rejected' };
 
+// Page source labels — set when multiple PDFs are merged, maps pageNum→filename
+const pageLabels = {}; // { 1: 'DrawingA.pdf', 2: 'DrawingA.pdf', 3: 'DrawingB.pdf', ... }
+
 // Author
 let currentAuthor = localStorage.getItem('engdoc_author') || '';
 
@@ -2565,11 +2576,19 @@ async function openFile(e) {
 function onDragOver(e) { e.preventDefault(); document.getElementById('drop-card').classList.add('drag-over'); }
 async function onDrop(e) {
   e.preventDefault(); document.getElementById('drop-card').classList.remove('drag-over');
-  const f = e.dataTransfer.files[0]; if (!f) return;
-  if (f.name.toLowerCase().endsWith('.engdoc')) {
-    await loadSession({ target: { files: [f], value: '' } });
-  } else if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
-    await loadPDF(f);
+  const files = Array.from(e.dataTransfer.files);
+  if (!files.length) return;
+
+  const pdfs    = files.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+  const engdocs = files.filter(f => f.name.toLowerCase().endsWith('.engdoc'));
+
+  if (engdocs.length) {
+    // Load the first .engdoc (ignore others)
+    loadSession({ target: { files: [engdocs[0]], value: '' } });
+  } else if (pdfs.length === 1) {
+    loadPDF(pdfs[0]);
+  } else if (pdfs.length > 1) {
+    loadMultiplePDFs(pdfs);
   }
 }
 
@@ -2590,9 +2609,12 @@ async function loadPDF(file) {
     useSystemFonts: false,
   }).promise;
   nPages = pdf.numPages; curPg = 1; annots = []; emmaRows = {};
+  // Clear page labels — single PDF uses plain page numbers
+  Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
   renderedPages.clear(); renderQueue.clear();
   Object.keys(pdfTextContent).forEach(k => delete pdfTextContent[k]);
   Object.keys(_pageTextItems).forEach(k => delete _pageTextItems[k]);
+  if (window._pageRawText) Object.keys(window._pageRawText).forEach(k => delete window._pageRawText[k]);
   // Reset undo/redo history for new document
   history = []; historyIdx = -1; updateUndoRedoButtons();
 
@@ -2611,6 +2633,75 @@ async function loadPDF(file) {
   // Extract text in background — don't block rendering
   extractPdfText().then(() => autoDetectTitleBlock());
   toast(`Opened: ${file.name} — ${nPages} page${nPages !== 1 ? 's' : ''}`);
+}
+
+/* ═══════════════════════════════════════════════
+   MULTI-PDF COLLATION
+   Drag in multiple PDFs — they are merged in drop
+   order. Each page is labelled with its source
+   filename in the Pages panel.
+═══════════════════════════════════════════════ */
+async function loadMultiplePDFs(files) {
+  if (!files.length) return;
+
+  // Sort alphabetically by filename so pages always appear A→Z regardless of drop order
+  const sortedFiles = [...files].sort((a, b) =>
+    a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+  );
+
+  toast('Merging ' + sortedFiles.length + ' PDFs\u2026', 3000);
+
+  try {
+    await loadPdfLib();
+    const { PDFDocument } = PDFLib;
+    const merged = await PDFDocument.create();
+
+    // Clear page labels ready for new set
+    Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
+
+    let pageOffset = 0;
+    const firstName = sortedFiles[0].name;
+
+    for (const file of sortedFiles) {
+      const bytes = await file.arrayBuffer();
+      const src   = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      const pages = await merged.copyPages(src, src.getPageIndices());
+      pages.forEach(p => {
+        merged.addPage(p);
+        pageOffset++;
+        pageLabels[pageOffset] = file.name.replace(/\.pdf$/i, '');
+      });
+    }
+
+    // Serialise merged PDF and load it
+    const mergedBytes = await merged.save();
+    const mergedFile  = new File(
+      [mergedBytes],
+      firstName.replace(/\.pdf$/i, '') + '_merged.pdf',
+      { type: 'application/pdf' }
+    );
+
+    await loadPDF(mergedFile);
+
+    // Re-apply labels (loadPDF cleared them)
+    // We stored labels before loadPDF, so restore from our local copy
+    // Actually: rebuild from files list since loadPDF clears pageLabels
+    let pg = 0;
+    for (const file of sortedFiles) {
+      const src = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true });
+      for (let i = 0; i < src.getPageCount(); i++) {
+        pg++;
+        pageLabels[pg] = file.name.replace(/\.pdf$/i, '');
+      }
+    }
+
+    // Rebuild thumbs with labels now set
+    buildThumbs();
+    toast('\u2713 Merged ' + sortedFiles.length + ' PDFs \u2014 ' + nPages + ' pages total', 3000);
+  } catch(e) {
+    toast('Merge failed: ' + e.message);
+    console.error('[EngDoc] loadMultiplePDFs:', e);
+  }
 }
 
 /* Extract text content from all pages using pdf.js — basic version,
@@ -2925,7 +3016,7 @@ async function buildPageShells() {
 
     const badge = document.createElement('div');
     badge.className = 'pnbadge';
-    badge.textContent = `Page ${i}`;
+    badge.textContent = pageLabels[i] ? (pageLabels[i] + '  ·  p.' + (() => { let n=0; for(let j=1;j<=i;j++){if(pageLabels[j]===pageLabels[i])n++;} return n; })()) : ('Page ' + i);
 
     wrap.appendChild(ov);
     wrap.appendChild(badge);
@@ -2944,19 +3035,37 @@ async function buildPageShells() {
 
 function getVisibleRange() {
   const viewer = document.getElementById('viewer');
-  const viewerRect = viewer.getBoundingClientRect();
-  let first = nPages, last = 1;
+  const scrollTop = viewer.scrollTop;
+  const viewH     = viewer.clientHeight;
+  const viewBot   = scrollTop + viewH;
+
+  // Fast path: use cumulative page heights from pageViewports instead of
+  // touching getBoundingClientRect on every page (avoids layout thrashing).
+  const container = document.getElementById('pdfpages');
+  const padTop = 28; // matches #pdfpages padding-top
+  const gap    = 24; // matches .pwrap margin-bottom
+
+  let cumY  = padTop;
+  let first = nPages;
+  let last  = 1;
+
   for (let i = 1; i <= nPages; i++) {
-    const el = document.getElementById(`pw-${i}`);
-    if (!el) continue;
-    const r = el.getBoundingClientRect();
-    // Check if this page intersects the viewer's visible rect
-    if (r.bottom > viewerRect.top && r.top < viewerRect.bottom) {
-      first = Math.min(first, i);
-      last  = Math.max(last, i);
+    const pv = pageViewports[i];
+    const h  = pv ? pv.height : (pageViewports[1] ? pageViewports[1].height : 1000);
+    const pageTop = cumY;
+    const pageBot = cumY + h;
+
+    if (pageBot > scrollTop && pageTop < viewBot) {
+      if (i < first) first = i;
+      if (i > last)  last  = i;
     }
+
+    // Once we've passed the visible area we can stop
+    if (pageTop > viewBot) break;
+    cumY = pageBot + gap;
   }
-  if (first > last) { first = 1; last = Math.min(nPages, 3); } // fallback on empty
+
+  if (first > last) { first = 1; last = Math.min(nPages, 3); } // fallback
   return { first: Math.max(1, first - OVERSCAN), last: Math.min(nPages, last + OVERSCAN) };
 }
 
@@ -2965,44 +3074,52 @@ const RENDER_CONCURRENCY = 4; // render up to 4 pages simultaneously
 function scheduleRender() {
   if (renderScheduled) return;
   renderScheduled = true;
-  requestAnimationFrame(async () => {
+  // Use setTimeout(0) instead of rAF so CSS scale preview can paint FIRST,
+  // then we start the heavy PDF.js decode work after the browser has flushed.
+  setTimeout(async () => {
     renderScheduled = false;
     if (!pdf) return;
     const { first, last } = getVisibleRange();
 
     // Unload pages far outside viewport to release GPU memory
-    for (const pg of renderedPages) {
+    for (const pg of [...renderedPages]) {
       if (pg < first - 4 || pg > last + 4) {
         const wrap = document.getElementById('pw-' + pg);
         if (wrap) {
           const canvas = wrap.querySelector('canvas');
-          if (canvas) {
-            canvas.width = 1; canvas.height = 1; // release GPU texture
-            canvas.remove();
-          }
+          if (canvas) { canvas.width = 1; canvas.height = 1; canvas.remove(); }
           wrap.querySelector('.textLayer')?.remove();
           wrap.classList.add('unrendered');
         }
         renderedPages.delete(pg);
-        delete _pageCache[pg]; // free the page object too
+        delete _pageCache[pg];
       }
     }
 
-    // Collect pages that need rendering, prioritise visible ones first
+    // Collect visible pages that need rendering
     const toRender = [];
     for (let i = first; i <= last; i++) {
       if (!renderedPages.has(i) && !renderQueue.has(i)) toRender.push(i);
     }
+    if (!toRender.length) return;
 
-    // Render in batches of RENDER_CONCURRENCY
-    for (let i = 0; i < toRender.length; i += RENDER_CONCURRENCY) {
-      const batch = toRender.slice(i, i + RENDER_CONCURRENCY);
+    // Render 2 pages at a time — PDF.js worker is the bottleneck,
+    // more concurrency doesn't help and makes the UI feel frozen.
+    const CONCURRENCY = 2;
+    for (let i = 0; i < toRender.length; i += CONCURRENCY) {
+      const batch = toRender.slice(i, i + CONCURRENCY);
       batch.forEach(pg => renderQueue.add(pg));
       await Promise.all(batch.map(pg =>
-        renderPageContent(pg).then(() => renderQueue.delete(pg)).catch(() => renderQueue.delete(pg))
+        renderPageContent(pg)
+          .then(() => renderQueue.delete(pg))
+          .catch(() => renderQueue.delete(pg))
       ));
+      // Yield between batches so browser stays responsive
+      if (i + CONCURRENCY < toRender.length) {
+        await new Promise(r => setTimeout(r, 0));
+      }
     }
-  });
+  }, 0);
 }
 
 // Page object cache — avoid re-fetching already-loaded page objects
@@ -3068,19 +3185,21 @@ async function renderPageContent(pageNum) {
   });
 
   // ── Text layer (selectable text) ──
-  // Store raw text content for this page — used by the custom select tool.
-  // We keep the data, not DOM spans, so we can do proper hit-testing in page space.
-  const [, textContent] = await Promise.all([
-    renderTask.promise,
-    page.getTextContent({ includeMarkedContent: false }),
-  ]);
+  // On first render: fetch text content from PDF worker.
+  // On re-renders (zoom change): reuse cached raw items, just rescale coordinates.
+  // This avoids a round-trip to the PDF.js worker on every zoom change.
+  if (!_pageRawText) window._pageRawText = {};
+  const [,] = await Promise.all([renderTask.promise, Promise.resolve()]);
 
-  // Cache text items with their page-space bounding boxes for the select tool.
-  // Each item: { str, x, y, w, h, angle } in CSS-pixel space (zoom applied).
-  _pageTextItems[pageNum] = textContent.items
-    .filter(item => item.str && item.str.trim())
-    .map(item => {
-      const [a, b, , d, e, f] = item.transform;
+  if (!window._pageRawText[pageNum]) {
+    // First render — fetch from worker
+    const textContent = await page.getTextContent({ includeMarkedContent: false });
+    window._pageRawText[pageNum] = textContent.items.filter(item => item.str?.trim());
+  }
+
+  // Rescale cached raw items to current zoom
+  _pageTextItems[pageNum] = window._pageRawText[pageNum].map(item => {
+    const [a, b, , d, e, f] = item.transform;
       // Width from item.width (in PDF user units), height from font size
       const scaleX = Math.sqrt(a * a + b * b);
       const scaleY = Math.sqrt(b * b + d * d); // approximate
@@ -3132,8 +3251,10 @@ async function rerenderAll() {
   // Mark all pages unrendered — DO NOT clear _pageCache (page objects are zoom-independent)
   renderedPages.clear();
   renderQueue.clear();
-  // pageViewports will be updated per-page in renderPageContent
-  syncAnnots();
+  // pageViewports will be updated per-page in renderPageContent.
+  // Do NOT call syncAnnots() here — annotations use % coords and reposition automatically
+  // when the overlay pixel size is corrected by renderPageContent. Calling syncAnnots on
+  // every zoom rebuilds all annotation DOM which is the main source of zoom lag.
   scheduleRender();
   // Ensure scroll position after render
   requestAnimationFrame(() => {
@@ -3168,9 +3289,23 @@ document.getElementById('viewer').addEventListener('scroll', () => {
 async function buildThumbs() {
   const panel = document.getElementById('sp-pages');
   panel.innerHTML = '';
-  const limit = Math.min(nPages, 300); // Thumbnail cap for very large docs
+  const limit = Math.min(nPages, 300);
+  const hasLabels = Object.keys(pageLabels).length > 0;
+  let lastSource = null;
 
   for (let i = 1; i <= limit; i++) {
+    const source = pageLabels[i] || null;
+
+    // Insert a source divider when the PDF changes (multi-PDF mode)
+    if (hasLabels && source && source !== lastSource) {
+      const div = document.createElement('div');
+      div.className = 'tgroup-header';
+      div.textContent = source;
+      div.title = source;
+      panel.appendChild(div);
+      lastSource = source;
+    }
+
     const item = document.createElement('div');
     item.className = 'titem' + (i === 1 ? ' active' : '');
     item.dataset.page = i;
@@ -3180,7 +3315,19 @@ async function buildThumbs() {
     const tc = document.createElement('canvas');
     wrap.appendChild(tc);
 
-    const lbl = document.createElement('div'); lbl.className = 'tlbl'; lbl.textContent = i;
+    const lbl = document.createElement('div');
+    lbl.className = 'tlbl';
+    if (hasLabels && source) {
+      // Show page-within-source number if we can compute it
+      // Count how many pages before this one share the same source
+      let localPg = 0;
+      for (let j = 1; j <= i; j++) { if (pageLabels[j] === source) localPg++; }
+      lbl.textContent = localPg;
+      lbl.title = source + ' — page ' + localPg;
+    } else {
+      lbl.textContent = i;
+    }
+
     item.appendChild(wrap); item.appendChild(lbl); panel.appendChild(item);
   }
 
@@ -3191,7 +3338,7 @@ async function buildThumbs() {
       const item = entry.target;
       const pgNum = parseInt(item.dataset.page);
       const tc = item.querySelector('canvas');
-      if (tc.width > 0) continue; // already rendered
+      if (!tc || tc.width > 0) continue;
       obs.unobserve(item);
       try {
         const p = await pdf.getPage(pgNum);
@@ -3238,7 +3385,7 @@ async function applyZoom(val) {
 
   // Debounce the actual re-render — 150ms collapses rapid changes
   clearTimeout(_zoomTimer);
-  _zoomTimer = setTimeout(() => rerenderAll(), 150);
+  _zoomTimer = setTimeout(() => rerenderAll(), 250);
 }
 
 /* ═══════════════════════════════════════════════

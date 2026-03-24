@@ -2354,6 +2354,31 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   </div>
 </div>
 
+<!-- AUTOSAVE RESTORE MODAL -->
+<div class="overlay" id="mrestore">
+  <div class="modal" style="width:420px">
+    <div class="mhead">
+      <span class="mtitle">Restore Previous Session?</span>
+    </div>
+    <div class="mbody">
+      <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:4px">
+        <div style="font-size:28px;flex-shrink:0">💾</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--gray-800);margin-bottom:6px" id="restore-title">Unsaved session found</div>
+          <div style="font-size:12px;color:var(--gray-500);line-height:1.6" id="restore-detail"></div>
+        </div>
+      </div>
+    </div>
+    <div class="mfoot" style="justify-content:flex-end;gap:8px">
+      <button class="hbtn outline" onclick="dismissRestore()">Discard</button>
+      <button class="hbtn primary" onclick="doRestore()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Restore Session
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <div class="snap-ring" id="snap-ring"></div>
 
@@ -5983,26 +6008,44 @@ async function idbClearTemplate() {
 async function idbSave() {
   if (!idb || !pdfName) return;
   try {
-    const data = { id: 'autosave', pdfName, annots, emmaRows, annotIdSeq,
-      emmaFields: captureEmmaFields(), savedAt: new Date().toISOString() };
+    const data = {
+      id: 'autosave',
+      pdfName, annots, emmaRows, annotIdSeq,
+      emmaFields: captureEmmaFields(),
+      savedAt: new Date().toISOString(),
+      annotCount: annots.length,
+      pdfBytes: pdfBytes || undefined,
+    };
     const tx = idb.transaction('sessions', 'readwrite');
     tx.objectStore('sessions').put(data);
     const dot  = document.getElementById('autosave-dot');
     const dot2 = document.getElementById('rat-autosave');
-    [dot, dot2].forEach(d => { if (d) { d.classList.add('pulse'); setTimeout(() => d.classList.remove('pulse'), 1500); } });
-  } catch(e) { /* silent */ }
+    [dot, dot2].forEach(d => {
+      if (d) { d.classList.add('pulse'); setTimeout(() => d.classList.remove('pulse'), 1500); }
+    });
+    const sbAs = document.getElementById('sb-autosave');
+    if (sbAs) sbAs.textContent = '\u2713 ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  } catch(e) { /* quota exceeded or idb error — silent */ }
 }
 
 async function idbRestore() {
   if (!idb) return null;
   return new Promise(res => {
     try {
-      const tx = idb.transaction('sessions', 'readonly');
+      const tx  = idb.transaction('sessions', 'readonly');
       const req = tx.objectStore('sessions').get('autosave');
       req.onsuccess = () => res(req.result || null);
-      req.onerror = () => res(null);
+      req.onerror   = () => res(null);
     } catch(e) { res(null); }
   });
+}
+
+async function idbClearAutosave() {
+  if (!idb) return;
+  try {
+    const tx = idb.transaction('sessions', 'readwrite');
+    tx.objectStore('sessions').delete('autosave');
+  } catch(e) { /* silent */ }
 }
 
 function captureEmmaFields() {
@@ -6062,11 +6105,31 @@ openIDB().then(async () => {
     updateTemplateUI(tmpl.filename || 'Checksheet.xlsm');
     toast('✓ EMMA template ready: ' + (tmpl.filename || 'Checksheet.xlsm'), 3000);
   }
-  // Offer to restore last session
+  // Check for unsaved autosave session
   const saved = await idbRestore();
   if (saved && saved.pdfName && !pdfName) {
-    const age = saved.savedAt ? Math.round((Date.now() - new Date(saved.savedAt)) / 60000) : '?';
-    toast('Auto-save found: "' + saved.pdfName + '" from ' + age + ' min ago — drag it in to restore', 6000);
+    const ageMins = saved.savedAt
+      ? Math.round((Date.now() - new Date(saved.savedAt)) / 60000)
+      : null;
+    const ageStr = ageMins === null ? 'unknown time'
+      : ageMins < 1  ? 'less than a minute ago'
+      : ageMins < 60 ? ageMins + ' minute' + (ageMins !== 1 ? 's' : '') + ' ago'
+      : Math.round(ageMins / 60) + ' hour' + (Math.round(ageMins / 60) !== 1 ? 's' : '') + ' ago';
+
+    document.getElementById('restore-title').textContent =
+      'Unsaved session found: "' + saved.pdfName + '"';
+    document.getElementById('restore-detail').innerHTML =
+      'EngDoc has an auto-saved session from <strong>' + ageStr + '</strong> with ' +
+      '<strong>' + (saved.annotCount || (saved.annots && saved.annots.length) || 0) + ' annotation' +
+      ((saved.annotCount || (saved.annots && saved.annots.length) || 0) !== 1 ? 's' : '') + '</strong>.<br><br>' +
+      (saved.pdfBytes
+        ? 'The drawing and all annotations will be restored.'
+        : 'Annotations will be restored. You will need to re-open the PDF drawing.') +
+      '<br><br>Click <strong>Discard</strong> to start fresh, or <strong>Restore Session</strong> to continue where you left off.';
+
+    // Store for use by doRestore / dismissRestore
+    window._pendingRestore = saved;
+    openM('mrestore');
   }
 }).catch(() => {});
 
@@ -9619,6 +9682,85 @@ async function printDrawing() {
     setTimeout(() => frame.remove(), 2000);
   }, 600);
 }
+// ═══════════════════════════════════════════════
+//  AUTOSAVE RESTORE
+// ═══════════════════════════════════════════════
+async function doRestore() {
+  closeM('mrestore');
+  const saved = window._pendingRestore;
+  window._pendingRestore = null;
+  if (!saved) return;
+
+  toast('Restoring session\u2026', 2500);
+
+  try {
+    if (saved.pdfBytes) {
+      const file = new File([saved.pdfBytes], saved.pdfName, { type: 'application/pdf' });
+      await loadPDF(file);
+    } else {
+      pdfName = saved.pdfName;
+      const dn = document.getElementById('doc-name');
+      if (dn) dn.textContent = saved.pdfName;
+    }
+
+    annots     = saved.annots     || [];
+    emmaRows   = saved.emmaRows   || {};
+    annotIdSeq = saved.annotIdSeq || annots.reduce((m, a) => Math.max(m, a.id || 0), 0);
+
+    if (saved.emmaFields) {
+      Object.entries(saved.emmaFields).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+      });
+    }
+
+    syncAnnots(); updateAnnotPanel(); updateEmmaRegister();
+
+    const n = annots.length;
+    toast('\u2713 Session restored \u2014 ' + n + ' annotation' + (n !== 1 ? 's' : '') +
+      (saved.pdfBytes ? '' : ' \u00b7 Re-open the PDF to see the drawing'), 4000);
+  } catch(e) {
+    toast('Restore failed: ' + e.message);
+  }
+}
+
+function dismissRestore() {
+  closeM('mrestore');
+  window._pendingRestore = null;
+  idbClearAutosave();
+  toast('Auto-save discarded');
+}
+
+// Clear autosave after a deliberate file save (it's been committed properly)
+const _origSaveSessionAuto = saveSession;
+saveSession = function() {
+  _origSaveSessionAuto();
+  setTimeout(idbClearAutosave, 600);
+};
+const _origSaveWithPdfAuto = saveSessionWithPdf;
+saveSessionWithPdf = async function() {
+  await _origSaveWithPdfAuto();
+  setTimeout(idbClearAutosave, 600);
+};
+
+// Final save on tab close / navigation away
+window.addEventListener('beforeunload', () => {
+  if (idb && pdfName && annots.length) {
+    try {
+      const data = {
+        id: 'autosave',
+        pdfName, annots, emmaRows, annotIdSeq,
+        emmaFields: captureEmmaFields(),
+        savedAt: new Date().toISOString(),
+        annotCount: annots.length,
+        pdfBytes: pdfBytes || undefined,
+      };
+      const tx = idb.transaction('sessions', 'readwrite');
+      tx.objectStore('sessions').put(data);
+    } catch(e) { /* best-effort on unload */ }
+  }
+});
+
 _ribbonSetTool('pan');
 const _hBtn = document.getElementById('t-pan');
 if (_hBtn) _hBtn.classList.add('active');

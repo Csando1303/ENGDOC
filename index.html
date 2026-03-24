@@ -3365,13 +3365,16 @@ function setOpacity(v) {
 /* ═══════════════════════════════════════════════
    DRAWING EVENTS
 ═══════════════════════════════════════════════ */
-function attachEvents(ov, pageNum, vp) {
+function attachEvents(ov, pageNum, _vpInitial) {
   const viewer = document.getElementById('viewer');
+  // Always read current viewport from pageViewports — the captured vp goes stale on zoom change
+  const getLiveVp = () => pageViewports[pageNum] || _vpInitial || { width: 800, height: 1000 };
 
   // Attach custom text selection handler for this page
   attachSelectEvents(ov, pageNum);
 
   ov.addEventListener('mousedown', e => {
+    const vp = getLiveVp(); // fresh every event
     if (e.button !== 0) return;
     hideCtx();
 
@@ -3587,6 +3590,7 @@ function attachEvents(ov, pageNum, vp) {
   });
 
   ov.addEventListener('mousemove', e => {
+    const vp = getLiveVp(); // always current
     // Pan drag-scroll
     if (tool === 'pan' && panDragging && panStart) {
       viewer.scrollLeft = panScrollStart.left - (e.clientX - panStart.x);
@@ -3657,6 +3661,7 @@ function attachEvents(ov, pageNum, vp) {
   });
 
   ov.addEventListener('mouseup', e => {
+    const vp = getLiveVp(); // always current
     // End pan
     if (tool === 'pan' && panDragging) {
       panDragging = false; panStart = null; panScrollStart = null;

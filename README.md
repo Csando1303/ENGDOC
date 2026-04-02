@@ -4,7 +4,7 @@ Simple PDF viewer and editor tailored to engineering consulting needs.
 
 Hosted on GitHub Pages — potential move into the Atlas eco-system if needed.
 
-URL: https://csand1303.github.io/ENGDOC/
+URL: https://csando1303.github.io/ENGDOC/
 
 ## Features
 - PDF viewing with zoom and page navigation

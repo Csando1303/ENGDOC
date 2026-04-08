@@ -4957,8 +4957,8 @@ function updateAnnotPanel() {
       '<select class="aitem-status" data-annotid="' + a.id + '" style="background:' + (statusColors[status] || '#fff') + '">' +
         STATUS_CYCLE.map(s => '<option value="' + s + '"' + (s === status ? ' selected' : '') + '>' + STATUS_LABEL[s] + '</option>').join('') +
       '</select>' +
-      '<div class="apreview">' + escHtml(preview) + '</div>' +
-      '<div class="ats">' + (a.author ? '● ' + escHtml(a.author) + '  · ' : '') + 'Pg ' + a.pageNum + (tsStr ? '  · ' + tsStr : '') + '</div>' +
+      '<div class="apreview">' + preview + '</div>' +
+      '<div class="ats">' + (a.author ? '● ' + a.author + '  · ' : '') + 'Pg ' + a.pageNum + (tsStr ? '  · ' + tsStr : '') + '</div>' +
       (canEdit ? '<button class="aedit-btn" title="Edit text" onclick="event.stopPropagation();editAnnotById(' + a.id + ')">Edit</button>' : '');
 
     item.querySelector('.adel').onclick = ev => { ev.stopPropagation(); deleteAnnotById(a.id); };
@@ -5141,7 +5141,6 @@ function ctxResizeImage() {
 
 function ctxDuplicate() {
   if (ctxAnnotId == null) { hideCtx(); return; }
-  const src = annots.find(x => x.id === ctxAnnotId);
   if (!src) { hideCtx(); return; }
   const copy = JSON.parse(JSON.stringify(src));
   copy.id = nextId();
@@ -5377,13 +5376,7 @@ async function _saveToHandle(data, filename) {
   return true;
 }
 
-// Reset handle when a new PDF is opened
-const _origLoadPDFSave = loadPDF;
-loadPDF = async function(file) {
-  _fileHandle = null;
-  _loadedEngdocName = null;
-  await _origLoadPDFSave(file);
-};
+
 
 function saveSession() {
   if (!pdfName && !annots.length) { toast('Nothing to save'); return; }
@@ -5407,10 +5400,7 @@ async function saveSessionWithPdf() {
   const data = { v: 3, pdfName, annotIdSeq, measureScale, annots, emmaRows, pdfData: b64 };
   const filename = _loadedEngdocName || (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
   const ok = await _saveToHandle(data, filename);
-  if (ok) {
-    const sizeMb = (bytes.length / 1048576).toFixed(1);
-    toast(`✓ Saved with embedded PDF — ${sizeMb} MB`);
-  }
+  if (ok) toast(`✓ Saved with embedded PDF — ${sizeMb} MB`);
 }
 
 function _downloadJSON(data, filename) {
@@ -5689,79 +5679,6 @@ async function exportAnnotatedPdf() {
               }
             }
           }
-          else if (a.type === 'textbox') {
-            // Filled text box with border
-            const bx = a.x / 100 * W;
-            const by = H - (a.y + a.h) / 100 * H;
-            const bw = a.w / 100 * W;
-            const bh = a.h / 100 * H;
-            const { r: fr, g: fg, b: fb } = hexToRgb(cf);
-            page.drawRectangle({
-              x: bx, y: by, width: bw, height: bh,
-              color: rgb(fr, fg, fb),
-              borderColor: rgb(r, g, b),
-              borderWidth: 1.2,
-              opacity: 0.88,
-              borderOpacity: 1,
-            });
-            if (a.text) {
-              const lines = a.text.split('\n').slice(0, 6);
-              const fs = Math.min(a.fontSize || 10, 10);
-              lines.forEach((line, li) => {
-                _drawPdfLabel(page, line, bx + 4, by + bh - fs - 4 - li * (fs + 2), rgb(r, g, b), fs);
-              });
-            }
-          }
-
-          else if (a.type === 'callout') {
-            // Leader line from tip to text box
-            const bx = a.x / 100 * W;
-            const by = H - (a.y + a.h) / 100 * H;
-            const bw = a.w / 100 * W;
-            const bh = a.h / 100 * H;
-            const anchorX = bx + bw / 2;
-            const anchorY = by;
-            const tipX = a.lx !== undefined ? a.lx / 100 * W : anchorX;
-            const tipY = a.ly !== undefined ? H - a.ly / 100 * H : anchorY - 20;
-            page.drawLine({
-              start: { x: anchorX, y: anchorY },
-              end:   { x: tipX, y: tipY },
-              color: rgb(r, g, b),
-              thickness: 1.5,
-              opacity: 0.85,
-            });
-            const { r: fr, g: fg, b: fb } = hexToRgb(cf);
-            page.drawRectangle({
-              x: bx, y: by, width: bw, height: bh,
-              color: rgb(fr, fg, fb),
-              borderColor: rgb(r, g, b),
-              borderWidth: 1.2,
-              opacity: 0.9,
-              borderOpacity: 1,
-            });
-            if (a.text) {
-              const fs = Math.min(a.fontSize || 10, 10);
-              _drawPdfLabel(page, a.text.slice(0, 60), bx + 4, by + bh / 2 - fs / 2, rgb(r, g, b), fs);
-            }
-          }
-
-          else if (a.type === 'stamp') {
-            // Stamp: bordered rectangle with centred label text
-            const sw = 55, sh = 18;
-            const sx = a.x / 100 * W - sw / 2;
-            const sy = H - a.y / 100 * H - sh / 2;
-            page.drawRectangle({
-              x: sx, y: sy, width: sw, height: sh,
-              color: rgb(r, g, b),
-              opacity: 0.1,
-              borderColor: rgb(r, g, b),
-              borderWidth: 2,
-              borderOpacity: 1,
-            });
-            const label = (a.label || a.stampId || 'STAMP').toUpperCase();
-            _drawPdfLabel(page, label, sx + 4, sy + 5, rgb(r, g, b), 7);
-          }
-
         } catch(annotErr) { /* skip individual annotation errors silently */ }
       }
     }
@@ -5847,9 +5764,9 @@ function updateEmmaRegister() {
     div.innerHTML = `
       <div class="emma-row-num">${i + 1}</div>
       <div>
-        <div class="emma-row-comment">${escHtml(a.text || (a.type === 'measure' ? a.label || '—' : '—'))}</div>
-        <div class="emma-row-doc">Pg ${a.pageNum} · ${escHtml(a.author || '—')}</div>
-        ${row.reply ? `<div class="emma-row-reply"><span style="color:var(--blue-500);font-weight:600">↩ </span>${escHtml(row.reply)}</div>` : ''}
+        <div class="emma-row-comment">${a.text || (a.type === 'measure' ? a.label || '—' : '—')}</div>
+        <div class="emma-row-doc">Pg ${a.pageNum} · ${a.author || '—'}</div>
+        ${row.reply ? `<div class="emma-row-reply"><span style="color:var(--blue-500);font-weight:600">↩ </span>${row.reply}</div>` : ''}
       </div>
       <div><span class="emma-cat-badge ${catClass}">${row.cat || '—'}</span></div>
       <div style="font-size:9px;color:var(--gray-500);padding-top:3px">${row.commentType || '—'}</div>
@@ -6093,7 +6010,7 @@ async function exportEmma() {
       const r   = 11 + idx;
       const row = emmaRowForAnnot(a);
       const comment = a.text || (a.type === 'measure' ? a.label || '' : '');
-      const dateStr = a.ts ? new Date(a.ts).toLocaleDateString('en-GB') : todayStr;
+      const dateStr = a.timestamp ? new Date(a.timestamp).toLocaleDateString('en-GB') : todayStr;
 
       crXml = writeSharedStr(crXml, 'C' + r, ssIndex(row.docNo || docNo || ''));
       crXml = writeSharedStr(crXml, 'E' + r, ssIndex(dateStr));
@@ -7128,29 +7045,23 @@ renderPageContent = async function(pageNum) {
 // ═══════════════════════════════════════════════
 typeLabels['area'] = 'Area Measurement';
 
-// Patch setTool cursor for area
-const _origSetTool = setTool;
-setTool = function(t) {
-  _origSetTool(t);
-  if (t !== 'area' && areaPoints.length > 0) cancelArea();
-  document.querySelectorAll('.aoverlay').forEach(o => {
-    if (t === 'area') o.classList.add('cur-cross');
-  });
-};
+// area cancelArea now handled in _ribbonSetTool patch below
 
 // area type handled in core buildAnnotEl via buildAreaAnnotEl
 
 // ═══════════════════════════════════════════════
 //  PATCH pushAnnot to trigger autosave + dashboard
 // ═══════════════════════════════════════════════
-const _pushAnnotBase = pushAnnot;
+// Single pushAnnot post-hook — dashboard, autosave, measurement table
+const _origPushAnnotFinal = pushAnnot;
 pushAnnot = function(a) {
-  _pushAnnotBase(a);
+  _origPushAnnotFinal(a);
   updateEmmaDash();
   scheduleAutoSave();
+  if (a.type === 'measure' || a.type === 'area') updateMeasurementTable();
 };
 
-// Also update dashboard on deleteAnnotById
+// deleteAnnotById post-hook
 const _deleteAnnotBase = deleteAnnotById;
 deleteAnnotById = function(id) {
   _deleteAnnotBase(id);
@@ -7158,7 +7069,7 @@ deleteAnnotById = function(id) {
   scheduleAutoSave();
 };
 
-// Update dashboard when EMMA row saved
+// saveEmmaRow post-hook
 const _saveEmmaRowBase = saveEmmaRow;
 saveEmmaRow = function() {
   _saveEmmaRowBase();
@@ -7618,29 +7529,35 @@ document.addEventListener('mousedown', e => {
 //  After zoom changes, update all measure annotation
 //  labels based on stored pxDist and current zoom
 // ═══════════════════════════════════════════════
-const _origApplyZoom = applyZoom;
-applyZoom = async function(val) {
-  await _origApplyZoom(val);
-  recalcMeasureLabels();
-};
+
 
 function recalcMeasureLabels() {
+  // Update data labels and patch SVG text nodes directly — do NOT call syncAnnots()
+  // (syncAnnots rebuilds all annotation DOM which destroys zoom performance)
   annots.forEach(a => {
     if (a.type !== 'measure' && a.type !== 'area') return;
+    let label = null;
     if (a.type === 'measure' && a.pxDist) {
-      const label = measureScale
-        ? `${(a.pxDist / measureScale.pxPerUnit / zoom).toFixed(2)} ${measureScale.unit}`
-        : `${Math.round(a.pxDist)} px`;
+      label = measureScale
+        ? (a.pxDist / measureScale.pxPerUnit / zoom).toFixed(2) + ' ' + measureScale.unit
+        : Math.round(a.pxDist) + ' px';
       a.label = label;
     }
     if (a.type === 'area' && a.areaPx) {
-      const label = measureScale
-        ? `${(a.areaPx / (measureScale.pxPerUnit * measureScale.pxPerUnit)).toFixed(2)} ${measureScale.unit}²`
-        : `${Math.round(a.areaPx)} px²`;
+      label = measureScale
+        ? (a.areaPx / (measureScale.pxPerUnit * measureScale.pxPerUnit)).toFixed(2) + ' ' + measureScale.unit + '\u00b2'
+        : Math.round(a.areaPx) + ' px\u00b2';
       a.label = label;
     }
+    // Patch the existing SVG text node in-place — far cheaper than a DOM rebuild
+    if (label) {
+      const el = document.querySelector('[data-aid="' + a.id + '"]');
+      if (el) {
+        const txt = el.querySelector('text');
+        if (txt) txt.textContent = label;
+      }
+    }
   });
-  syncAnnots();
 }
 
 // ═══════════════════════════════════════════════
@@ -7808,6 +7725,16 @@ setTool = function(t) {
     const tabBtn = document.getElementById('rtab-' + targetTab);
     if (tabBtn) switchRibbon(targetTab, tabBtn);
   }
+
+  // Cancel area tool if switching away
+  if (t !== 'area' && areaPoints.length > 0) cancelArea();
+
+  // Refresh move handles (debounced — cheap)
+  setTimeout(refreshAnnotMoveHandles, 50);
+
+  // Sync mobile zoom label
+  const mobLabel = document.getElementById('mob-zoom-label');
+  if (mobLabel) mobLabel.textContent = Math.round(zoom * 100) + '%';
 };
 
 // Patch setColor to update ribbon swatches
@@ -7827,12 +7754,11 @@ document.addEventListener('keydown', e => {
   if (e.key === '3') setColor('rose');
 });
 
-// Patch zoom display to update ribbon indicator
-const _origApplyZoomRibbon = applyZoom;
+// Single applyZoom post-hook — updates ribbon, labels, and measure annotations
+const _origApplyZoomBase = applyZoom;
 applyZoom = async function(val) {
-  await _origApplyZoomRibbon(val);
+  await _origApplyZoomBase(val);
   const pct = Math.round(zoom * 100) + '%';
-  // Update both the ribbon strip and the status bar
   const ratZoom = document.getElementById('rat-zoom');
   const sbZoom  = document.getElementById('sb-zoom');
   const zoomVal = document.getElementById('sb-zoom-val');
@@ -7841,6 +7767,8 @@ applyZoom = async function(val) {
   if (zoomVal) zoomVal.textContent = pct;
   const sel = document.getElementById('zsel');
   if (sel && !isNaN(parseFloat(val))) sel.value = String(parseFloat(val));
+  // Update measure labels in-place (no DOM rebuild)
+  recalcMeasureLabels();
 };
 
 // Patch updateStatusCount to also update ribbon strip
@@ -8092,11 +8020,7 @@ function refreshAnnotMoveHandles() {
 }
 
 // Refresh handles whenever tool changes or annotations change
-const _origSetToolMove = setTool;
-setTool = function(t) {
-  _origSetToolMove(t);
-  setTimeout(refreshAnnotMoveHandles, 50);
-};
+// refreshAnnotMoveHandles now called in _ribbonSetTool patch below
 
 const _origSyncAnnotsMove = syncAnnots;
 syncAnnots = function() {
@@ -8288,14 +8212,7 @@ function show3DBanner() {
   document.body.appendChild(banner);
 }
 
-// Hook into loadPDF to check for 3D content after load
-const _origLoadPDF = loadPDF;
-loadPDF = async function(file) {
-  const existing = document.getElementById('banner-3d');
-  if (existing) existing.remove();
-  await _origLoadPDF(file);
-  if (pdf) check3DContent(pdf);
-};
+
 
 // ── Copy feedback in select mode — handled by _selEnd in selection engine ──
 
@@ -8663,13 +8580,7 @@ document.addEventListener('click', ev => {
 });
 
 // Close drawer when switching tool via keyboard
-const _origSetToolMob = setTool;
-setTool = function(t) {
-  _origSetToolMob(t);
-  // Keep mob zoom label in sync when zoom changes
-  const mobLabel = document.getElementById('mob-zoom-label');
-  if (mobLabel) mobLabel.textContent = Math.round(zoom * 100) + '%';
-};
+// mob zoom label now synced in _ribbonSetTool patch below
 
 // Pinch-to-zoom on the viewer (touch devices)
 (function initPinchZoom() {
@@ -9344,12 +9255,7 @@ function exportMeasurementsCsv() {
   toast('Measurements exported to CSV');
 }
 
-// Keep table in sync when annotations change
-const _origPushAnnotMeas = pushAnnot;
-pushAnnot = function(a) {
-  _origPushAnnotMeas(a);
-  if (a.type === 'measure' || a.type === 'area') updateMeasurementTable();
-};
+
 
 // ═══════════════════════════════════════════════
 //  PDF LAYER VISIBILITY
@@ -9434,10 +9340,17 @@ function openLayerModal() {
   updateLayerPanel();
 }
 
-// Load layers when PDF opens
-const _origLoadPDFLayers = loadPDF;
+// Single loadPDF post-hook — file handle reset, 3D check, layer load
+const _origLoadPDFBase = loadPDF;
 loadPDF = async function(file) {
-  await _origLoadPDFLayers(file);
+  // Reset save handle (new file = new save location)
+  _fileHandle = null;
+  _loadedEngdocName = null;
+  // Clear 3D banner from previous file
+  document.getElementById('banner-3d')?.remove();
+  await _origLoadPDFBase(file);
+  // Post-load: check 3D content and load PDF layers
+  if (pdf) check3DContent(pdf);
   await loadPdfLayers();
   updateLayerPanel();
 };
@@ -9687,12 +9600,7 @@ function initPointerSupport() {
   });
 }
 
-// Hook into renderPageContent to init pointer support on new pages
-const _origRenderPagePointer = renderPageContent;
-renderPageContent = async function(pageNum) {
-  await _origRenderPagePointer(pageNum);
-  initPointerSupport();
-};
+// pointer support now called inside _origRenderPageContent patch above
 
 // ═══════════════════════════════════════════════
 //  UPDATE ANNOTATION NAV when annots change

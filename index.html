@@ -3083,9 +3083,13 @@ function scheduleRender() {
     if (!pdf) return;
     const { first, last } = getVisibleRange();
 
-    // Unload pages far outside viewport to release GPU memory
+    // Unload canvases only for pages very far from the viewport.
+    // A tight threshold (e.g. 4 pages) causes black flashes during normal panning
+    // because canvases are destroyed then immediately needed again as you scroll back.
+    // Keep a generous buffer — GPU memory for typical PDF pages is small (1-3 MB each).
+    const UNLOAD_BUFFER = Math.max(10, Math.ceil(nPages * 0.2)); // 10 pages or 20% of doc
     for (const pg of [...renderedPages]) {
-      if (pg < first - 4 || pg > last + 4) {
+      if (pg < first - UNLOAD_BUFFER || pg > last + UNLOAD_BUFFER) {
         const wrap = document.getElementById('pw-' + pg);
         if (wrap) {
           const canvas = wrap.querySelector('canvas');
@@ -3267,22 +3271,33 @@ async function rerenderAll() {
 }
 
 document.getElementById('viewer').addEventListener('scroll', () => {
-  scheduleRender();
+  // Skip render scheduling while actively panning — the browser composites
+  // existing canvases natively. Rendering fires once when the pan ends.
+  if (!panDragging) scheduleRender();
   if (!pdf) return;
-  const viewerRect = document.getElementById('viewer').getBoundingClientRect();
-  let best = 1, bestVis = 0;
+
+  // Find the current page using scroll-position arithmetic — zero DOM reads.
+  // getBoundingClientRect on every page element forces n layout reflows per scroll event.
+  const viewer  = document.getElementById('viewer');
+  const viewMid = viewer.scrollTop + viewer.clientHeight / 2;
+  const padTop  = 28, gap = 24;
+  let cumY = padTop, best = 1;
   for (let i = 1; i <= nPages; i++) {
-    const el = document.getElementById(`pw-${i}`);
-    if (!el) continue;
-    const r = el.getBoundingClientRect();
-    const vis = Math.min(r.bottom, viewerRect.bottom) - Math.max(r.top, viewerRect.top);
-    if (vis > bestVis) { bestVis = vis; best = i; }
+    const h = (pageViewports[i] || pageViewports[1] || {height: 1000}).height;
+    if (cumY + h > viewMid) { best = i; break; }
+    cumY += h + gap;
+    best = i;
   }
+
   if (best !== curPg) {
     curPg = best;
     document.getElementById('pgi').value = best;
-    document.querySelectorAll('.titem').forEach(t =>
-      t.classList.toggle('active', parseInt(t.dataset.page) === best));
+    // Debounce thumbnail highlight — querySelectorAll on every scroll event is expensive
+    clearTimeout(window._thumbDebounce);
+    window._thumbDebounce = setTimeout(() => {
+      document.querySelectorAll('.titem').forEach(t =>
+        t.classList.toggle('active', parseInt(t.dataset.page) === best));
+    }, 150);
   }
 }, { passive: true });
 
@@ -3765,13 +3780,10 @@ function attachEvents(ov, pageNum, _vpInitial) {
   });
 
   ov.addEventListener('mousemove', e => {
-    const vp = getLiveVp(); // always current
-    // Pan drag-scroll
-    if (tool === 'pan' && panDragging && panStart) {
-      viewer.scrollLeft = panScrollStart.left - (e.clientX - panStart.x);
-      viewer.scrollTop  = panScrollStart.top  - (e.clientY - panStart.y);
-      return;
-    }
+    // Pan is handled by the document-level mousemove — return immediately so the
+    // overlay does zero work during a pan drag (vp lookup, snap ring, etc. all skipped).
+    if (tool === 'pan') return;
+    const vp = getLiveVp(); // only needed for drawing tools
 
     const r = ov.getBoundingClientRect();
     const mx = e.clientX - r.left, my = e.clientY - r.top;
@@ -3841,6 +3853,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
     if (tool === 'pan' && panDragging) {
       panDragging = false; panStart = null; panScrollStart = null;
       ov.classList.remove('panning');
+      scheduleRender(); // render newly visible pages
       return;
     }
     if (!drawing) return; drawing = false;
@@ -4054,6 +4067,8 @@ document.addEventListener('mouseup', () => {
   if (panDragging) {
     panDragging = false; panStart = null; panScrollStart = null;
     document.querySelectorAll('.aoverlay.panning').forEach(o => o.classList.remove('panning'));
+    // Render any newly visible pages now that pan has stopped
+    scheduleRender();
   }
 });
 
@@ -7487,8 +7502,9 @@ const _origAttachEvents = attachEvents;
 attachEvents = function(ov, pageNum, vp) {
   _origAttachEvents(ov, pageNum, vp);
 
-  // Global mousemove for snap ring display
+  // Snap ring: skip entirely during pan (zero work during drag)
   ov.addEventListener('mousemove', e => {
+    if (tool === 'pan') return;
     if (!['arrow', 'note', 'text', 'measure'].includes(tool)) {
       updateSnapRing(0, 0, false); return;
     }

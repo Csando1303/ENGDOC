@@ -3074,9 +3074,11 @@ const RENDER_CONCURRENCY = 4; // render up to 4 pages simultaneously
 function scheduleRender() {
   if (renderScheduled) return;
   renderScheduled = true;
-  // Use setTimeout(0) instead of rAF so CSS scale preview can paint FIRST,
-  // then we start the heavy PDF.js decode work after the browser has flushed.
-  setTimeout(async () => {
+  // requestAnimationFrame: limits renders to 60fps max regardless of scroll rate.
+  // During fast panning, many scroll events fire per frame — rAF collapses them
+  // all into one render per display refresh. setTimeout(0) does not do this and
+  // causes hundreds of concurrent render chains during a fast pan.
+  requestAnimationFrame(async () => {
     renderScheduled = false;
     if (!pdf) return;
     const { first, last } = getVisibleRange();
@@ -3103,8 +3105,7 @@ function scheduleRender() {
     }
     if (!toRender.length) return;
 
-    // Render 2 pages at a time — PDF.js worker is the bottleneck,
-    // more concurrency doesn't help and makes the UI feel frozen.
+    // Render 2 pages at a time — PDF.js worker is the bottleneck
     const CONCURRENCY = 2;
     for (let i = 0; i < toRender.length; i += CONCURRENCY) {
       const batch = toRender.slice(i, i + CONCURRENCY);
@@ -3114,12 +3115,8 @@ function scheduleRender() {
           .then(() => renderQueue.delete(pg))
           .catch(() => renderQueue.delete(pg))
       ));
-      // Yield between batches so browser stays responsive
-      if (i + CONCURRENCY < toRender.length) {
-        await new Promise(r => setTimeout(r, 0));
-      }
     }
-  }, 0);
+  });
 }
 
 // Page object cache — avoid re-fetching already-loaded page objects
@@ -3255,12 +3252,18 @@ async function rerenderAll() {
   // Do NOT call syncAnnots() here — annotations use % coords and reposition automatically
   // when the overlay pixel size is corrected by renderPageContent. Calling syncAnnots on
   // every zoom rebuilds all annotation DOM which is the main source of zoom lag.
-  scheduleRender();
-  // Ensure scroll position after render
-  requestAnimationFrame(() => {
-    const el = document.getElementById('pw-' + savedPg);
-    if (el) el.scrollIntoView({ block: 'start' });
-  });
+
+  // Yield once with setTimeout(0) so the CSS scale preview above can paint before
+  // the first rAF render fires. Without this yield the preview and the hi-res render
+  // race and the user sees neither improvement.
+  setTimeout(() => {
+    scheduleRender();
+    // Ensure scroll position after render
+    requestAnimationFrame(() => {
+      const el = document.getElementById('pw-' + savedPg);
+      if (el) el.scrollIntoView({ block: 'start' });
+    });
+  }, 0);
 }
 
 document.getElementById('viewer').addEventListener('scroll', () => {

@@ -117,6 +117,9 @@ body.dark select, body.dark input { color-scheme: dark; }
 .resize-handle.s  { cursor:s-resize; }
 .resize-handle.e  { cursor:e-resize; }
 .resize-handle.w  { cursor:w-resize; }
+/* Endpoint handles for line / arrow / measure — circular variant of resize-handle */
+.ep-handle { border-radius:50% !important; cursor:crosshair !important; width:12px !important; height:12px !important; }
+.ep-handle:hover { background:#eff6ff; border-color:#1d4ed8; }
 /* Selected annotation highlight */
 [data-aid].ann-selected {
   outline: 2px solid #2563eb !important;
@@ -3771,6 +3774,10 @@ function attachEvents(ov, pageNum, _vpInitial) {
       liveEl.style.background = CHex[color];
       liveEl.style.opacity = (annotOpacity / 100).toFixed(2);
       liveEl.style.borderRadius = '1px';
+    } else if (tool === 'strike') {
+      // Strike preview: center line through the selection, matching committed render
+      const sc = CHex[color] || CHex.rose;
+      liveEl.style.background = `linear-gradient(transparent calc(50% - 1.5px),${sc} calc(50% - 1.5px),${sc} calc(50% + 1.5px),transparent calc(50% + 1.5px))`;
     } else if (tool === 'line') {
       // Line preview via SVG
       liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -3786,9 +3793,19 @@ function attachEvents(ov, pageNum, _vpInitial) {
       liveEl = null;
       return;
     } else if (tool === 'cloud') {
-      liveEl.style.border = `2px dashed ${CHex[color] || CHex.yellow}`;
-      liveEl.style.borderRadius = '4px';
-      liveEl.style.background = (CHex[color] || CHex.yellow) + '11';
+      // Cloud: real scalloped SVG preview — discard the pre-created div
+      liveEl = null;
+      const cc = CHex[color] || CHex.yellow;
+      liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      liveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
+      liveSvg.setAttribute('width', vp.width); liveSvg.setAttribute('height', vp.height);
+      const cp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      cp.setAttribute('fill', cc + '18'); cp.setAttribute('stroke', cc);
+      cp.setAttribute('stroke-width', '2'); cp.setAttribute('vector-effect', 'non-scaling-stroke');
+      cp.setAttribute('stroke-linejoin', 'round'); cp.setAttribute('d', 'M' + ox + ' ' + oy);
+      liveSvg.appendChild(cp);
+      ov.appendChild(liveSvg);
+      return;
     } else if (tool === 'callout' || tool === 'textbox') {
       liveEl.style.border = `2px dashed ${CHex[color] || CHex.yellow}`;
       liveEl.style.borderRadius = '3px';
@@ -3860,6 +3877,17 @@ function attachEvents(ov, pageNum, _vpInitial) {
       penPoints.push({ x: mx, y: my });
       const d = penPoints.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.y).join(' ');
       liveSvg.querySelector('path').setAttribute('d', d);
+      return;
+    }
+    // Cloud: update the real scalloped SVG preview
+    if (tool === 'cloud' && liveSvg && drawing) {
+      const minX = Math.min(mx, origin.x), minY = Math.min(my, origin.y);
+      const maxX = Math.max(mx, origin.x), maxY = Math.max(my, origin.y);
+      if (maxX - minX > 4 && maxY - minY > 4) {
+        const r = Math.min(maxX - minX, maxY - minY) * 0.08;
+        const cp = liveSvg.querySelector('path');
+        if (cp) cp.setAttribute('d', makeCloudPath(minX, minY, maxX, maxY, r));
+      }
       return;
     }
     if (!liveEl) return;
@@ -4466,7 +4494,9 @@ function buildAnnotEl(a) {
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;border:2px solid ${CHex[a.color] || CHex.yellow};background:${CHex[a.color] || CHex.yellow}22`;
   } else if (a.type === 'strike') {
     el = document.createElement('div'); el.className = 'astrike';
-    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;background:${CHex[a.color] || CHex.rose}55;border-top:2.5px solid ${CHex[a.color] || CHex.rose};border-bottom:2.5px solid ${CHex[a.color] || CHex.rose}`;
+    const sc = CHex[a.color] || CHex.rose;
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;` +
+      `background:linear-gradient(transparent calc(50% - 1.5px),${sc} calc(50% - 1.5px),${sc} calc(50% + 1.5px),transparent calc(50% + 1.5px))`;
   } else if (a.type === 'note') {
     el = document.createElement('div');
     el.className = 'an';
@@ -4793,8 +4823,22 @@ function buildMeasureAnnotEl(a) {
   return wrap;
 }
 
+/* ── CLOUD PATH helper — shared by builder and live preview ─────────────────
+   Works in any coordinate space (%, pixels, etc.).
+   x1 < x2 and y1 < y2 expected.                                           ── */
+function makeCloudPath(x1, y1, x2, y2, r) {
+  const segs = side => Math.max(3, Math.round(side / (r * 2.2)));
+  const nT = segs(x2 - x1), nR = segs(y2 - y1);
+  const nB = segs(x2 - x1), nL = segs(y2 - y1);
+  let d = 'M' + x1.toFixed(2) + ' ' + y1.toFixed(2);
+  for (let i = 0; i < nT; i++) { const bx = (x1 + (i+1)/nT*(x2-x1)).toFixed(2); d += ' A'+r+' '+r+' 0 0 1 '+bx+' '+y1.toFixed(2); }
+  for (let i = 0; i < nR; i++) { const by = (y1 + (i+1)/nR*(y2-y1)).toFixed(2); d += ' A'+r+' '+r+' 0 0 1 '+x2.toFixed(2)+' '+by; }
+  for (let i = 0; i < nB; i++) { const bx = (x2 - (i+1)/nB*(x2-x1)).toFixed(2); d += ' A'+r+' '+r+' 0 0 1 '+bx+' '+y2.toFixed(2); }
+  for (let i = 0; i < nL; i++) { const by = (y2 - (i+1)/nL*(y2-y1)).toFixed(2); d += ' A'+r+' '+r+' 0 0 1 '+x1.toFixed(2)+' '+by; }
+  return d + ' Z';
+}
+
 /* ── CLOUD: scalloped revision bubble ──────────────────────────────────────
-   Generates an SVG cloud shape using arc segments around the perimeter.
    Standard engineering CAD revision cloud convention.
    x,y,w,h stored as % of page; rendered in viewBox 0 0 100 100.         ── */
 function buildCloudAnnotEl(a) {
@@ -4809,20 +4853,8 @@ function buildCloudAnnotEl(a) {
   const x1 = a.x, y1 = a.y, x2 = a.x + a.w, y2 = a.y + a.h;
   const bumpR = Math.min(a.w, a.h) * 0.08;
 
-  function cloudPath(bx1, by1, bx2, by2, r) {
-    const segs = side => Math.max(3, Math.round(side / (r * 2.2)));
-    const nT = segs(bx2 - bx1), nR = segs(by2 - by1);
-    const nB = segs(bx2 - bx1), nL = segs(by2 - by1);
-    let d = 'M' + bx1.toFixed(2) + ' ' + by1.toFixed(2);
-    for (let i = 0; i < nT; i++) { const bx = (bx1 + (i+1)/nT*(bx2-bx1)).toFixed(2); d += ' A'+r+' '+r+' 0 0 1 '+bx+' '+by1.toFixed(2); }
-    for (let i = 0; i < nR; i++) { const by = (by1 + (i+1)/nR*(by2-by1)).toFixed(2); d += ' A'+r+' '+r+' 0 0 1 '+bx2.toFixed(2)+' '+by; }
-    for (let i = 0; i < nB; i++) { const bx = (bx2 - (i+1)/nB*(bx2-bx1)).toFixed(2); d += ' A'+r+' '+r+' 0 0 1 '+bx+' '+by2.toFixed(2); }
-    for (let i = 0; i < nL; i++) { const by = (by2 - (i+1)/nL*(by2-by1)).toFixed(2); d += ' A'+r+' '+r+' 0 0 1 '+bx1.toFixed(2)+' '+by; }
-    return d + ' Z';
-  }
-
   const ghost = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  ghost.setAttribute('d', cloudPath(x1,y1,x2,y2,bumpR));
+  ghost.setAttribute('d', makeCloudPath(x1,y1,x2,y2,bumpR));
   ghost.setAttribute('fill', 'none'); ghost.setAttribute('stroke', 'transparent');
   ghost.setAttribute('stroke-width', '4'); ghost.setAttribute('vector-effect', 'non-scaling-stroke');
 
@@ -8053,6 +8085,9 @@ function wireMoveOverlay(el, ann, ov) {
         ov.querySelectorAll('.ann-move-overlay').forEach(e => e.remove());
         syncAnnots();
         pushHistory();
+      } else if (['line', 'arrow', 'measure'].includes(ann.type)) {
+        // Pure click (no drag) on a line/arrow/measure — show endpoint handles
+        showEndpointHandles(ann, ov);
       }
     };
 
@@ -8109,6 +8144,11 @@ let _resizing = null; // { id, handle, startX, startY, orig{x,y,w,h}, ovW, ovH }
 const RESIZABLE = ['highlight','rect','rectfill','strike','cloud','textbox','callout','image'];
 
 function showResizeHandles(el, a, ov) {
+  // Line-like types have two endpoints rather than a bounding box — use endpoint handles
+  if (a.x1 !== undefined && ['line', 'arrow', 'measure'].includes(a.type)) {
+    showEndpointHandles(a, ov);
+    return;
+  }
   removeResizeHandles();
   _selectedAnnotId = a.id;
   el.classList.add('ann-selected');
@@ -8197,6 +8237,69 @@ function showResizeHandles(el, a, ov) {
 
     ov.appendChild(h);
   });
+}
+
+// Live-update SVG line/arrow endpoints during handle drag (ticks & labels rebuilt by syncAnnots on release)
+function updateLineSvgEndpoints(wrap, ann) {
+  const svg = wrap.querySelector('svg');
+  if (!svg) return;
+  svg.querySelectorAll('line').forEach(l => {
+    l.setAttribute('x1', ann.x1); l.setAttribute('y1', ann.y1);
+    l.setAttribute('x2', ann.x2); l.setAttribute('y2', ann.y2);
+  });
+}
+
+function showEndpointHandles(ann, ov) {
+  removeResizeHandles();
+  _selectedAnnotId = ann.id;
+
+  const makeHandle = (px, py, which) => {
+    const h = document.createElement('div');
+    h.className = 'resize-handle ep-handle';
+    h.style.left = px + '%';
+    h.style.top  = py + '%';
+    h.dataset.handle   = which;
+    h.dataset.annotId  = ann.id;
+
+    h.addEventListener('mousedown', ev => {
+      ev.stopPropagation();
+      ev.preventDefault();
+      const ovRect = ov.getBoundingClientRect();
+
+      const onMove = mv => {
+        const nx = (mv.clientX - ovRect.left) / ovRect.width  * 100;
+        const ny = (mv.clientY - ovRect.top)  / ovRect.height * 100;
+        if (which === 'p1') { ann.x1 = nx; ann.y1 = ny; }
+        else                { ann.x2 = nx; ann.y2 = ny; }
+        // Move this handle live
+        h.style.left = (which === 'p1' ? ann.x1 : ann.x2) + '%';
+        h.style.top  = (which === 'p1' ? ann.y1 : ann.y2) + '%';
+        // Update the SVG line so the annotation tracks the handle
+        const domEl = ov.querySelector('[data-aid="' + ann.id + '"]');
+        if (domEl) updateLineSvgEndpoints(domEl, ann);
+      };
+
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        syncAnnots();
+        pushHistory();
+        // Re-show handles at updated positions
+        setTimeout(() => {
+          const freshAnn = annots.find(x => x.id === ann.id);
+          if (freshAnn) showEndpointHandles(freshAnn, ov);
+        }, 30);
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    ov.appendChild(h);
+  };
+
+  makeHandle(ann.x1, ann.y1, 'p1');
+  makeHandle(ann.x2, ann.y2, 'p2');
 }
 
 function removeResizeHandles() {

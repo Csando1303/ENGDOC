@@ -1498,6 +1498,10 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
             <span class="rbtn-label">Rect</span>
           </button>
+          <button class="rbtn" id="t-circle" data-tip="Circle / ellipse (O)" onclick="setTool('circle')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="9"/></svg>
+            <span class="rbtn-label">Circle</span>
+          </button>
           <button class="rbtn" id="t-cloud" data-tip="Revision cloud (C)" onclick="setTool('cloud')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
             <span class="rbtn-label">Cloud</span>
@@ -3774,6 +3778,21 @@ function attachEvents(ov, pageNum, _vpInitial) {
       liveEl.style.background = CHex[color];
       liveEl.style.opacity = (annotOpacity / 100).toFixed(2);
       liveEl.style.borderRadius = '1px';
+    } else if (tool === 'circle') {
+      // Circle preview: SVG ellipse matching committed render
+      liveEl = null;
+      const cc = CHex[color] || CHex.yellow;
+      liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      liveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
+      liveSvg.setAttribute('width', vp.width); liveSvg.setAttribute('height', vp.height);
+      const ce = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+      ce.setAttribute('cx', ox); ce.setAttribute('cy', oy);
+      ce.setAttribute('rx', '0'); ce.setAttribute('ry', '0');
+      ce.setAttribute('fill', cc + '18'); ce.setAttribute('stroke', cc);
+      ce.setAttribute('stroke-width', strokeW()); ce.setAttribute('vector-effect', 'non-scaling-stroke');
+      liveSvg.appendChild(ce);
+      ov.appendChild(liveSvg);
+      return;
     } else if (tool === 'strike') {
       // Strike preview: center line through the selection, matching committed render
       const sc = CHex[color] || CHex.rose;
@@ -3890,6 +3909,16 @@ function attachEvents(ov, pageNum, _vpInitial) {
       }
       return;
     }
+    // Circle: update live ellipse preview
+    if (tool === 'circle' && liveSvg && drawing) {
+      let w = mx - origin.x, h = my - origin.y;
+      if (e.shiftKey) { const s = Math.max(Math.abs(w), Math.abs(h)); w = w < 0 ? -s : s; h = h < 0 ? -s : s; }
+      const cx = origin.x + w / 2, cy = origin.y + h / 2;
+      const rx = Math.abs(w) / 2, ry = Math.abs(h) / 2;
+      const ce = liveSvg.querySelector('ellipse');
+      if (ce) { ce.setAttribute('cx', cx); ce.setAttribute('cy', cy); ce.setAttribute('rx', rx); ce.setAttribute('ry', ry); }
+      return;
+    }
     if (!liveEl) return;
     const lx = Math.min(mx, origin.x), ly = Math.min(my, origin.y);
     const lw = Math.abs(mx - origin.x), lh = Math.abs(my - origin.y);
@@ -3969,6 +3998,16 @@ function attachEvents(ov, pageNum, _vpInitial) {
     } else if (tool === 'cloud') {
       if (w < 0.5 || h < 0.5) return;
       pushAnnot({ id: nextId(), pageNum, type: 'cloud', x, y, w, h, color });
+    } else if (tool === 'circle') {
+      if (liveSvg) { liveSvg.remove(); liveSvg = null; }
+      let rw = mx - origin.x, rh = my - origin.y;
+      if (e.shiftKey) { const s = Math.max(Math.abs(rw), Math.abs(rh)); rw = rw < 0 ? -s : s; rh = rh < 0 ? -s : s; }
+      const cx = Math.min(origin.x, origin.x + rw) / vp.width * 100;
+      const cy = Math.min(origin.y, origin.y + rh) / vp.height * 100;
+      const cw = Math.abs(rw) / vp.width * 100;
+      const ch = Math.abs(rh) / vp.height * 100;
+      if (cw < 0.3 || ch < 0.3) return;
+      pushAnnot({ id: nextId(), pageNum, type: 'circle', x: cx, y: cy, w: cw, h: ch, color, sw: strokeW() });
     }
   });
 
@@ -4097,7 +4136,7 @@ document.addEventListener('keydown', e => {
   if (!inInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const toolKeys = { h:'highlight', m:'texthighlight', r:'rect', p:'pen',
       a:'arrow', c:'cloud', g:'area', d:'measure', n:'note', t:'text',
-      e:'erase', v:'pan', z:'zoombox', l:'line', f:'rectfill', s:'select' };
+      e:'erase', v:'pan', z:'zoombox', l:'line', f:'rectfill', s:'select', o:'circle' };
     if (toolKeys[e.key.toLowerCase()]) { setTool(toolKeys[e.key.toLowerCase()]); return; }
     if (e.key === '[') { toggleSidebar(); return; }
   }
@@ -4492,6 +4531,8 @@ function buildAnnotEl(a) {
   } else if (a.type === 'rect') {
     el = document.createElement('div'); el.className = 'ar';
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;border:2px solid ${CHex[a.color] || CHex.yellow};background:${CHex[a.color] || CHex.yellow}22`;
+  } else if (a.type === 'circle') {
+    el = buildCircleAnnotEl(a);
   } else if (a.type === 'strike') {
     el = document.createElement('div'); el.className = 'astrike';
     const sc = CHex[a.color] || CHex.rose;
@@ -4859,7 +4900,7 @@ function buildCloudAnnotEl(a) {
   ghost.setAttribute('stroke-width', '4'); ghost.setAttribute('vector-effect', 'non-scaling-stroke');
 
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', cloudPath(x1,y1,x2,y2,bumpR));
+  path.setAttribute('d', makeCloudPath(x1,y1,x2,y2,bumpR));
   path.setAttribute('fill', c + '18'); path.setAttribute('stroke', c);
   path.setAttribute('stroke-width', '1.8'); path.setAttribute('vector-effect', 'non-scaling-stroke');
   path.setAttribute('stroke-linejoin', 'round');
@@ -4900,6 +4941,40 @@ function buildLineAnnotEl(a) {
   svg.appendChild(ghost); svg.appendChild(line);
   wrap.appendChild(svg);
   return wrap;
+}
+
+/* ── CIRCLE / ELLIPSE annotation ── */
+function buildCircleAnnotEl(a) {
+  const c = CHex[a.color] || CHex.yellow;
+  const el = document.createElement('div');
+  el.className = 'acircle';
+  el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;overflow:visible`;
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.cssText = 'display:block;overflow:visible';
+
+  // Wide ghost ellipse for easy eraser hit-testing
+  const ghost = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+  ghost.setAttribute('cx', '50'); ghost.setAttribute('cy', '50');
+  ghost.setAttribute('rx', '50'); ghost.setAttribute('ry', '50');
+  ghost.setAttribute('fill', 'none'); ghost.setAttribute('stroke', 'transparent');
+  ghost.setAttribute('stroke-width', '10'); ghost.setAttribute('vector-effect', 'non-scaling-stroke');
+  ghost.dataset.ghost = '1';
+
+  const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+  ellipse.setAttribute('cx', '50'); ellipse.setAttribute('cy', '50');
+  ellipse.setAttribute('rx', '50'); ellipse.setAttribute('ry', '50');
+  ellipse.setAttribute('fill', c + '18');
+  ellipse.setAttribute('stroke', c);
+  ellipse.setAttribute('stroke-width', a.sw || 2);
+  ellipse.setAttribute('vector-effect', 'non-scaling-stroke');
+
+  svg.appendChild(ghost); svg.appendChild(ellipse);
+  el.appendChild(svg);
+  return el;
 }
 
 /* ── TEXTBOX annotation ── */
@@ -7731,6 +7806,7 @@ const TOOL_HINTS = {
   highlight:    'Drag to highlight a region · colour set in Style group',
   texthighlight:'Swipe across text like a physical highlighter pen',
   rect:         'Drag to draw a rectangle markup box',
+  circle:       'Drag to draw a circle or ellipse · hold Shift to constrain to perfect circle',
   rectfill:     'Drag to draw a solid filled rectangle — blocks out content or marks areas',
   strike:       'Drag to add a strikethrough over text or a region',
   cloud:        'Drag to draw a revision cloud bubble — standard NR markup convention',
@@ -7748,7 +7824,7 @@ const TOOL_HINTS = {
 
 const TOOL_TABS = {
   pan:'markup', select:'markup', erase:'markup', zoombox:'markup',
-  highlight:'markup', texthighlight:'markup', rect:'markup', rectfill:'markup',
+  highlight:'markup', texthighlight:'markup', rect:'markup', rectfill:'markup', circle:'markup',
   strike:'markup', line:'markup', callout:'markup', textbox:'markup',
   note:'markup', text:'markup',
   pen:'markup', arrow:'markup', cloud:'markup',
@@ -7987,7 +8063,7 @@ function makeDraggable(el, a, ov) {
   // injected by refreshAnnotMoveHandles() on tool change
 }
 
-const MOVE_TYPES = new Set(['highlight','rect','rectfill','strike','note','text','textbox',
+const MOVE_TYPES = new Set(['highlight','rect','rectfill','strike','circle','note','text','textbox',
                              'callout','cloud','pen','texthighlight','arrow','line','measure',
                              'area','stamp','image']);
 
@@ -8088,6 +8164,9 @@ function wireMoveOverlay(el, ann, ov) {
       } else if (['line', 'arrow', 'measure'].includes(ann.type)) {
         // Pure click (no drag) on a line/arrow/measure — show endpoint handles
         showEndpointHandles(ann, ov);
+      } else if (ann.x !== undefined) {
+        // Pure click on any box annotation — show 8-point resize handles
+        showResizeHandles(el, ann, ov);
       }
     };
 

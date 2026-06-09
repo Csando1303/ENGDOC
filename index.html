@@ -3190,24 +3190,19 @@ async function renderPageContent(pageNum) {
     syncAnnotsOnOverlay(ov, pageNum);
   }
 
-  // Remove existing canvas and text layer
-  wrap.querySelector('canvas')?.remove();
-  wrap.querySelector('.textLayer')?.remove();
-
-  // ── HiDPI canvas ──
+  // ── HiDPI canvas — rendered off-screen to prevent black flash on swap ──
+  // alpha:false canvases are solid black until drawn, so inserting before render
+  // causes a visible flash. Build and fill the canvas off-DOM, then swap atomically.
   const canvas = document.createElement('canvas');
-  // Physical pixels = CSS pixels × dpr
   canvas.width  = Math.floor(vp.width  * dpr);
   canvas.height = Math.floor(vp.height * dpr);
-  // CSS size stays at logical pixels
   canvas.style.cssText = 'width:' + vp.width + 'px;height:' + vp.height + 'px;display:block';
 
-  ov = wrap.querySelector('.aoverlay');
-  wrap.insertBefore(canvas, ov);
-
   const ctx = canvas.getContext('2d', { alpha: false });
-  // Scale context to account for dpr so rendering coords stay in CSS-pixel space
   ctx.scale(dpr, dpr);
+  // Pre-fill white so a partially-drawn frame is never black
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, vp.width, vp.height);
 
   // Render canvas — use 'display' intent for speed; swap to 'print' for export
   const renderTask = page.render({
@@ -3219,33 +3214,29 @@ async function renderPageContent(pageNum) {
   // ── Text layer (selectable text) ──
   // On first render: fetch text content from PDF worker.
   // On re-renders (zoom change): reuse cached raw items, just rescale coordinates.
-  // This avoids a round-trip to the PDF.js worker on every zoom change.
   if (!_pageRawText) window._pageRawText = {};
-  const [,] = await Promise.all([renderTask.promise, Promise.resolve()]);
+  await Promise.all([renderTask.promise, Promise.resolve()]);
 
   if (!window._pageRawText[pageNum]) {
-    // First render — fetch from worker
     const textContent = await page.getTextContent({ includeMarkedContent: false });
     window._pageRawText[pageNum] = textContent.items.filter(item => item.str?.trim());
   }
 
-  // Rescale cached raw items to current zoom
   _pageTextItems[pageNum] = window._pageRawText[pageNum].map(item => {
     const [a, b, , d, e, f] = item.transform;
-      // Width from item.width (in PDF user units), height from font size
-      const scaleX = Math.sqrt(a * a + b * b);
-      const scaleY = Math.sqrt(b * b + d * d); // approximate
-      const w = (item.width  || 0) * zoom;
-      const h = (item.height || scaleX) * zoom;
-      const angle = Math.atan2(b, a);
-      return {
-        str:   item.str,
-        // CSS-pixel position of bottom-left corner (PDF origin is bottom-left)
-        x:     e * zoom,
-        y:     vp.height - f * zoom,
-        w, h, angle,
-      };
-    });
+    const scaleX = Math.sqrt(a * a + b * b);
+    const w = (item.width  || 0) * zoom;
+    const h = (item.height || scaleX) * zoom;
+    const angle = Math.atan2(b, a);
+    return { str: item.str, x: e * zoom, y: vp.height - f * zoom, w, h, angle };
+  });
+
+  // Atomic swap: remove old canvas only after new one is fully rendered
+  wrap.querySelector('canvas')?.remove();
+  wrap.querySelector('.textLayer')?.remove();
+
+  ov = wrap.querySelector('.aoverlay');
+  wrap.insertBefore(canvas, ov);
 
   wrap.classList.remove('unrendered');
   renderedPages.add(pageNum);

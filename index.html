@@ -2664,7 +2664,7 @@ async function loadPDF(file) {
 
   await buildPageShells();
   await buildThumbs();
-  syncAnnots();
+  try { syncAnnots(); } catch (e) { console.error('[ENGDOC] syncAnnots failed:', e); }
   updateAnnotPanel();
   scheduleRender();
 
@@ -3155,7 +3155,7 @@ function scheduleRender() {
       await Promise.all(batch.map(pg =>
         renderPageContent(pg)
           .then(() => renderQueue.delete(pg))
-          .catch(() => renderQueue.delete(pg))
+          .catch(err => { renderQueue.delete(pg); console.error('[ENGDOC] renderPageContent page', pg, 'failed:', err); })
       ));
     }
   });
@@ -3194,7 +3194,8 @@ async function renderPageContent(pageNum) {
     ov._pendingAttach = false;
     attachEvents(ov, pageNum, vp);
     attachOverlayCtxMenu(ov); // right-click works from first render
-    syncAnnotsOnOverlay(ov, pageNum);
+    try { syncAnnotsOnOverlay(ov, pageNum); }
+    catch (e) { console.error('[ENGDOC] syncAnnotsOnOverlay page', pageNum, 'failed:', e); }
   }
 
   // ── HiDPI canvas — rendered off-screen to prevent black flash on swap ──
@@ -3221,15 +3222,20 @@ async function renderPageContent(pageNum) {
   // ── Text layer (selectable text) ──
   // On first render: fetch text content from PDF worker.
   // On re-renders (zoom change): reuse cached raw items, just rescale coordinates.
-  if (!_pageRawText) window._pageRawText = {};
+  if (!window._pageRawText) window._pageRawText = {};
   await Promise.all([renderTask.promise, Promise.resolve()]);
 
   if (!window._pageRawText[pageNum]) {
-    const textContent = await page.getTextContent({ includeMarkedContent: false });
-    window._pageRawText[pageNum] = textContent.items.filter(item => item.str?.trim());
+    try {
+      const textContent = await page.getTextContent({ includeMarkedContent: false });
+      window._pageRawText[pageNum] = textContent.items.filter(item => item.str?.trim());
+    } catch (e) {
+      window._pageRawText[pageNum] = [];
+      console.warn('[ENGDOC] getTextContent page', pageNum, 'failed:', e);
+    }
   }
 
-  _pageTextItems[pageNum] = window._pageRawText[pageNum].map(item => {
+  _pageTextItems[pageNum] = (window._pageRawText[pageNum] || []).map(item => {
     const [a, b, , d, e, f] = item.transform;
     const scaleX = Math.sqrt(a * a + b * b);
     const w = (item.width  || 0) * zoom;

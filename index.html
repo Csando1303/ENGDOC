@@ -534,9 +534,12 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   font-weight:600;font-family:var(--font);cursor:pointer;transition:background .12s}
 .emma-import-btn:hover{background:#6d28d9}
 .titem{display:flex;align-items:flex-start;gap:8px;padding:6px;border-radius:var(--radius-sm);
-  cursor:pointer;border:1px solid transparent;transition:all .12s;margin-bottom:4px}
+  cursor:pointer;border:1px solid transparent;transition:background .12s,border-color .12s,opacity .12s;margin-bottom:4px}
 .titem:hover{background:var(--gray-50);border-color:var(--gray-200)}
 .titem.active{background:var(--blue-50);border-color:var(--blue-100)}
+.titem.t-dragging{opacity:.35;border-color:var(--gray-200)!important}
+.titem.t-drop-above{border-top:2px solid var(--blue-500)!important;margin-top:-1px}
+.titem.t-drop-below{border-bottom:2px solid var(--blue-500)!important;margin-bottom:2px}
 .tcwrap{width:50px;height:66px;background:var(--white);border:1px solid var(--gray-200);
   border-radius:2px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .tcwrap canvas{max-width:100%;max-height:100%}
@@ -2424,6 +2427,39 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   </div>
 </div>
 
+<!-- PDF DROP CHOICE MODAL -->
+<div class="overlay" id="mpdf-drop">
+  <div class="modal" style="width:400px">
+    <div class="mhead">
+      <span class="mtitle">Add PDF</span>
+      <button class="mclose" onclick="closeM('mpdf-drop')">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="font-size:13px;color:var(--gray-600);margin-bottom:16px;line-height:1.5">
+        A document is already open. What would you like to do with
+        <strong id="mpdf-drop-name" style="color:var(--gray-800)"></strong>?
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="hbtn primary" style="justify-content:flex-start;gap:10px;padding:10px 14px;font-size:13px" onclick="handleDropChoice('append')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+          <div style="text-align:left"><div style="font-weight:600">Append at end</div><div style="font-size:11px;font-weight:400;opacity:.75;margin-top:1px">Add pages after the last page</div></div>
+        </button>
+        <button class="hbtn outline" style="justify-content:flex-start;gap:10px;padding:10px 14px;font-size:13px" onclick="handleDropChoice('merge')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 8 12 1 5 8"/></svg>
+          <div style="text-align:left"><div style="font-weight:600">Insert at current page</div><div style="font-size:11px;font-weight:400;opacity:.75;margin-top:1px">Insert pages after page <span id="mpdf-drop-curpg"></span></div></div>
+        </button>
+        <button class="hbtn outline" style="justify-content:flex-start;gap:10px;padding:10px 14px;font-size:13px" onclick="handleDropChoice('open')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <div style="text-align:left"><div style="font-weight:600">Open as new document</div><div style="font-size:11px;font-weight:400;opacity:.75;margin-top:1px">Replaces the current document</div></div>
+        </button>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('mpdf-drop')">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <div class="snap-ring" id="snap-ring"></div>
 
@@ -2435,6 +2471,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 ═══════════════════════════════════════════════ */
 let pdf = null, nPages = 0, curPg = 1, zoom = 1;
 let pdfBytes = null, pdfName = '';
+let pendingDropFile = null;
 let tool = 'pan', color = 'yellow';
 let fontSize = 12;
 let annotOpacity = 80;
@@ -2623,7 +2660,14 @@ async function onDrop(e) {
     // Load the first .engdoc (ignore others)
     loadSession({ target: { files: [engdocs[0]], value: '' } });
   } else if (pdfs.length === 1) {
-    loadPDF(pdfs[0]);
+    if (pdf !== null) {
+      pendingDropFile = pdfs[0];
+      document.getElementById('mpdf-drop-name').textContent = pdfs[0].name;
+      document.getElementById('mpdf-drop-curpg').textContent = curPg;
+      openM('mpdf-drop');
+    } else {
+      loadPDF(pdfs[0]);
+    }
   } else if (pdfs.length > 1) {
     loadMultiplePDFs(pdfs);
   }
@@ -2739,6 +2783,63 @@ async function loadMultiplePDFs(files) {
   } catch(e) {
     toast('Merge failed: ' + e.message);
     console.error('[EngDoc] loadMultiplePDFs:', e);
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   PDF INSERT / DROP CHOICE
+   Insert a new PDF into the current document
+   (append at end, or merge after current page).
+═══════════════════════════════════════════════ */
+function handleDropChoice(mode) {
+  closeM('mpdf-drop');
+  if (!pendingDropFile) return;
+  const file = pendingDropFile;
+  pendingDropFile = null;
+  if (mode === 'open') {
+    loadPDF(file);
+  } else if (mode === 'append') {
+    insertPDF(file, nPages);
+  } else if (mode === 'merge') {
+    insertPDF(file, curPg);
+  }
+}
+
+async function insertPDF(file, afterPage) {
+  try {
+    toast('Inserting ' + file.name + '…', 3000);
+    await loadPdfLib();
+    const { PDFDocument } = PDFLib;
+    const existingDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+    const newDoc      = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true });
+    const merged      = await PDFDocument.create();
+
+    const existingIndices = existingDoc.getPageIndices();
+    const newIndices      = newDoc.getPageIndices();
+
+    // Pages before insertion point
+    if (afterPage > 0) {
+      const before = await merged.copyPages(existingDoc, existingIndices.slice(0, afterPage));
+      before.forEach(p => merged.addPage(p));
+    }
+    // Inserted pages
+    const inserted = await merged.copyPages(newDoc, newIndices);
+    inserted.forEach(p => merged.addPage(p));
+    // Pages after insertion point
+    if (afterPage < existingIndices.length) {
+      const after = await merged.copyPages(existingDoc, existingIndices.slice(afterPage));
+      after.forEach(p => merged.addPage(p));
+    }
+
+    const isAppend = afterPage >= existingIndices.length;
+    const mergedBytes = await merged.save();
+    const mergedFile  = new File([mergedBytes], pdfName, { type: 'application/pdf' });
+    await loadPDF(mergedFile);
+    const label = isAppend ? 'Appended' : `Inserted after page ${afterPage}`;
+    toast(`✓ ${label}: ${file.name} — ${nPages} pages total`, 3000);
+  } catch (e) {
+    toast('Insert failed: ' + e.message);
+    console.error('[EngDoc] insertPDF:', e);
   }
 }
 
@@ -3362,17 +3463,53 @@ async function buildThumbs() {
     const item = document.createElement('div');
     item.className = 'titem' + (i === 1 ? ' active' : '');
     item.dataset.page = i;
+    item.draggable = true;
     item.onclick = () => scrollToPage(i);
+
+    // ── drag-to-reorder handlers ──
+    item.addEventListener('dragstart', e => {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(i));
+      setTimeout(() => item.classList.add('t-dragging'), 0);
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('t-dragging');
+      panel.querySelectorAll('.t-drop-above,.t-drop-below').forEach(el => {
+        el.classList.remove('t-drop-above', 't-drop-below');
+      });
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const rect = item.getBoundingClientRect();
+      const above = e.clientY < rect.top + rect.height / 2;
+      item.classList.toggle('t-drop-above', above);
+      item.classList.toggle('t-drop-below', !above);
+    });
+    item.addEventListener('dragleave', e => {
+      if (!item.contains(e.relatedTarget)) {
+        item.classList.remove('t-drop-above', 't-drop-below');
+      }
+    });
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      item.classList.remove('t-drop-above', 't-drop-below');
+      const fromPage = parseInt(e.dataTransfer.getData('text/plain'));
+      const toPage = parseInt(item.dataset.page);
+      if (fromPage === toPage) return;
+      const rect = item.getBoundingClientRect();
+      const insertBefore = e.clientY < rect.top + rect.height / 2;
+      reorderPages(fromPage, toPage, insertBefore);
+    });
 
     const wrap = document.createElement('div'); wrap.className = 'tcwrap';
     const tc = document.createElement('canvas');
+    tc.width = 0; tc.height = 0; // reset browser default (300×150) so render guard works
     wrap.appendChild(tc);
 
     const lbl = document.createElement('div');
     lbl.className = 'tlbl';
     if (hasLabels && source) {
-      // Show page-within-source number if we can compute it
-      // Count how many pages before this one share the same source
       let localPg = 0;
       for (let j = 1; j <= i; j++) { if (pageLabels[j] === source) localPg++; }
       lbl.textContent = localPg;
@@ -3395,14 +3532,62 @@ async function buildThumbs() {
       obs.unobserve(item);
       try {
         const p = await pdf.getPage(pgNum);
-        const tv = p.getViewport({ scale: 0.12 });
+        const base = p.getViewport({ scale: 1 });
+        const scale = (50 * (window.devicePixelRatio || 1)) / base.width;
+        const tv = p.getViewport({ scale });
         tc.width = tv.width; tc.height = tv.height;
+        tc.style.width = '50px'; tc.style.height = '';
         await p.render({ canvasContext: tc.getContext('2d'), viewport: tv }).promise;
       } catch(e) { /* page may not be available yet */ }
     }
   }, { root: panel, rootMargin: '100px' });
 
   panel.querySelectorAll('.titem').forEach(item => obs.observe(item));
+}
+
+/* ═══════════════════════════════════════════════
+   PAGE REORDER
+   Drag a thumbnail to move that page in the PDF.
+═══════════════════════════════════════════════ */
+async function reorderPages(fromPage, toPage, insertBefore) {
+  try {
+    toast('Moving page…', 2000);
+    await loadPdfLib();
+    const { PDFDocument } = PDFLib;
+    const srcDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+    const newDoc = await PDFDocument.create();
+
+    // Build 1-based page order after the move
+    const order = Array.from({ length: nPages }, (_, k) => k + 1);
+    order.splice(order.indexOf(fromPage), 1);
+    let toIdx = order.indexOf(toPage);
+    if (!insertBefore) toIdx++;
+    order.splice(toIdx, 0, fromPage);
+
+    const pages = await newDoc.copyPages(srcDoc, order.map(p => p - 1));
+    pages.forEach(p => newDoc.addPage(p));
+
+    // Preserve page-source labels in new order
+    if (Object.keys(pageLabels).length > 0) {
+      const oldLabels = { ...pageLabels };
+      Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
+      order.forEach((origPage, idx) => {
+        if (oldLabels[origPage]) pageLabels[idx + 1] = oldLabels[origPage];
+      });
+    }
+
+    const newBytes = await newDoc.save();
+    const newFile = new File([newBytes], pdfName, { type: 'application/pdf' });
+    const savedLabels = { ...pageLabels };
+    await loadPDF(newFile);
+    // Restore labels (loadPDF clears them)
+    Object.assign(pageLabels, savedLabels);
+    if (Object.keys(pageLabels).length > 0) buildThumbs();
+    toast(`✓ Page ${fromPage} moved to position ${toIdx + 1}`, 2500);
+  } catch (e) {
+    toast('Reorder failed: ' + e.message);
+    console.error('[EngDoc] reorderPages:', e);
+  }
 }
 
 /* ═══════════════════════════════════════════════

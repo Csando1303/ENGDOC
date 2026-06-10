@@ -36,6 +36,13 @@
   fill: rgba(37,99,235,0.22);
   stroke: none;
 }
+
+footer {
+  padding: 12px 16px;
+  font-size: 11px;
+  color: var(--gray-600);
+}
+
 </style>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Fraunces:ital,wght@0,600&display=swap');
@@ -343,12 +350,12 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 .rbtn.sm svg { width:15px;height:15px; }
 .rbtn.sm .rbtn-label { display:none; }
 
-/* Tooltip */
+/* Tooltip — always dark so it's legible in both light and dark mode */
 .rbtn[data-tip]:hover::after {
   content:attr(data-tip);
   position:absolute;top:calc(100% + 6px);
   left:50%;transform:translateX(-50%);
-  background:var(--gray-900);color:#fff;
+  background:#1a1f2e;color:#e8ecf4;
   font-size:11px;padding:3px 8px;border-radius:3px;
   white-space:nowrap;pointer-events:none;z-index:300;
   font-family:var(--font);
@@ -534,12 +541,33 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   font-weight:600;font-family:var(--font);cursor:pointer;transition:background .12s}
 .emma-import-btn:hover{background:#6d28d9}
 .titem{display:flex;align-items:flex-start;gap:8px;padding:6px;border-radius:var(--radius-sm);
-  cursor:pointer;border:1px solid transparent;transition:background .12s,border-color .12s,opacity .12s;margin-bottom:4px}
+  cursor:pointer;border:1px solid transparent;transition:background .12s,border-color .12s,opacity .12s;margin-bottom:4px;position:relative}
 .titem:hover{background:var(--gray-50);border-color:var(--gray-200)}
 .titem.active{background:var(--blue-50);border-color:var(--blue-100)}
 .titem.t-dragging{opacity:.35;border-color:var(--gray-200)!important}
 .titem.t-drop-above{border-top:2px solid var(--blue-500)!important;margin-top:-1px}
 .titem.t-drop-below{border-bottom:2px solid var(--blue-500)!important;margin-bottom:2px}
+.titem.t-selected{background:var(--blue-50)!important;border-color:var(--blue-300,#93c5fd)!important}
+.titem.t-selected .tcwrap{border-color:var(--blue-400,#60a5fa)}
+.t-del-btn{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:3px;
+  background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:10px;line-height:1;
+  display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s,background .1s,color .1s;
+  padding:0;z-index:1}
+.titem:hover .t-del-btn,.titem.t-selected .t-del-btn{opacity:1}
+.t-del-btn:hover{background:var(--red-50);color:var(--red-500)!important}
+#pages-toolbar{display:flex;align-items:center;justify-content:space-between;
+  padding:5px 8px 5px 10px;background:var(--blue-50);border-bottom:1px solid var(--blue-100);gap:4px;
+  flex-shrink:0}
+#pages-toolbar.hidden{display:none!important}
+.ptb-count{font-size:11px;font-weight:600;color:var(--blue-600);font-family:var(--mono);flex:1;white-space:nowrap}
+.ptb-actions{display:flex;gap:3px}
+.ptb-btn{width:22px;height:22px;background:none;border:1px solid var(--blue-200,#bfdbfe);
+  border-radius:3px;color:var(--blue-600);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all .1s;padding:0;font-size:11px}
+.ptb-btn:hover{background:var(--blue-100);border-color:var(--blue-400,#60a5fa)}
+.ptb-btn:disabled{opacity:.35;cursor:default;pointer-events:none}
+.ptb-btn.danger{color:var(--red-500);border-color:var(--red-400,#f87171)}
+.ptb-btn.danger:hover{background:var(--red-50)}
 .tcwrap{width:50px;height:66px;background:var(--white);border:1px solid var(--gray-200);
   border-radius:2px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .tcwrap canvas{max-width:100%;max-height:100%}
@@ -952,8 +980,8 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  background: var(--gray-900);
-  color: #fff;
+  background: #1a1f2e;
+  color: #e8ecf4;
   font-size: 10px;
   font-family: var(--font);
   font-weight: 500;
@@ -1700,6 +1728,10 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       </div>
       <div class="rgroup">
         <div class="rgroup-btns">
+          <button class="rbtn lg" onclick="saveAsPdf()" data-tip="Save a clean copy of the PDF — no annotations burned in">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9 14 12 17 15 14"/></svg>
+            <span class="rbtn-label">Save<br>PDF</span>
+          </button>
           <button class="rbtn lg" onclick="exportAnnotatedPdf()" data-tip="Export PDF with annotations burned in — shareable with anyone">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l2 2 4-4"/></svg>
             <span class="rbtn-label">Export<br>Annotated PDF</span>
@@ -1776,6 +1808,22 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       <button class="stab emma" id="stab-emma"      onclick="switchTab('emma',this)">EMMA</button>
       <button class="stab" id="stab-search"         onclick="switchTab('search',this)">Search</button>
       <button class="stab-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Collapse sidebar ([ )">&#xAB;</button>
+    </div>
+    <!-- Pages selection toolbar — shown when ≥1 page is selected -->
+    <div id="pages-toolbar" class="hidden">
+      <span class="ptb-count" id="pages-sel-count">0 selected</span>
+      <div class="ptb-actions">
+        <button class="ptb-btn" id="ptb-up" onclick="moveSelectedPages(-1)" title="Move up">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
+        <button class="ptb-btn" id="ptb-down" onclick="moveSelectedPages(1)" title="Move down">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <button class="ptb-btn danger" onclick="deleteSelectedPages()" title="Delete selected pages">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+        <button class="ptb-btn" onclick="clearPageSelection()" title="Clear selection" style="font-size:12px;border-color:var(--gray-300);color:var(--gray-500)">✕</button>
+      </div>
     </div>
     <div class="spanel" id="sp-pages"></div>
     <div class="spanel hidden" id="sp-notes">
@@ -2463,6 +2511,8 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 <div id="toast"></div>
 <div class="snap-ring" id="snap-ring"></div>
 
+<footer> Developed by Connor Sanderson </footer>
+
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -2472,6 +2522,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 let pdf = null, nPages = 0, curPg = 1, zoom = 1;
 let pdfBytes = null, pdfName = '';
 let pendingDropFile = null;
+const selectedPages = new Set(); // pages selected in the thumbnail panel
+let lastClickedPage = null;      // anchor for shift-click range selection
 let tool = 'pan', color = 'yellow';
 let fontSize = 12;
 let annotOpacity = 80;
@@ -3461,22 +3513,50 @@ async function buildThumbs() {
     }
 
     const item = document.createElement('div');
-    item.className = 'titem' + (i === 1 ? ' active' : '');
+    const isActive = (i === curPg);
+    item.className = 'titem'
+      + (isActive ? ' active' : '')
+      + (selectedPages.has(i) ? ' t-selected' : '');
     item.dataset.page = i;
     item.draggable = true;
-    item.onclick = () => scrollToPage(i);
 
-    // ── drag-to-reorder handlers ──
+    // ── click: navigate / Ctrl-click: toggle select / Shift-click: range select ──
+    item.addEventListener('click', e => {
+      if (e.ctrlKey || e.metaKey) {
+        if (selectedPages.has(i)) { selectedPages.delete(i); item.classList.remove('t-selected'); }
+        else                       { selectedPages.add(i);    item.classList.add('t-selected'); }
+        lastClickedPage = i;
+        updatePagesToolbar();
+      } else if (e.shiftKey && lastClickedPage !== null) {
+        const lo = Math.min(i, lastClickedPage), hi = Math.max(i, lastClickedPage);
+        for (let p = lo; p <= hi; p++) selectedPages.add(p);
+        panel.querySelectorAll('.titem').forEach(t =>
+          t.classList.toggle('t-selected', selectedPages.has(parseInt(t.dataset.page))));
+        updatePagesToolbar();
+      } else {
+        clearPageSelection();
+        scrollToPage(i);
+      }
+    });
+
+    // ── drag-to-reorder (single or multi-page) ──
     item.addEventListener('dragstart', e => {
+      // If dragging a selected page, carry all selected; else carry just this one
+      const pages = selectedPages.has(i)
+        ? [...selectedPages].sort((a, b) => a - b)
+        : [i];
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', String(i));
-      setTimeout(() => item.classList.add('t-dragging'), 0);
+      e.dataTransfer.setData('text/plain', pages.join(','));
+      setTimeout(() => {
+        pages.forEach(p => {
+          const el = panel.querySelector(`.titem[data-page="${p}"]`);
+          if (el) el.classList.add('t-dragging');
+        });
+      }, 0);
     });
     item.addEventListener('dragend', () => {
-      item.classList.remove('t-dragging');
-      panel.querySelectorAll('.t-drop-above,.t-drop-below').forEach(el => {
-        el.classList.remove('t-drop-above', 't-drop-below');
-      });
+      panel.querySelectorAll('.t-dragging,.t-drop-above,.t-drop-below').forEach(el =>
+        el.classList.remove('t-dragging', 't-drop-above', 't-drop-below'));
     });
     item.addEventListener('dragover', e => {
       e.preventDefault();
@@ -3487,19 +3567,18 @@ async function buildThumbs() {
       item.classList.toggle('t-drop-below', !above);
     });
     item.addEventListener('dragleave', e => {
-      if (!item.contains(e.relatedTarget)) {
+      if (!item.contains(e.relatedTarget))
         item.classList.remove('t-drop-above', 't-drop-below');
-      }
     });
     item.addEventListener('drop', e => {
       e.preventDefault();
       item.classList.remove('t-drop-above', 't-drop-below');
-      const fromPage = parseInt(e.dataTransfer.getData('text/plain'));
+      const fromPages = new Set(e.dataTransfer.getData('text/plain').split(',').map(Number));
       const toPage = parseInt(item.dataset.page);
-      if (fromPage === toPage) return;
+      if (fromPages.has(toPage) && fromPages.size === 1) return;
       const rect = item.getBoundingClientRect();
       const insertBefore = e.clientY < rect.top + rect.height / 2;
-      reorderPages(fromPage, toPage, insertBefore);
+      reorderPages(fromPages, toPage, insertBefore);
     });
 
     const wrap = document.createElement('div'); wrap.className = 'tcwrap';
@@ -3507,6 +3586,15 @@ async function buildThumbs() {
     tc.width = 0; tc.height = 0; // reset browser default (300×150) so render guard works
     wrap.appendChild(tc);
 
+    // ── per-page delete button (visible on hover / selection) ──
+    const delBtn = document.createElement('button');
+    delBtn.className = 't-del-btn';
+    delBtn.title = 'Delete this page';
+    delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>';
+    delBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      deletePages(new Set([i]));
+    });
     const lbl = document.createElement('div');
     lbl.className = 'tlbl';
     if (hasLabels && source) {
@@ -3518,7 +3606,8 @@ async function buildThumbs() {
       lbl.textContent = i;
     }
 
-    item.appendChild(wrap); item.appendChild(lbl); panel.appendChild(item);
+    // delBtn is a child of item (position:relative), not wrap (overflow:hidden)
+    item.appendChild(wrap); item.appendChild(lbl); item.appendChild(delBtn); panel.appendChild(item);
   }
 
   // Lazy-render thumbnails via IntersectionObserver
@@ -3546,48 +3635,133 @@ async function buildThumbs() {
 }
 
 /* ═══════════════════════════════════════════════
-   PAGE REORDER
-   Drag a thumbnail to move that page in the PDF.
+   PAGE OPERATIONS
+   Reorder, delete, and move pages in the PDF.
+   All functions rebuild the PDF via PDFLib and
+   reload — labels and selection are preserved.
 ═══════════════════════════════════════════════ */
-async function reorderPages(fromPage, toPage, insertBefore) {
+
+// Core helper: rebuild PDF from a given page-order array (1-based original indices)
+async function _rebuildPDF(order) {
+  await loadPdfLib();
+  const { PDFDocument } = PDFLib;
+  const srcDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+  const newDoc = await PDFDocument.create();
+  const pages  = await newDoc.copyPages(srcDoc, order.map(p => p - 1));
+  pages.forEach(p => newDoc.addPage(p));
+  if (Object.keys(pageLabels).length > 0) {
+    const old = { ...pageLabels };
+    Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
+    order.forEach((origPg, idx) => { if (old[origPg]) pageLabels[idx + 1] = old[origPg]; });
+  }
+  const bytes = await newDoc.save();
+  return new File([bytes], pdfName, { type: 'application/pdf' });
+}
+
+// Reload after a structural change, restoring labels and re-selecting pages
+async function _reloadWithOrder(order, newSelectedPages) {
+  const file = await _rebuildPDF(order);
+  const savedLabels = { ...pageLabels };
+  selectedPages.clear();
+  if (newSelectedPages) newSelectedPages.forEach(p => selectedPages.add(p));
+  await loadPDF(file);
+  Object.assign(pageLabels, savedLabels);
+  if (Object.keys(pageLabels).length > 0) buildThumbs();
+  // Re-apply selection highlight (buildThumbs already read selectedPages, but do a sync pass)
+  updatePagesToolbar();
+}
+
+// Drag-drop reorder: fromPages = Set, toPage = drop target, insertBefore = boolean
+async function reorderPages(fromPages, toPage, insertBefore) {
+  if (fromPages.has(toPage) && fromPages.size === 1) return;
   try {
-    toast('Moving page…', 2000);
-    await loadPdfLib();
-    const { PDFDocument } = PDFLib;
-    const srcDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
-    const newDoc = await PDFDocument.create();
-
-    // Build 1-based page order after the move
-    const order = Array.from({ length: nPages }, (_, k) => k + 1);
-    order.splice(order.indexOf(fromPage), 1);
-    let toIdx = order.indexOf(toPage);
-    if (!insertBefore) toIdx++;
-    order.splice(toIdx, 0, fromPage);
-
-    const pages = await newDoc.copyPages(srcDoc, order.map(p => p - 1));
-    pages.forEach(p => newDoc.addPage(p));
-
-    // Preserve page-source labels in new order
-    if (Object.keys(pageLabels).length > 0) {
-      const oldLabels = { ...pageLabels };
-      Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
-      order.forEach((origPage, idx) => {
-        if (oldLabels[origPage]) pageLabels[idx + 1] = oldLabels[origPage];
-      });
-    }
-
-    const newBytes = await newDoc.save();
-    const newFile = new File([newBytes], pdfName, { type: 'application/pdf' });
-    const savedLabels = { ...pageLabels };
-    await loadPDF(newFile);
-    // Restore labels (loadPDF clears them)
-    Object.assign(pageLabels, savedLabels);
-    if (Object.keys(pageLabels).length > 0) buildThumbs();
-    toast(`✓ Page ${fromPage} moved to position ${toIdx + 1}`, 2500);
+    toast('Moving pages…', 2000);
+    const fromArr  = [...fromPages].sort((a, b) => a - b);
+    const remaining = [];
+    for (let p = 1; p <= nPages; p++) { if (!fromPages.has(p)) remaining.push(p); }
+    let toIdx = remaining.indexOf(toPage);
+    if (toIdx === -1) toIdx = remaining.length;
+    else if (!insertBefore) toIdx++;
+    remaining.splice(toIdx, 0, ...fromArr);
+    // Compute new positions of moved pages so we can re-select them
+    const newSel = new Set(fromArr.map(p => remaining.indexOf(p) + 1));
+    await _reloadWithOrder(remaining, newSel);
+    const n = fromArr.length;
+    toast(`✓ ${n === 1 ? 'Page ' + fromArr[0] : n + ' pages'} moved`, 2000);
   } catch (e) {
     toast('Reorder failed: ' + e.message);
     console.error('[EngDoc] reorderPages:', e);
   }
+}
+
+// Delete a set of pages (1-based)
+async function deletePages(pageSet) {
+  if (!pageSet.size) return;
+  const remaining = [];
+  for (let p = 1; p <= nPages; p++) { if (!pageSet.has(p)) remaining.push(p); }
+  if (!remaining.length) { toast('Cannot delete all pages'); return; }
+  try {
+    const n = pageSet.size;
+    toast(`Deleting ${n === 1 ? 'page' : n + ' pages'}…`, 2000);
+    await _reloadWithOrder(remaining, null);
+    toast(`✓ ${n === 1 ? 'Page deleted' : n + ' pages deleted'}`, 2500);
+  } catch (e) {
+    toast('Delete failed: ' + e.message);
+    console.error('[EngDoc] deletePages:', e);
+  }
+}
+
+function deleteSelectedPages() {
+  if (!selectedPages.size) return;
+  deletePages(new Set(selectedPages));
+}
+
+// Shift the entire selection up (delta=-1) or down (delta=+1) by one slot
+async function moveSelectedPages(delta) {
+  if (!selectedPages.size) return;
+  const fromArr = [...selectedPages].sort((a, b) => a - b);
+  if (delta === -1 && fromArr[0] === 1) return;
+  if (delta === +1 && fromArr[fromArr.length - 1] === nPages) return;
+  try {
+    const fromSet   = new Set(fromArr);
+    const remaining = [];
+    for (let p = 1; p <= nPages; p++) { if (!fromSet.has(p)) remaining.push(p); }
+    // Pivot: the non-selected page adjacent to the selection in the direction of movement
+    const pivot = delta === -1 ? fromArr[0] - 1 : fromArr[fromArr.length - 1] + 1;
+    let toIdx = remaining.indexOf(pivot);
+    if (toIdx === -1) return;
+    if (delta === -1) remaining.splice(toIdx, 0, ...fromArr);
+    else              remaining.splice(toIdx + 1, 0, ...fromArr);
+    const newSel = new Set(fromArr.map(p => remaining.indexOf(p) + 1));
+    await _reloadWithOrder(remaining, newSel);
+    updatePagesToolbar();
+  } catch (e) {
+    toast('Move failed: ' + e.message);
+  }
+}
+
+function clearPageSelection() {
+  selectedPages.clear();
+  lastClickedPage = null;
+  document.querySelectorAll('.titem.t-selected').forEach(el => el.classList.remove('t-selected'));
+  updatePagesToolbar();
+}
+
+function updatePagesToolbar() {
+  const toolbar  = document.getElementById('pages-toolbar');
+  const countEl  = document.getElementById('pages-sel-count');
+  if (!toolbar) return;
+  if (selectedPages.size === 0) {
+    toolbar.classList.add('hidden');
+    return;
+  }
+  toolbar.classList.remove('hidden');
+  const n = selectedPages.size;
+  countEl.textContent = n === 1 ? '1 page selected' : `${n} pages selected`;
+  // Disable move-up if selection starts at page 1, move-down if it ends at last page
+  const sorted = [...selectedPages].sort((a, b) => a - b);
+  document.getElementById('ptb-up').disabled   = sorted[0] === 1;
+  document.getElementById('ptb-down').disabled = sorted[sorted.length - 1] === nPages;
 }
 
 /* ═══════════════════════════════════════════════
@@ -5825,9 +5999,22 @@ async function loadSession(e) {
    pdf-lib so the result is viewable in any PDF
    reader without EngDoc installed.
 ═══════════════════════════════════════════════ */
+function saveAsPdf() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = pdfName || 'document.pdf';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast(`Saved: ${pdfName}`);
+}
+
 async function exportAnnotatedPdf() {
   if (!pdfBytes) { toast('Open a PDF first'); return; }
-  if (!annots.length) { toast('No annotations to export — add some markup first'); return; }
 
   toast('Generating annotated PDF…', 5000);
   try {

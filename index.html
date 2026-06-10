@@ -8555,7 +8555,7 @@ function _selEnd(ev) {
       );
       svgEl.appendChild(rect);
       // Keep a tiny invisible rect el
-      rectEl.style.cssText = 'left:' + (cx-2) + 'px;top:' + (cy-2) + 'px;width:4px;height:4px;border:none;background:none';
+      _selState.rectEl.style.cssText = 'left:' + (cx-2) + 'px;top:' + (cy-2) + 'px;width:4px;height:4px;border:none;background:none';
     } else {
       _selClear();
       _selState = null;

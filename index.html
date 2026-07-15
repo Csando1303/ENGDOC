@@ -1595,6 +1595,16 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
       </div>
 
       <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn" id="t-tableextract" data-tip="Extract table — drag a box around a table to pull its data into Excel" onclick="setTool('tableextract')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+            <span class="rbtn-label">Table</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Data</div>
+      </div>
+
+      <div class="rgroup">
         <div class="rgroup-btns" style="gap:8px;padding:4px">
           <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
             <div style="display:flex;gap:6px">
@@ -2331,6 +2341,31 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
     <div class="mfoot">
       <button class="hbtn outline" onclick="closeM('mscale')">Cancel</button>
       <button class="hbtn primary" onclick="applyScale()">Set Scale</button>
+    </div>
+  </div>
+</div>
+
+<!-- TABLE EXTRACT MODAL -->
+<div class="overlay" id="mtableextract">
+  <div class="modal" style="width:720px;max-width:96vw">
+    <div class="mhead"><span class="mtitle">Extract Table</span><button class="mclose" onclick="closeM('mtableextract')">✕</button></div>
+    <div class="mbody">
+      <div id="te-status" style="font-size:12px;color:var(--gray-600);margin-bottom:10px"></div>
+      <div id="te-ocr-prompt" style="display:none;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px;font-size:12.5px;color:var(--gray-700)">
+        No embedded text was found in this area — it looks like a scanned image.
+        <button class="hbtn primary" style="margin-left:8px" id="te-run-ocr-btn" onclick="runTableOcr()">Run OCR</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="hbtn outline" onclick="teAddRow()">+ Row</button>
+        <button class="hbtn outline" onclick="teAddCol()">+ Column</button>
+        <button class="hbtn outline" onclick="teDelRow()">− Row</button>
+        <button class="hbtn outline" onclick="teDelCol()">− Column</button>
+      </div>
+      <div id="te-grid-wrap" style="max-height:50vh;overflow:auto;border:1px solid var(--gray-200);border-radius:var(--radius-sm)"></div>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('mtableextract')">Cancel</button>
+      <button class="hbtn primary" onclick="exportTableToExcel()">Export to Excel</button>
     </div>
   </div>
 </div>
@@ -3839,7 +3874,7 @@ function setTool(t) {
       o.style.cursor = '';
       o.className = 'aoverlay active';
       if (['highlight','rect','rectfill','strike','pen','arrow','line',
-           'measure','texthighlight','cloud','area'].includes(t)) o.classList.add('cur-cross');
+           'measure','texthighlight','cloud','area','tableextract'].includes(t)) o.classList.add('cur-cross');
       else if (t === 'note')    o.classList.add('cur-cell');
       else if (t === 'text')    o.classList.add('cur-text');
       else if (t === 'erase')   o.classList.add('cur-erase');
@@ -4139,6 +4174,9 @@ function attachEvents(ov, pageNum, _vpInitial) {
       liveEl.className = 'ar';
       liveEl.style.borderColor = CHex[color];
       liveEl.style.background = CHex[color] + '11';
+    } else if (tool === 'tableextract') {
+      liveEl.style.border = '2px dashed #2563eb';
+      liveEl.style.background = '#2563eb11';
     } else if (tool === 'rectfill') {
       liveEl.style.background = CHex[color];
       liveEl.style.opacity = (annotOpacity / 100).toFixed(2);
@@ -4351,7 +4389,10 @@ function attachEvents(ov, pageNum, _vpInitial) {
     const w  = Math.abs(mx - origin.x) / vp.width  * 100;
     const h  = Math.abs(my - origin.y) / vp.height * 100;
 
-    if (tool === 'strike') {
+    if (tool === 'tableextract') {
+      if (w < 1 || h < 1) return;
+      openTableExtractModal(pageNum, x, y, w, h);
+    } else if (tool === 'strike') {
       if (w < 0.5 || h < 0.5) return;
       pushAnnot({ id: nextId(), pageNum, type: 'strike', x, y, w, h, color });
     } else if (tool === 'highlight' || tool === 'rect') {
@@ -6257,6 +6298,260 @@ async function loadSheetJs() {
     s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
   });
+}
+
+/* ═══════════════════════════════════════════════
+   TABLE EXTRACT
+   User drags a box (tool 'tableextract') around a
+   table on the drawing. We first try to build a grid
+   from the page's embedded text (pdfTextContent, already
+   extracted at load — see extractPdfText). If the box
+   has no embedded text (scanned/image page) we offer an
+   OCR pass (Tesseract.js, lazy-loaded) over just that
+   cropped region. Either path clusters word positions
+   into rows/columns by gap-detection, then shows an
+   editable preview before exporting to .xlsx.
+═══════════════════════════════════════════════ */
+let teGrid = [];        // current editable grid: string[][]
+let tePageNum = null;
+let teBox = null;       // {x,y,w,h} in 0-100 % of page, as drawn
+
+async function loadTesseract() {
+  if (window.Tesseract) return;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+// Cluster a flat list of numbers into groups separated by unusually large gaps.
+// Returns the cluster means, ascending. Works for both row (y) and column (x) positions.
+function teClusterValues(values, minGap) {
+  const sorted = [...values].sort((a, b) => a - b);
+  if (!sorted.length) return [];
+  const diffs = [];
+  for (let i = 1; i < sorted.length; i++) diffs.push(sorted[i] - sorted[i - 1]);
+  let median = minGap;
+  if (diffs.length) {
+    const sd = [...diffs].sort((a, b) => a - b);
+    median = sd[Math.floor(sd.length / 2)];
+  }
+  const gapThresh = Math.max(median * 2.5, minGap);
+  const clusters = [[sorted[0]]];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] - sorted[i - 1] > gapThresh) clusters.push([sorted[i]]);
+    else clusters[clusters.length - 1].push(sorted[i]);
+  }
+  return clusters.map(c => c.reduce((s, v) => s + v, 0) / c.length);
+}
+
+function teNearestIndex(reps, val) {
+  let best = 0, bestD = Infinity;
+  reps.forEach((r, i) => { const d = Math.abs(val - r); if (d < bestD) { bestD = d; best = i; } });
+  return best;
+}
+
+// items: [{str, x, y, w}] with x,y,w normalised 0..1 relative to the selection box
+// (w = item width; used to tell "space between words in one cell" apart from
+// "gap between columns" — without it, a multi-word cell like "Steel beam UB"
+// gets shredded into separate columns by word).
+// Two-stage: (1) group into rows, merge adjacent words in each row into runs
+// wherever the gap between them looks like normal word-spacing; (2) cluster
+// the resulting run start-positions (far fewer, cleaner) into columns.
+function teBuildGrid(items) {
+  if (!items.length) return [];
+  const rowReps = teClusterValues(items.map(it => it.y), 0.01);
+  const rows = rowReps.map(() => []);
+  items.forEach(it => rows[teNearestIndex(rowReps, it.y)].push(it));
+  rows.forEach(row => row.sort((a, b) => a.x - b.x));
+
+  // Typical within-row word-spacing, from actual whitespace gaps (end of one
+  // item to start of the next), not just left-edge distance.
+  const gaps = [];
+  rows.forEach(row => {
+    for (let i = 1; i < row.length; i++) {
+      const gap = row[i].x - (row[i - 1].x + (row[i - 1].w || 0));
+      if (gap > 0) gaps.push(gap);
+    }
+  });
+  // Use a low percentile, not the median: in a table with several single-token
+  // numeric columns and one wordy description column, most row-internal gaps
+  // ARE column gaps, so the median gap is a column gap, not a word gap — using
+  // it would merge real columns together. Word-spacing is reliably among the
+  // smallest gaps present, wherever multi-word cells occur.
+  const sortedGaps = gaps.sort((a, b) => a - b);
+  const wordGap = sortedGaps.length ? sortedGaps[Math.floor(sortedGaps.length * 0.25)] : 0.01;
+  const mergeThresh = Math.min(Math.max(wordGap * 2.2, 0.006), 0.05);
+
+  const runsPerRow = rows.map(row => {
+    const runs = [];
+    row.forEach(it => {
+      const last = runs[runs.length - 1];
+      if (last && it.x - last.endX <= mergeThresh) {
+        last.str += ' ' + it.str;
+        last.endX = it.x + (it.w || 0);
+      } else {
+        runs.push({ str: it.str, x: it.x, endX: it.x + (it.w || 0) });
+      }
+    });
+    return runs;
+  });
+
+  const colReps = teClusterValues(runsPerRow.flatMap(runs => runs.map(r => r.x)), 0.015);
+  return runsPerRow.map(runs => {
+    const cells = new Array(colReps.length).fill('');
+    runs.forEach(r => {
+      const c = teNearestIndex(colReps, r.x);
+      cells[c] = cells[c] ? cells[c] + ' ' + r.str : r.str;
+    });
+    return cells;
+  });
+}
+
+async function openTableExtractModal(pageNum, x, y, w, h) {
+  tePageNum = pageNum;
+  teBox = { x, y, w, h };
+  const status = document.getElementById('te-status');
+  const ocrPrompt = document.getElementById('te-ocr-prompt');
+  ocrPrompt.style.display = 'none';
+  status.textContent = 'Reading text from the selected area…';
+  openM('mtableextract');
+
+  const boxX = x / 100, boxY = y / 100, boxW = w / 100, boxH = h / 100;
+  const pageItems = pdfTextContent[pageNum] || [];
+  const items = pageItems
+    .filter(it => it.x >= boxX && it.x <= boxX + boxW && it.y >= boxY && it.y <= boxY + boxH)
+    .map(it => ({ str: it.str, x: (it.x - boxX) / boxW, y: (it.y - boxY) / boxH, w: (it.width || 0) / boxW }));
+
+  if (items.length >= 4) {
+    teGrid = teBuildGrid(items);
+    status.textContent = `Detected ${teGrid.length} row(s) × ${teGrid[0]?.length || 0} column(s) from embedded text. Edit cells below if needed.`;
+    teRenderGrid();
+  } else {
+    teGrid = [];
+    teRenderGrid();
+    status.textContent = 'No embedded text found in this area.';
+    ocrPrompt.style.display = 'block';
+  }
+}
+
+async function runTableOcr() {
+  const status = document.getElementById('te-status');
+  const btn = document.getElementById('te-run-ocr-btn');
+  btn.disabled = true; btn.textContent = 'Running OCR…';
+  status.textContent = 'Loading OCR engine…';
+  try {
+    await loadTesseract();
+
+    const OCR_SCALE = 3;
+    const page = await pdf.getPage(tePageNum);
+    const vp = page.getViewport({ scale: OCR_SCALE });
+    const fullCanvas = document.createElement('canvas');
+    fullCanvas.width = vp.width; fullCanvas.height = vp.height;
+    await page.render({ canvasContext: fullCanvas.getContext('2d'), viewport: vp }).promise;
+
+    const cropX = (teBox.x / 100) * vp.width;
+    const cropY = (teBox.y / 100) * vp.height;
+    const cropW = (teBox.w / 100) * vp.width;
+    const cropH = (teBox.h / 100) * vp.height;
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width = cropW; cropCanvas.height = cropH;
+    cropCanvas.getContext('2d').drawImage(fullCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+    status.textContent = 'Recognising text…';
+    const { data } = await Tesseract.recognize(cropCanvas, 'eng');
+    const items = (data.words || [])
+      .filter(w => w.text && w.text.trim())
+      .map(w => ({
+        str: w.text.trim(),
+        x: w.bbox.x0 / cropW,
+        y: ((w.bbox.y0 + w.bbox.y1) / 2) / cropH,
+        w: (w.bbox.x1 - w.bbox.x0) / cropW,
+      }));
+
+    if (!items.length) {
+      status.textContent = 'OCR found no text in this area.';
+      btn.disabled = false; btn.textContent = 'Run OCR';
+      return;
+    }
+    teGrid = teBuildGrid(items);
+    document.getElementById('te-ocr-prompt').style.display = 'none';
+    status.textContent = `OCR detected ${teGrid.length} row(s) × ${teGrid[0]?.length || 0} column(s). Edit cells below if needed.`;
+    teRenderGrid();
+  } catch (err) {
+    status.textContent = 'OCR failed: ' + err.message;
+    btn.disabled = false; btn.textContent = 'Run OCR';
+    console.error('[EngDoc] runTableOcr:', err);
+  }
+}
+
+function teRenderGrid() {
+  const wrap = document.getElementById('te-grid-wrap');
+  if (!teGrid.length) {
+    wrap.innerHTML = '<div style="padding:16px;color:var(--gray-500);font-size:12.5px">No table data yet — use "+ Row" / "+ Column" to start one manually, or run OCR above.</div>';
+    return;
+  }
+  let html = '<table style="border-collapse:collapse;width:100%">';
+  teGrid.forEach((row, r) => {
+    html += '<tr>';
+    row.forEach((cell, c) => {
+      html += `<td contenteditable="true" data-r="${r}" data-c="${c}" oninput="teCellEdit(this)"
+                 style="border:1px solid var(--gray-200);padding:5px 8px;font-size:12px;min-width:70px">${
+                   String(cell).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                 }</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</table>';
+  wrap.innerHTML = html;
+}
+
+function teCellEdit(el) {
+  const r = parseInt(el.dataset.r), c = parseInt(el.dataset.c);
+  if (teGrid[r]) teGrid[r][c] = el.textContent;
+}
+
+function teAddRow() {
+  const cols = teGrid[0]?.length || 1;
+  teGrid.push(new Array(cols).fill(''));
+  teRenderGrid();
+}
+function teAddCol() {
+  if (!teGrid.length) teGrid.push(['']);
+  else teGrid.forEach(row => row.push(''));
+  teRenderGrid();
+}
+function teDelRow() {
+  if (teGrid.length) teGrid.pop();
+  teRenderGrid();
+}
+function teDelCol() {
+  if (teGrid[0] && teGrid[0].length > 1) teGrid.forEach(row => row.pop());
+  teRenderGrid();
+}
+
+async function exportTableToExcel() {
+  if (!teGrid.length) { toast('Nothing to export'); return; }
+  try {
+    await loadSheetJs();
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(teGrid);
+    XLSX.utils.book_append_sheet(wb, ws, 'Table');
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([buf], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const base = (pdfName || 'document').replace(/\.pdf$/i, '');
+    const a = document.createElement('a');
+    a.href = url; a.download = `${base}_table_p${tePageNum}.xlsx`;
+    a.click(); URL.revokeObjectURL(url);
+    closeM('mtableextract');
+    toast('Table exported to Excel');
+  } catch (err) {
+    toast('Export failed: ' + err.message);
+    console.error('[EngDoc] exportTableToExcel:', err);
+  }
 }
 
 /* ═══════════════════════════════════════════════

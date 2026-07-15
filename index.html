@@ -9141,6 +9141,11 @@ function wireMoveOverlay(el, ann, ov) {
       leaderX: ann.leaderX, leaderY: ann.leaderY,
       points: ann.points ? JSON.parse(JSON.stringify(ann.points)) : null,
     };
+    // If this annotation's resize/endpoint handles are currently showing,
+    // they must be kept in sync while it's dragged — they're separate DOM
+    // nodes positioned once at click time, so nothing else re-anchors them
+    // to the annotation's new position while it moves.
+    const wasSelected = _selectedAnnotId === ann.id;
 
     let hasMoved = false, ghost = null;
     movEl.style.cursor = 'grabbing';
@@ -9176,6 +9181,15 @@ function wireMoveOverlay(el, ann, ov) {
           ghost.style.transform = 'translate(' + px + 'px,' + py + 'px)';
         }
       }
+
+      // Keep resize/endpoint handles tracking the annotation as it moves
+      if (wasSelected) {
+        if (ann.x1 !== undefined && ['line', 'arrow', 'measure'].includes(ann.type)) {
+          showEndpointHandles(ann, ov);
+        } else if (ann.x !== undefined && RESIZABLE.includes(ann.type)) {
+          showResizeHandles(el, ann, ov);
+        }
+      }
     };
 
     const onUp = () => {
@@ -9192,6 +9206,20 @@ function wireMoveOverlay(el, ann, ov) {
         ov.querySelectorAll('.ann-move-overlay').forEach(e => e.remove());
         syncAnnots();
         pushHistory();
+        // syncAnnots rebuilds the annotation element, so `el` is now detached —
+        // re-show handles against the fresh element once it exists in the DOM
+        if (wasSelected) {
+          setTimeout(() => {
+            const newEl = ov.querySelector('[data-aid="' + ann.id + '"]');
+            const freshAnn = annots.find(x => x.id === ann.id);
+            if (!newEl || !freshAnn) return;
+            if (freshAnn.x1 !== undefined && ['line', 'arrow', 'measure'].includes(freshAnn.type)) {
+              showEndpointHandles(freshAnn, ov);
+            } else if (freshAnn.x !== undefined && RESIZABLE.includes(freshAnn.type)) {
+              showResizeHandles(newEl, freshAnn, ov);
+            }
+          }, 50);
+        }
       } else if (['line', 'arrow', 'measure'].includes(ann.type)) {
         // Pure click (no drag) on a line/arrow/measure — show endpoint handles
         showEndpointHandles(ann, ov);

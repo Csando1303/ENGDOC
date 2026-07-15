@@ -198,6 +198,23 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 #header{height:42px;background:var(--white);border-bottom:1px solid var(--gray-200);
   display:flex;align-items:center;padding:0 16px;flex-shrink:0;
   box-shadow:var(--shadow-sm);z-index:10;gap:0}
+#tab-bar{display:none;align-items:center;gap:4px;padding:6px 10px;background:var(--gray-50);
+  border-bottom:1px solid var(--gray-200);flex-shrink:0;overflow-x:auto;z-index:9}
+.tab-pill{display:flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;
+  border-radius:var(--radius-sm);border:1px solid transparent;background:transparent;
+  color:var(--gray-600);cursor:pointer;font-family:var(--font);font-size:12.5px;
+  white-space:nowrap;flex-shrink:0;transition:all .12s}
+.tab-pill:hover{background:var(--gray-100);color:var(--gray-800)}
+.tab-pill.active{background:var(--blue-50);border-color:var(--blue-200);color:var(--blue-700)}
+.tab-pill-name{max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.tab-pill-close{display:flex;align-items:center;justify-content:center;width:16px;height:16px;
+  border:none;background:transparent;color:inherit;opacity:.55;cursor:pointer;border-radius:3px;
+  font-size:11px;line-height:1;padding:0}
+.tab-pill-close:hover{opacity:1;background:var(--gray-200)}
+.tab-add-btn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;
+  border-radius:var(--radius-sm);border:1px solid transparent;background:transparent;
+  color:var(--gray-500);cursor:pointer;font-size:16px;flex-shrink:0}
+.tab-add-btn:hover{background:var(--gray-100);color:var(--gray-800)}
 .logo-wrap{display:flex;align-items:baseline;gap:8px;margin-right:28px}
 .logo-name{font-family:var(--display);font-weight:600;font-size:19px;color:var(--gray-900);letter-spacing:-.3px}
 .logo-tag{font-family:var(--mono);font-size:10px;color:var(--gray-500);letter-spacing:.5px;text-transform:uppercase}
@@ -1453,9 +1470,13 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   </div>
   <!-- Hidden file inputs referenced by ribbon buttons -->
   <input type="file" id="fopen" accept=".pdf,.engdoc" style="display:none" onchange="openFile(event)">
+  <input type="file" id="fopen-tab" accept=".pdf" style="display:none" onchange="openFileInNewTabFromInput(event)">
   <input type="file" id="fsession" accept=".engdoc" style="display:none" onchange="loadSession(event)">
   <input type="file" id="fmergesession" accept=".engdoc" style="display:none" onchange="mergeSession(event)">
 </div>
+
+<!-- TAB BAR -->
+<div id="tab-bar" style="display:none"></div>
 
 <!-- RIBBON -->
 <div id="ribbon">
@@ -2555,6 +2576,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
    STATE
 ═══════════════════════════════════════════════ */
 let pdf = null, nPages = 0, curPg = 1, zoom = 1;
+// Bumped every time a new document is parsed (fresh load or a tab switch).
+// Async pipelines that read `pdf`/write shared globals after an `await`
+// capture this at the start and bail out if it's changed underneath them —
+// otherwise a slow-finishing call from a document the user has since
+// switched away from can write its results into the wrong tab's state.
+let docGen = 0;
 let pdfBytes = null, pdfName = '';
 let pendingDropFile = null;
 const selectedPages = new Set(); // pages selected in the thumbnail panel
@@ -2729,9 +2756,12 @@ async function openFile(e) {
   const f = e.target.files[0]; if (!f) return;
   e.target.value = '';
   if (f.name.toLowerCase().endsWith('.engdoc')) {
+    // Sessions without an embedded PDF restore annotations onto whatever
+    // document is already open — not a "new document" action — so this
+    // stays a same-tab operation, unlike opening a plain PDF below.
     await loadSession({ target: { files: [f], value: '' } });
   } else {
-    await loadPDF(f);
+    await openFileAsNewTab(f); // works whether this is tab 1 or an additional tab
   }
 }
 function onDragOver(e) { e.preventDefault(); document.getElementById('drop-card').classList.add('drag-over'); }
@@ -2753,7 +2783,7 @@ async function onDrop(e) {
       document.getElementById('mpdf-drop-curpg').textContent = curPg;
       openM('mpdf-drop');
     } else {
-      loadPDF(pdfs[0]);
+      openFileAsNewTab(pdfs[0]); // no tabs open yet — this becomes tab 1
     }
   } else if (pdfs.length > 1) {
     loadMultiplePDFs(pdfs);
@@ -2763,9 +2793,28 @@ async function onDrop(e) {
 async function loadPDF(file) {
   pdfName = file.name;
   pdfBytes = await file.arrayBuffer();
+  // "Brand new document" reset — identity/annotation state that only makes
+  // sense to wipe when we're not just switching back to a previously-open
+  // tab (see switchTab, which restores these from the tab record instead).
+  curPg = 1; annots = []; emmaRows = {};
+  Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
+  history = []; historyIdx = -1; updateUndoRedoButtons();
+
+  await parseAndRenderPdfBytes(pdfBytes);
+  toast(`Opened: ${file.name} — ${nPages} page${nPages !== 1 ? 's' : ''}`);
+}
+
+// Parses PDF bytes into `pdf` and rebuilds everything derived from it —
+// shared by loadPDF (brand-new document) and switchTab (returning to an
+// already-open tab). Deliberately does NOT touch annots/emmaRows/history/
+// pageLabels — those are the caller's responsibility, since the two call
+// sites need opposite behaviour for them (reset vs. restore).
+async function parseAndRenderPdfBytes(bytes) {
+  if (pdf) { try { await pdf.destroy(); } catch (e) { /* already torn down */ } }
+  docGen++;
 
   pdf = await pdfjsLib.getDocument({
-    data: pdfBytes.slice(0),
+    data: bytes.slice(0),
     // Streaming + range requests disabled (we have full bytes in memory)
     disableRange: true,
     disableStream: true,
@@ -2776,17 +2825,14 @@ async function loadPDF(file) {
     // Use canvas for all rendering (no SVG fallback)
     useSystemFonts: false,
   }).promise;
-  nPages = pdf.numPages; curPg = 1; annots = []; emmaRows = {};
-  // Clear page labels — single PDF uses plain page numbers
-  Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
+  nPages = pdf.numPages;
   renderedPages.clear(); renderQueue.clear();
   Object.keys(pdfTextContent).forEach(k => delete pdfTextContent[k]);
   Object.keys(_pageTextItems).forEach(k => delete _pageTextItems[k]);
   if (window._pageRawText) Object.keys(window._pageRawText).forEach(k => delete window._pageRawText[k]);
-  // Reset undo/redo history for new document
-  history = []; historyIdx = -1; updateUndoRedoButtons();
+  Object.keys(_pageCache).forEach(k => delete _pageCache[k]); // stale page proxies from the previous doc must not leak in under the same page-number keys
 
-  document.getElementById('doc-name').textContent = file.name;
+  document.getElementById('doc-name').textContent = pdfName;
   document.getElementById('pgt').textContent = nPages;
   document.getElementById('pgi').max = nPages;
   document.getElementById('spc').textContent = nPages;
@@ -2801,7 +2847,195 @@ async function loadPDF(file) {
 
   // Extract text in background — don't block rendering
   extractPdfText().then(() => autoDetectTitleBlock());
-  toast(`Opened: ${file.name} — ${nPages} page${nPages !== 1 ? 's' : ''}`);
+}
+
+/* ═══════════════════════════════════════════════
+   TABS
+   Only the active tab has a live, parsed pdf.js
+   document — inactive tabs hold their raw bytes plus
+   JS-side state (annotations, undo history, etc.) and
+   get re-parsed via parseAndRenderPdfBytes() when
+   switched to. This keeps memory bounded to one open
+   document regardless of tab count, at the cost of a
+   re-parse per switch — a deliberate trade-off for
+   users who expect several tabs open at once.
+═══════════════════════════════════════════════ */
+let tabs = [];
+let activeTabId = null;
+let tabIdSeq = 0;
+
+// Everything that represents "this document's state" and would look wrong
+// or stale in the UI after switching away and back if not captured here.
+function saveActiveTabState() {
+  const rec = tabs.find(t => t.id === activeTabId);
+  if (!rec) return;
+  Object.assign(rec, {
+    name: pdfName, bytes: pdfBytes, nPages,
+    annots, emmaRows, annotIdSeq,
+    pageLabels: { ...pageLabels },
+    history, historyIdx,
+    zoom, curPg,
+    measureScale, lastMeasurePx,
+    selectedPages: [...selectedPages], lastClickedPage,
+    fileHandle: _fileHandle, loadedEngdocName: _loadedEngdocName,
+    checkFindings, pdfLayers: _pdfLayers,
+    searchIndex, searchPersistHits: _searchPersistHits,
+    annotNavIdx: _annotNavIdx,
+    emmaFields: captureEmmaFields(),
+  });
+}
+
+// Inverse of saveActiveTabState — writes a tab record's fields back into
+// the live globals. Does NOT re-parse the PDF or touch the DOM; the caller
+// (switchTab) follows this with parseAndRenderPdfBytes(bytes).
+function restoreTabState(rec) {
+  pdfName = rec.name; pdfBytes = rec.bytes;
+  annots = rec.annots; emmaRows = rec.emmaRows; annotIdSeq = rec.annotIdSeq;
+  Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
+  Object.assign(pageLabels, rec.pageLabels);
+  history = rec.history; historyIdx = rec.historyIdx;
+  zoom = rec.zoom; curPg = rec.curPg;
+  measureScale = rec.measureScale; lastMeasurePx = rec.lastMeasurePx;
+  selectedPages.clear(); rec.selectedPages.forEach(p => selectedPages.add(p));
+  lastClickedPage = rec.lastClickedPage;
+  _fileHandle = rec.fileHandle; _loadedEngdocName = rec.loadedEngdocName;
+  checkFindings = rec.checkFindings || [];
+  _pdfLayers = rec.pdfLayers || [];
+  searchIndex = rec.searchIndex || [];
+  _searchPersistHits = rec.searchPersistHits || [];
+  _annotNavIdx = rec.annotNavIdx ?? -1;
+
+  Object.entries(rec.emmaFields || {}).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  });
+  updateUndoRedoButtons();
+  renderCheckResults(checkFindings);
+  updateLayerPanel();
+  clearSearchHighlights();
+  updateEmmaRegister();
+}
+
+// Discards any in-progress gesture (draw/measure/select/move) before a tab
+// switch — resuming a gesture against a different document's coordinate
+// space is meaningless, so these are abandoned rather than carried over.
+function cancelActiveGestures() {
+  if (liveEl) { liveEl.remove(); liveEl = null; }
+  if (liveSvg) { liveSvg.remove(); liveSvg = null; }
+  drawing = false; penPoints = []; origin = null;
+  measureState = 'idle'; measureP1 = null; measureP2 = null; measurePageNum = null; measureVp = null;
+  if (measureLiveSvg) { measureLiveSvg.remove(); measureLiveSvg = null; }
+  clearComparison();
+}
+
+async function switchDocTab(tabId) {
+  if (tabId === activeTabId) return;
+  const target = tabs.find(t => t.id === tabId);
+  if (!target) return;
+
+  cancelActiveGestures();
+  saveActiveTabState();
+  activeTabId = tabId;
+  restoreTabState(target);
+  await parseAndRenderPdfBytes(target.bytes);
+  renderTabBar();
+}
+
+async function openFileAsNewTab(file) {
+  const id = ++tabIdSeq;
+  tabs.push({
+    id, name: file.name, bytes: null, nPages: 0,
+    annots: [], emmaRows: {}, annotIdSeq: 0, pageLabels: {},
+    history: [], historyIdx: -1,
+    zoom: 1, curPg: 1,
+    measureScale: null, lastMeasurePx: null,
+    selectedPages: [], lastClickedPage: null,
+    fileHandle: null, loadedEngdocName: null,
+    checkFindings: [], pdfLayers: [],
+    searchIndex: [], searchPersistHits: [],
+    annotNavIdx: -1, emmaFields: {},
+  });
+  cancelActiveGestures();
+  if (activeTabId != null) saveActiveTabState();
+  activeTabId = id;
+  zoom = 1; // a new tab is an unrelated document — don't inherit whichever zoom the previous tab happened to be at
+  await loadPDF(file); // brand-new document — correct reset semantics, unchanged
+  saveActiveTabState(); // snapshot the freshly-loaded doc's derived fields (nPages, etc.) into the new record
+  renderTabBar();
+}
+
+async function closeTab(tabId) {
+  const idx = tabs.findIndex(t => t.id === tabId);
+  if (idx === -1) return;
+  const wasActive = tabId === activeTabId;
+  tabs.splice(idx, 1);
+
+  if (wasActive) {
+    if (tabs.length) {
+      const next = tabs[Math.min(idx, tabs.length - 1)];
+      activeTabId = next.id;
+      restoreTabState(next);
+      await parseAndRenderPdfBytes(next.bytes);
+    } else {
+      await resetToEmptyState();
+    }
+  }
+  renderTabBar();
+}
+
+// Reverses everything parseAndRenderPdfBytes/loadPDF set up, back to the
+// app's pre-load state — used when the last tab is closed.
+async function resetToEmptyState() {
+  cancelActiveGestures();
+  if (pdf) { try { await pdf.destroy(); } catch (e) {} }
+  docGen++;
+  pdf = null; nPages = 0; curPg = 1; annots = []; emmaRows = {}; annotIdSeq = 0;
+  Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
+  history = []; historyIdx = -1; updateUndoRedoButtons();
+  renderedPages.clear(); renderQueue.clear();
+  Object.keys(pdfTextContent).forEach(k => delete pdfTextContent[k]);
+  Object.keys(_pageTextItems).forEach(k => delete _pageTextItems[k]);
+  if (window._pageRawText) Object.keys(window._pageRawText).forEach(k => delete window._pageRawText[k]);
+  Object.keys(_pageCache).forEach(k => delete _pageCache[k]);
+  selectedPages.clear(); lastClickedPage = null;
+  measureScale = null; lastMeasurePx = null;
+  _fileHandle = null; _loadedEngdocName = null;
+  checkFindings = []; renderCheckResults(checkFindings);
+  _pdfLayers = []; updateLayerPanel();
+  searchIndex = []; clearSearchHighlights();
+  _annotNavIdx = -1;
+  updateEmmaRegister();
+  activeTabId = null; pdfName = ''; pdfBytes = null;
+
+  document.getElementById('doc-name').textContent = 'No document open';
+  document.getElementById('drop-landing').classList.remove('hidden');
+  document.getElementById('hdr-page-nav').classList.remove('active');
+  document.getElementById('pdfpages').innerHTML = '';
+  const thumbs = document.getElementById('sp-pages');
+  if (thumbs) thumbs.innerHTML = '';
+}
+
+function renderTabBar() {
+  const bar = document.getElementById('tab-bar');
+  if (!bar) return;
+  if (!tabs.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML = tabs.map(t => `
+    <div class="tab-pill${t.id === activeTabId ? ' active' : ''}" onclick="switchDocTab(${t.id})" title="${escapeHtmlAttr(t.name)}">
+      <span class="tab-pill-name">${escapeHtmlAttr(t.name.length > 24 ? t.name.slice(0, 22) + '…' : t.name)}</span>
+      <button class="tab-pill-close" onclick="event.stopPropagation(); closeTab(${t.id})" title="Close tab">✕</button>
+    </div>`).join('') +
+    `<button class="tab-add-btn" onclick="document.getElementById('fopen-tab').click()" title="Open another PDF in a new tab">+</button>`;
+}
+
+function escapeHtmlAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+async function openFileInNewTabFromInput(e) {
+  const f = e.target.files[0]; if (!f) return;
+  e.target.value = '';
+  await openFileAsNewTab(f);
 }
 
 /* ═══════════════════════════════════════════════
@@ -2812,6 +3046,26 @@ async function loadPDF(file) {
 ═══════════════════════════════════════════════ */
 async function loadMultiplePDFs(files) {
   if (!files.length) return;
+
+  // If no tab is open yet, this collated document becomes tab 1 — same
+  // bookkeeping as openFileAsNewTab, just without a single file to hand off
+  // to loadPDF yet (that happens once the merge below finishes).
+  if (activeTabId == null) {
+    const id = ++tabIdSeq;
+    tabs.push({
+      id, name: files[0].name, bytes: null, nPages: 0,
+      annots: [], emmaRows: {}, annotIdSeq: 0, pageLabels: {},
+      history: [], historyIdx: -1,
+      zoom: 1, curPg: 1,
+      measureScale: null, lastMeasurePx: null,
+      selectedPages: [], lastClickedPage: null,
+      fileHandle: null, loadedEngdocName: null,
+      checkFindings: [], pdfLayers: [],
+      searchIndex: [], searchPersistHits: [],
+      annotNavIdx: -1, emmaFields: {},
+    });
+    activeTabId = id;
+  }
 
   // Sort alphabetically by filename so pages always appear A→Z regardless of drop order
   const sortedFiles = [...files].sort((a, b) =>
@@ -2866,6 +3120,8 @@ async function loadMultiplePDFs(files) {
 
     // Rebuild thumbs with labels now set
     buildThumbs();
+    saveActiveTabState(); // keep the tab pill's name/bytes in sync with this merge
+    renderTabBar();
     toast('\u2713 Merged ' + sortedFiles.length + ' PDFs \u2014 ' + nPages + ' pages total', 3000);
   } catch(e) {
     toast('Merge failed: ' + e.message);
@@ -2884,7 +3140,7 @@ function handleDropChoice(mode) {
   const file = pendingDropFile;
   pendingDropFile = null;
   if (mode === 'open') {
-    loadPDF(file);
+    openFileAsNewTab(file); // "open" now means a new tab, not replacing the current one
   } else if (mode === 'append') {
     insertPDF(file, nPages);
   } else if (mode === 'merge') {
@@ -2922,6 +3178,7 @@ async function insertPDF(file, afterPage) {
     const mergedBytes = await merged.save();
     const mergedFile  = new File([mergedBytes], pdfName, { type: 'application/pdf' });
     await loadPDF(mergedFile);
+    if (activeTabId != null) saveActiveTabState(); // keep the tab record's bytes in sync
     const label = isAppend ? 'Appended' : `Inserted after page ${afterPage}`;
     toast(`✓ ${label}: ${file.name} — ${nPages} pages total`, 3000);
   } catch (e) {
@@ -3324,6 +3581,7 @@ function scheduleRender() {
   // causes hundreds of concurrent render chains during a fast pan.
   requestAnimationFrame(async () => {
     renderScheduled = false;
+    const myGen = docGen; // bail if a tab switch lands mid-batch below
     if (!pdf) return;
     const { first, last } = getVisibleRange();
 
@@ -3356,6 +3614,7 @@ function scheduleRender() {
     // Render 2 pages at a time — PDF.js worker is the bottleneck
     const CONCURRENCY = 2;
     for (let i = 0; i < toRender.length; i += CONCURRENCY) {
+      if (myGen !== docGen) return; // a tab switch happened mid-batch — the new tab's own scheduleRender owns this now
       const batch = toRender.slice(i, i + CONCURRENCY);
       batch.forEach(pg => renderQueue.add(pg));
       await Promise.all(batch.map(pg =>
@@ -3377,8 +3636,10 @@ async function getCachedPage(num) {
 async function renderPageContent(pageNum) {
   const wrap = document.getElementById('pw-' + pageNum);
   if (!wrap || renderedPages.has(pageNum)) return;
+  const myGen = docGen; // if a tab switch lands mid-render, don't let this write into the new tab's state
 
   const page = await getCachedPage(pageNum);
+  if (myGen !== docGen) return;
   const vp   = page.getViewport({ scale: zoom });
 
   // Device pixel ratio for sharp rendering on HiDPI/Retina screens
@@ -3430,10 +3691,12 @@ async function renderPageContent(pageNum) {
   // On re-renders (zoom change): reuse cached raw items, just rescale coordinates.
   if (!window._pageRawText) window._pageRawText = {};
   await Promise.all([renderTask.promise, Promise.resolve()]);
+  if (myGen !== docGen) return;
 
   if (!window._pageRawText[pageNum]) {
     try {
       const textContent = await page.getTextContent({ includeMarkedContent: false });
+      if (myGen !== docGen) return;
       window._pageRawText[pageNum] = textContent.items.filter(item => item.str?.trim());
     } catch (e) {
       window._pageRawText[pageNum] = [];
@@ -7381,6 +7644,7 @@ let checkFindings = [];
 
 async function runStandardsCheck() {
   if (!pdf) { toast('Open a PDF first'); return; }
+  const myGen = docGen; // bail if the user switches tabs before this finishes
   openM('mcheck');
   switchCheckTab('standards');
   document.getElementById('check-running').style.display = 'block';
@@ -7402,7 +7666,9 @@ async function runStandardsCheck() {
     if (!pdfTextContent[pg]) {
       try {
         const page = await pdf.getPage(pg);
+        if (myGen !== docGen) return;
         const tc = await page.getTextContent();
+        if (myGen !== docGen) return;
         const vp = page.getViewport({ scale: 1 });
         pdfTextContent[pg] = tc.items.filter(i => i.str?.trim()).map(i => {
           const [,,,scaleY,tx,ty] = i.transform;
@@ -7412,6 +7678,7 @@ async function runStandardsCheck() {
       } catch(e) {}
     }
   }
+  if (myGen !== docGen) return;
   updateBar(40);
 
   // Run all checks
@@ -8519,6 +8786,7 @@ function getTextWorker() {
 
 // Override extractPdfText to use the worker for coordinate normalisation
 async function extractPdfText() {
+  const myGen = docGen; // if the user switches tabs mid-extraction, stale results below must not land
   const worker = getTextWorker();
   const promises = [];
 
@@ -8526,14 +8794,16 @@ async function extractPdfText() {
     promises.push((async (pg) => {
       try {
         const page = await pdf.getPage(pg);
+        if (myGen !== docGen) return;
         const tc   = await page.getTextContent();
+        if (myGen !== docGen) return;
         const vp   = page.getViewport({ scale: 1 });
 
         return new Promise(res => {
           const handler = e => {
             if (e.data.pageNum === pg) {
               worker.removeEventListener('message', handler);
-              pdfTextContent[pg] = e.data.items;
+              if (myGen === docGen) pdfTextContent[pg] = e.data.items;
               res();
             }
           };
@@ -8551,6 +8821,7 @@ async function extractPdfText() {
   }
   // Process in batches of 4 to avoid overwhelming the worker
   for (let i = 0; i < promises.length; i += 4) {
+    if (myGen !== docGen) return;
     await Promise.all(promises.slice(i, i + 4));
   }
 }
@@ -10265,8 +10536,10 @@ let _pdfLayers = []; // [{ name, id, visible }]
 async function loadPdfLayers() {
   _pdfLayers = [];
   if (!pdf) return;
+  const myGen = docGen; // bail if the user switches tabs before this finishes
   try {
     const optContent = await pdf.getOptionalContentConfig();
+    if (myGen !== docGen) return;
     if (!optContent) return;
     const groups = optContent.getGroups?.() || {};
     Object.entries(groups).forEach(([id, group]) => {
@@ -10825,6 +11098,23 @@ async function doRestore() {
 
   try {
     if (saved.pdfBytes) {
+      // This runs at boot, before any tab exists \u2014 wrap the recovered
+      // document into tab 1 so it participates in the tab system from
+      // here on, same bookkeeping as openFileAsNewTab.
+      const id = ++tabIdSeq;
+      tabs.push({
+        id, name: saved.pdfName, bytes: null, nPages: 0,
+        annots: [], emmaRows: {}, annotIdSeq: 0, pageLabels: {},
+        history: [], historyIdx: -1,
+        zoom: 1, curPg: 1,
+        measureScale: null, lastMeasurePx: null,
+        selectedPages: [], lastClickedPage: null,
+        fileHandle: null, loadedEngdocName: null,
+        checkFindings: [], pdfLayers: [],
+        searchIndex: [], searchPersistHits: [],
+        annotNavIdx: -1, emmaFields: {},
+      });
+      activeTabId = id;
       const file = new File([saved.pdfBytes], saved.pdfName, { type: 'application/pdf' });
       await loadPDF(file);
     } else {
@@ -10845,6 +11135,7 @@ async function doRestore() {
     }
 
     syncAnnots(); updateAnnotPanel(); updateEmmaRegister();
+    if (activeTabId != null) { saveActiveTabState(); renderTabBar(); }
 
     const n = annots.length;
     toast('\u2713 Session restored \u2014 ' + n + ' annotation' + (n !== 1 ? 's' : '') +

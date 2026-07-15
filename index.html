@@ -4808,7 +4808,19 @@ document.addEventListener('keydown', e => {
 
   if ((e.key === 'Delete' || e.key === 'Backspace') && !inInput) {
     const sel = document.querySelector('.aitem.selected');
-    if (sel) { const id = parseInt(sel.dataset.id); if (id) deleteAnnotById(id); }
+    if (sel) {
+      const id = parseInt(sel.dataset.id);
+      if (id) deleteAnnotById(id);
+      return;
+    }
+    // On-canvas selection (resize/endpoint handles showing) — same target
+    // an active drag would move, so Delete should remove it too.
+    if (_selectedAnnotId != null) {
+      const id = _selectedAnnotId;
+      removeResizeHandles();
+      deleteAnnotById(id);
+      return;
+    }
     return;
   }
 

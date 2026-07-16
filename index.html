@@ -3243,7 +3243,9 @@ function normalisePdfTextItem(item, vp) {
    3. Fall back to right-of-label only if nothing found below
    4. For multi-line values (e.g. Drawing Title), concatenate consecutive lines
 */
-function autoDetectTitleBlock() {
+const ISO_SHEET_SIZES_MM = { A0: [1189, 841], A1: [841, 594], A2: [594, 420], A3: [420, 297], A4: [297, 210] };
+
+async function autoDetectTitleBlock() {
   const items = pdfTextContent[1];
   if (!items || !items.length) return;
 
@@ -3406,7 +3408,32 @@ function autoDetectTitleBlock() {
   }
   if (scaleMatch) {
     const ratio = parseInt(scaleMatch[1]);
-    const pxPerMm = 96 / 25.4;
+
+    // pxPerUnit is defined as screen px per real-world unit at our own zoom=1,
+    // which pdf.js's getViewport({scale:1}) already anchors at 1pt = 1/72in —
+    // NOT the 96px/in CSS reference pixel. Using 96 here silently overstates
+    // every auto-detected scale by a third.
+    let pxPerMm = 72 / 25.4;
+
+    // If the title block also states a paper size (A0–A4), derive px-per-mm
+    // from the PDF's actual page dimensions vs. that nominal size instead.
+    // Many drawings are exported/printed at a different page size than the
+    // sheet they were designed for (e.g. an A1 drawing plotted to an A3 PDF),
+    // so the true-to-size assumption above can be off by whatever that
+    // export scale-down factor is — this self-corrects for it.
+    const paperSizeStr = find(['sheet\\s*size', 'paper\\s*size', 'drawing\\s*size', '^size$']);
+    const sizeSource = paperSizeStr || sorted.find(it => /^(A0|A1|A2|A3|A4)$/i.test(it.str.trim()))?.str;
+    const paperMatch = sizeSource && sizeSource.match(/\b(A0|A1|A2|A3|A4)\b/i);
+    if (paperMatch && typeof pdf !== 'undefined' && pdf) {
+      try {
+        const page1 = await getCachedPage(1);
+        const vp1 = page1.getViewport({ scale: 1 });
+        const [longMm, shortMm] = ISO_SHEET_SIZES_MM[paperMatch[1].toUpperCase()];
+        const [longPt, shortPt] = vp1.width >= vp1.height ? [vp1.width, vp1.height] : [vp1.height, vp1.width];
+        pxPerMm = ((longPt / longMm) + (shortPt / shortMm)) / 2;
+      } catch (e) { /* keep the true-to-size fallback */ }
+    }
+
     measureScale = { pxPerUnit: pxPerMm * 1000 / ratio, unit: 'm' };
     localStorage.setItem('engdoc_scale', JSON.stringify(measureScale));
     document.getElementById('sb-scale').textContent = `⚖ 1:${ratio} (m)`;

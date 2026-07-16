@@ -283,8 +283,9 @@
           <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
             <div style="display:flex;gap:6px">
               <div class="rcsw cy active" id="c-y" onclick="setColor('yellow')" title="Yellow (1)"></div>
-              <div class="rcsw ct" id="c-t" onclick="setColor('teal')" title="Teal (2)"></div>
-              <div class="rcsw cr" id="c-r" onclick="setColor('rose')" title="Rose (3)"></div>
+              <div class="rcsw ct" id="c-g" onclick="setColor('green')" title="Green (2)"></div>
+              <div class="rcsw cr" id="c-r" onclick="setColor('red')" title="Red (3)"></div>
+              <div class="rcsw cr" id="c-b" onclick="setColor('blue')" title="Blue (4)"></div>
             </div>
             <div style="font-size:8.5px;font-family:var(--mono);Color:var(--gray-400)">Color 1&middot;2&middot;3</div>
           </div>
@@ -2920,7 +2921,7 @@ function refreshAnnotPointerEvents() {
 function setColor(c) {
   Color = c;
   document.querySelectorAll('.csw').forEach(s => s.classList.remove('active'));
-  const map = { yellow: 'c-y', teal: 'c-t', rose: 'c-r' };
+  const map = { yellow: 'c-y', green: 'c-g', red: 'c-r', blue: 'c-b' };
   if (map[c]) document.getElementById(map[c]).classList.add('active');
 }
 
@@ -7614,7 +7615,7 @@ const _ribbonSetColor = setColor;
 setColor = function(c) {
   _ribbonSetColor(c);
   document.querySelectorAll('.rcsw').forEach(s => s.classList.remove('active'));
-  const map = { yellow: 'c-y', teal: 'c-t', rose: 'c-r' };
+  const map = { yellow: 'c-y', green: 'c-g', red: 'c-r', blue: 'c-b' };
   if (map[c]) document.getElementById(map[c])?.classList.add('active');
 };
 
@@ -7622,8 +7623,9 @@ setColor = function(c) {
 document.addEventListener('keydown', e => {
   if (e.target.closest('input,textarea,select')) return;
   if (e.key === '1') setColor('yellow');
-  if (e.key === '2') setColor('teal');
-  if (e.key === '3') setColor('rose');
+  if (e.key === '2') setColor('green');
+  if (e.key === '3') setColor('red');
+  if (e.key === '4') setColor('blue');
 });
 
 // Single applyZoom post-hook — updates ribbon, labels, and measure annotations

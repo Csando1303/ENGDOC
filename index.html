@@ -9918,6 +9918,40 @@ const _erBtn2 = document.getElementById('t-erase');
 if (_erBtn2) _erBtn2.classList.add('eraser-active');
 // Start on File tab
 switchRibbon('file', document.getElementById('rtab-file'));
+
+// ═══════════════════════════════════════════════
+//  RIBBON BUTTON TOOLTIPS
+//  #ribbon-body scrolls horizontally (overflow-x:auto),
+//  which forces overflow-y to clip too — so a CSS ::after
+//  tooltip anchored inside it gets cut off instead of
+//  floating over the strip below. Render it in a
+//  position:fixed element appended to <body> instead,
+//  so it escapes that clipping.
+// ═══════════════════════════════════════════════
+(() => {
+  const tip = document.createElement('div');
+  tip.id = 'rbtn-tooltip';
+  document.body.appendChild(tip);
+  const ribbonBody = document.getElementById('ribbon-body');
+  if (!ribbonBody) return;
+
+  const hide = () => { tip.classList.remove('show'); };
+
+  ribbonBody.addEventListener('mouseover', (e) => {
+    const btn = e.target.closest('.rbtn[data-tip]');
+    if (!btn) return;
+    tip.textContent = btn.getAttribute('data-tip');
+    const r = btn.getBoundingClientRect();
+    tip.style.left = (r.left + r.width / 2) + 'px';
+    tip.style.top = (r.bottom + 6) + 'px';
+    tip.classList.add('show');
+  });
+  ribbonBody.addEventListener('mouseout', (e) => {
+    if (e.target.closest('.rbtn[data-tip]')) hide();
+  });
+  ribbonBody.addEventListener('mousedown', hide);
+  ribbonBody.addEventListener('scroll', hide);
+})();
 </script>
 </body>
 </html>

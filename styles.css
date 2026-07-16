@@ -353,16 +353,20 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
 .rbtn.sm svg { width:15px;height:15px; }
 .rbtn.sm .rbtn-label { display:none; }
 
-/* Tooltip — always dark so it's legible in both light and dark mode */
-.rbtn[data-tip]:hover::after {
-  content:attr(data-tip);
-  position:absolute;top:calc(100% + 6px);
-  left:50%;transform:translateX(-50%);
+/* Tooltip — always dark so it's legible in both light and dark mode.
+   Rendered as a position:fixed element (see script at end of body) rather
+   than a ::after on the button, since #ribbon-body's horizontal scroll
+   (overflow-x:auto) forces overflow-y to clip too, cutting off an
+   in-flow tooltip that pops below the button. */
+#rbtn-tooltip {
+  position:fixed;transform:translateX(-50%);
   background:#1a1f2e;color:#e8ecf4;
   font-size:11px;padding:3px 8px;border-radius:3px;
   white-space:nowrap;pointer-events:none;z-index:300;
   font-family:var(--font);
+  opacity:0;visibility:hidden;transition:opacity .1s;
 }
+#rbtn-tooltip.show { opacity:1;visibility:visible; }
 
 /* Colour swatches in ribbon */
 .rcsw {

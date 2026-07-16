@@ -3436,7 +3436,10 @@ async function autoDetectTitleBlock() {
 
     measureScale = { pxPerUnit: pxPerMm * 1000 / ratio, unit: 'm' };
     localStorage.setItem('engdoc_scale', JSON.stringify(measureScale));
-    document.getElementById('sb-scale').textContent = `⚖ 1:${ratio} (m)`;
+    const scaleTxt = `⚖ 1:${ratio} (m)`;
+    document.getElementById('sb-scale').textContent = scaleTxt;
+    const ratScaleEl = document.getElementById('rat-scale');
+    if (ratScaleEl) ratScaleEl.textContent = scaleTxt;
     detected++;
     toast(`✓ Scale auto-set: 1:${ratio} — measuring in metres`, 3500);
   }

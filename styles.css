@@ -377,8 +377,9 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
 .rcsw:hover { transform:scale(1.18); }
 .rcsw.active { border-Color:var(--gray-700); }
 .rcsw.cy{background:#fbbf24}
-.rcsw.ct{background:#2dd4bf}
-.rcsw.cr{background:#fb7185}
+.rcsw.cg{background:#38f71f}
+.rcsw.cr{background:#fa193b}
+.rcsw.cb{background:#2563eb}
 
 /* Stroke width picker */
 .rsw {

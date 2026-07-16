@@ -283,9 +283,9 @@
           <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
             <div style="display:flex;gap:6px">
               <div class="rcsw cy active" id="c-y" onclick="setColor('yellow')" title="Yellow (1)"></div>
-              <div class="rcsw ct" id="c-g" onclick="setColor('green')" title="Green (2)"></div>
+              <div class="rcsw cg" id="c-g" onclick="setColor('green')" title="Green (2)"></div>
               <div class="rcsw cr" id="c-r" onclick="setColor('red')" title="Red (3)"></div>
-              <div class="rcsw cr" id="c-b" onclick="setColor('blue')" title="Blue (4)"></div>
+              <div class="rcsw cb" id="c-b" onclick="setColor('blue')" title="Blue (4)"></div>
             </div>
             <div style="font-size:8.5px;font-family:var(--mono);Color:var(--gray-400)">Color 1&middot;2&middot;3</div>
           </div>
@@ -7619,7 +7619,7 @@ setColor = function(c) {
   if (map[c]) document.getElementById(map[c])?.classList.add('active');
 };
 
-// Number key Color shortcuts (1=yellow, 2=teal, 3=rose)
+// Number key Color shortcuts (1=yellow, 2=green, 3=red, 4=blue)
 document.addEventListener('keydown', e => {
   if (e.target.closest('input,textarea,select')) return;
   if (e.key === '1') setColor('yellow');

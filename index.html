@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-Colour" content="#ffffff">
+<meta name="theme-Color" content="#ffffff">
 <title>EngDoc — Engineering PDF Suite</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <link rel="stylesheet" href="styles.css">
@@ -29,71 +29,71 @@
   <div class="mob-drawer-title">Markup Tools</div>
   <div class="mob-tool-grid">
     <button class="mob-tool-btn" onclick="mobSetTool('highlight')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
       <span>Highlight</span>
     </button>
     <button class="mob-tool-btn" onclick="mobSetTool('note')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><rect x="2" y="2" width="14" height="10" rx="1"/><path d="M8 12l-4 6"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="14" height="10" rx="1"/><path d="M8 12l-4 6"/></svg>
       <span>Note</span>
     </button>
     <button class="mob-tool-btn" onclick="mobSetTool('rect')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
       <span>Rect</span>
     </button>
     <button class="mob-tool-btn" onclick="mobSetTool('arrow')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
       <span>Arrow</span>
     </button>
     <button class="mob-tool-btn" onclick="mobSetTool('pen')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
       <span>Draw</span>
     </button>
     <button class="mob-tool-btn" onclick="mobSetTool('cloud')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
       <span>Cloud</span>
     </button>
     <button class="mob-tool-btn" onclick="mobSetTool('strike')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5"/><path d="M6 6h12M6 18h12" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5"/><path d="M6 6h12M6 18h12" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
       <span>Strike</span>
     </button>
     <button class="mob-tool-btn" onclick="mobSetTool('erase')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M20 20H7L3 16l11-11 6 6-3.5 3.5"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l11-11 6 6-3.5 3.5"/></svg>
       <span>Erase</span>
     </button>
     <button class="mob-tool-btn" onclick="mobSetTool('measure')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M2 12h20"/><line x1="8" y1="8" x2="8" y2="16" stroke-width="1.5"/><line x1="16" y1="8" x2="16" y2="16" stroke-width="1.5"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20"/><line x1="8" y1="8" x2="8" y2="16" stroke-width="1.5"/><line x1="16" y1="8" x2="16" y2="16" stroke-width="1.5"/></svg>
       <span>Measure</span>
     </button>
   </div>
-  <!-- Colour pickers -->
+  <!-- Color pickers -->
   <div style="display:flex;gap:10px;padding:12px 16px 4px;align-items:center">
-    <span style="font-size:10px;font-family:var(--mono);Colour:var(--gray-400);text-transform:uppercase">Colour</span>
-    <div onclick="setColour('yellow');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')" class="mob-csw active" style="width:28px;height:28px;border-radius:50%;background:#fbbf24;border:3px solid transparent;cursor:pointer"></div>
-    <div onclick="setColour('teal');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')"   class="mob-csw"        style="width:28px;height:28px;border-radius:50%;background:#2dd4bf;border:3px solid transparent;cursor:pointer"></div>
-    <div onclick="setColour('rose');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')"   class="mob-csw"        style="width:28px;height:28px;border-radius:50%;background:#fb7185;border:3px solid transparent;cursor:pointer"></div>
+    <span style="font-size:10px;font-family:var(--mono);Color:var(--gray-400);text-transform:uppercase">Color</span>
+    <div onclick="setColor('yellow');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')" class="mob-csw active" style="width:28px;height:28px;border-radius:50%;background:#fbbf24;border:3px solid transparent;cursor:pointer"></div>
+    <div onclick="setColor('teal');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')"   class="mob-csw"        style="width:28px;height:28px;border-radius:50%;background:#2dd4bf;border:3px solid transparent;cursor:pointer"></div>
+    <div onclick="setColor('rose');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')"   class="mob-csw"        style="width:28px;height:28px;border-radius:50%;background:#fb7185;border:3px solid transparent;cursor:pointer"></div>
   </div>
 </div>
 
 <!-- MOBILE BOTTOM TOOLBAR -->
 <div id="mobile-toolbar">
   <button class="mob-btn" id="mob-btn-sidebar" onclick="toggleMobSidebar()" title="Pages / Markup">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     <span class="mob-btn-label">Sidebar</span>
   </button>
   <button class="mob-btn active" id="mob-btn-pan" onclick="mobSetTool('pan')" title="Pan">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M18 11V6a2 2 0 00-4 0M14 10V4a2 2 0 00-4 0v2M10 10.5V6a2 2 0 00-4 0v8"/><path d="M6 14a3 3 0 00-3 3c0 2 1 3 2 4h9c1-1 2-2 2-4v-2a2 2 0 00-2-2h-1"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 00-4 0M14 10V4a2 2 0 00-4 0v2M10 10.5V6a2 2 0 00-4 0v8"/><path d="M6 14a3 3 0 00-3 3c0 2 1 3 2 4h9c1-1 2-2 2-4v-2a2 2 0 00-2-2h-1"/></svg>
     <span class="mob-btn-label">Pan</span>
   </button>
   <button class="mob-btn" id="mob-btn-select" onclick="mobSetTool('select')" title="Select text">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M4 7V4h3"/><path d="M4 17v3h3"/><path d="M17 4h3v3"/><path d="M20 17v3h-3"/><path d="M9 12h6"/><path d="M12 9l3 3-3 3"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h3"/><path d="M4 17v3h3"/><path d="M17 4h3v3"/><path d="M20 17v3h-3"/><path d="M9 12h6"/><path d="M12 9l3 3-3 3"/></svg>
     <span class="mob-btn-label">Select</span>
   </button>
   <button class="mob-btn" id="mob-btn-tools" onclick="toggleMobDrawer()" title="Markup tools">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
     <span class="mob-btn-label">Mark Up</span>
   </button>
   <button class="mob-btn" onclick="document.getElementById('fopen').click()" title="Open PDF">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
     <span class="mob-btn-label">Open</span>
   </button>
 </div>
@@ -107,14 +107,14 @@
   <div style="flex:1"></div>
   <div id="hdr-page-nav">
     <button class="hdr-nav-btn" onclick="changePage(-1)" title="Previous page (←)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
     <div class="page-nav-r">
       <input type="number" id="pgi" value="1" min="1" onchange="jumpTo(this.value)">
       <span class="of">/<span id="pgt">&mdash;</span></span>
     </div>
     <button class="hdr-nav-btn" onclick="changePage(1)" title="Next page (→)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
   </div>
   <div style="display:flex;align-items:center;gap:6px;margin-left:16px">
@@ -137,15 +137,15 @@
   <!-- Tab bar -->
   <div id="ribbon-tabs">
     <button class="rtab active" id="rtab-file" onclick="switchRibbon('file',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
       File
     </button>
     <button class="rtab" id="rtab-markup" onclick="switchRibbon('markup',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
       Markup
     </button>
     <button class="rtab" id="rtab-review" onclick="switchRibbon('review',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
       Review
     </button>
   </div>
@@ -158,15 +158,15 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn" id="t-pan" data-tip="Pan / scroll (V · hold Space)" onclick="setTool('pan')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M18 11V6a2 2 0 00-4 0M14 10V4a2 2 0 00-4 0v2M10 10.5V6a2 2 0 00-4 0v8"/><path d="M6 14a3 3 0 00-3 3c0 2 1 3 2 4h9c1-1 2-2 2-4v-2a2 2 0 00-2-2h-1"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 00-4 0M14 10V4a2 2 0 00-4 0v2M10 10.5V6a2 2 0 00-4 0v8"/><path d="M6 14a3 3 0 00-3 3c0 2 1 3 2 4h9c1-1 2-2 2-4v-2a2 2 0 00-2-2h-1"/></svg>
             <span class="rbtn-label">Pan</span>
           </button>
           <button class="rbtn" id="t-select" data-tip="Select &amp; copy text from the drawing (S)" onclick="setTool('select')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M4 7V4h3"/><path d="M4 17v3h3"/><path d="M17 4h3v3"/><path d="M20 17v3h-3"/><path d="M9 12h6"/><path d="M12 9l3 3-3 3"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h3"/><path d="M4 17v3h3"/><path d="M17 4h3v3"/><path d="M20 17v3h-3"/><path d="M9 12h6"/><path d="M12 9l3 3-3 3"/></svg>
             <span class="rbtn-label">Select</span>
           </button>
           <button class="rbtn" id="t-zoombox" data-tip="Marquee zoom — drag a rectangle to zoom in (Z)" onclick="setTool('zoombox')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>
             <span class="rbtn-label">Zoom</span>
           </button>
           <select class="rzoom" id="zsel" onchange="applyZoom(this.value)">
@@ -182,15 +182,15 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn active" id="t-highlight" data-tip="Box highlight (H)" onclick="setTool('highlight')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
             <span class="rbtn-label">Highlight</span>
           </button>
           <button class="rbtn" id="t-texthighlight" data-tip="Marker pen — swipe over text (M)" onclick="setTool('texthighlight')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2.5"><path d="M3 17h4l9.5-9.5a2.121 2.121 0 00-3-3L4 14v3z" fill="currentColour" fill-opacity="0.15"/><line x1="2" y1="20" x2="22" y2="20" stroke-linecap="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 17h4l9.5-9.5a2.121 2.121 0 00-3-3L4 14v3z" fill="currentColor" fill-opacity="0.15"/><line x1="2" y1="20" x2="22" y2="20" stroke-linecap="round"/></svg>
             <span class="rbtn-label">Marker</span>
           </button>
           <button class="rbtn" id="t-strike" data-tip="Strikethrough" onclick="setTool('strike')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5"/><path d="M6 6h12M6 18h12" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5"/><path d="M6 6h12M6 18h12" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
             <span class="rbtn-label">Strike</span>
           </button>
         </div>
@@ -200,27 +200,27 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn" id="t-rect" data-tip="Rectangle outline (R)" onclick="setTool('rect')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
             <span class="rbtn-label">Rect</span>
           </button>
           <button class="rbtn" id="t-circle" data-tip="Circle / ellipse (O)" onclick="setTool('circle')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="9"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="9"/></svg>
             <span class="rbtn-label">Circle</span>
           </button>
           <button class="rbtn" id="t-cloud" data-tip="Revision cloud (C)" onclick="setTool('cloud')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
             <span class="rbtn-label">Cloud</span>
           </button>
           <button class="rbtn" id="t-line" data-tip="Straight line (L)" onclick="setTool('line')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/></svg>
             <span class="rbtn-label">Line</span>
           </button>
           <button class="rbtn" id="t-arrow" data-tip="Arrow (A)" onclick="setTool('arrow')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
             <span class="rbtn-label">Arrow</span>
           </button>
           <button class="rbtn" id="t-pen" data-tip="Freehand pen (P)" onclick="setTool('pen')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
             <span class="rbtn-label">Freehand</span>
           </button>
         </div>
@@ -230,19 +230,19 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn" id="t-note" data-tip="Sticky note — click to place (N)" onclick="setTool('note')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><rect x="2" y="2" width="14" height="10" rx="1"/><path d="M8 12l-4 6"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="14" height="10" rx="1"/><path d="M8 12l-4 6"/></svg>
             <span class="rbtn-label">Note</span>
           </button>
           <button class="rbtn" id="t-text" data-tip="Text box — drag to size, or click for inline label (T)" onclick="setTool('text')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="1"/><line x1="6" y1="9" x2="18" y2="9"/><line x1="6" y1="13" x2="14" y2="13"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="1"/><line x1="6" y1="9" x2="18" y2="9"/><line x1="6" y1="13" x2="14" y2="13"/></svg>
             <span class="rbtn-label">Text</span>
           </button>
           <button class="rbtn" id="t-stamp" data-tip="Place an approval stamp on the drawing" onclick="openStampPicker()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             <span class="rbtn-label">Stamp</span>
           </button>
           <button class="rbtn" id="t-image" data-tip="Insert an image onto the drawing" onclick="document.getElementById('fimage').click()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             <span class="rbtn-label">Image</span>
           </button>
           <input type="file" id="fimage" accept="image/*" style="display:none" onchange="onImageFileSelected(event)">
@@ -253,15 +253,15 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn" id="t-measure" data-tip="Distance — click·click·click (D) · Shift=ortho" onclick="setTool('measure')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M2 12h20"/><line x1="8" y1="8" x2="8" y2="16" stroke-width="1.5"/><line x1="12" y1="6" x2="12" y2="18" stroke-width="1.5"/><line x1="16" y1="8" x2="16" y2="16" stroke-width="1.5"/><path d="M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20"/><line x1="8" y1="8" x2="8" y2="16" stroke-width="1.5"/><line x1="12" y1="6" x2="12" y2="18" stroke-width="1.5"/><line x1="16" y1="8" x2="16" y2="16" stroke-width="1.5"/><path d="M2 12l4-4M2 12l4 4M22 12l-4-4M22 12l-4 4"/></svg>
             <span class="rbtn-label">Distance</span>
           </button>
           <button class="rbtn" id="t-area" data-tip="Area — click points, dbl-click close (G)" onclick="setTool('area')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><polygon points="3,21 12,3 21,21"/><line x1="3" y1="21" x2="21" y2="21"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3,21 12,3 21,21"/><line x1="3" y1="21" x2="21" y2="21"/></svg>
             <span class="rbtn-label">Area</span>
           </button>
           <button class="rbtn" onclick="openM('mscale')" data-tip="Calibrate scale for real-world units">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             <span class="rbtn-label">Calibrate</span>
           </button>
         </div>
@@ -271,7 +271,7 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn" id="t-tableextract" data-tip="Extract table — drag a box around a table to pull its data into Excel" onclick="setTool('tableextract')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
             <span class="rbtn-label">Table</span>
           </button>
         </div>
@@ -282,11 +282,11 @@
         <div class="rgroup-btns" style="gap:8px;padding:4px">
           <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
             <div style="display:flex;gap:6px">
-              <div class="rcsw cy active" id="c-y" onclick="setColour('yellow')" title="Yellow (1)"></div>
-              <div class="rcsw ct" id="c-t" onclick="setColour('teal')" title="Teal (2)"></div>
-              <div class="rcsw cr" id="c-r" onclick="setColour('rose')" title="Rose (3)"></div>
+              <div class="rcsw cy active" id="c-y" onclick="setColor('yellow')" title="Yellow (1)"></div>
+              <div class="rcsw ct" id="c-t" onclick="setColor('teal')" title="Teal (2)"></div>
+              <div class="rcsw cr" id="c-r" onclick="setColor('rose')" title="Rose (3)"></div>
             </div>
-            <div style="font-size:8.5px;font-family:var(--mono);Colour:var(--gray-400)">Colour 1&middot;2&middot;3</div>
+            <div style="font-size:8.5px;font-family:var(--mono);Color:var(--gray-400)">Color 1&middot;2&middot;3</div>
           </div>
           <div class="rsw">
             <div class="rsw-opt" onclick="setStrokeW(2,this)"><div class="rsw-line" style="width:26px;height:1.5px"></div><span class="rsw-lbl">Fine</span></div>
@@ -295,8 +295,8 @@
             <div class="rsw-opt" onclick="setStrokeW(14,this)"><div class="rsw-line" style="width:26px;height:8px"></div><span class="rsw-lbl">Bold</span></div>
           </div>
           <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
-            <div style="font-size:8.5px;font-family:var(--mono);Colour:var(--gray-400)">Font</div>
-            <select id="font-size-sel" onchange="setFontSize(this.value)" style="font-family:var(--mono);font-size:10px;background:var(--gray-50);border:1px solid var(--gray-300);border-radius:3px;Colour:var(--gray-700);padding:2px 4px;cursor:pointer;width:46px">
+            <div style="font-size:8.5px;font-family:var(--mono);Color:var(--gray-400)">Font</div>
+            <select id="font-size-sel" onchange="setFontSize(this.value)" style="font-family:var(--mono);font-size:10px;background:var(--gray-50);border:1px solid var(--gray-300);border-radius:3px;Color:var(--gray-700);padding:2px 4px;cursor:pointer;width:46px">
               <option value="8">8pt</option>
               <option value="10">10pt</option>
               <option value="12" selected>12pt</option>
@@ -305,10 +305,10 @@
               <option value="20">20pt</option>
               <option value="24">24pt</option>
             </select>
-            <div style="font-size:8.5px;font-family:var(--mono);Colour:var(--gray-400)">Opacity</div>
+            <div style="font-size:8.5px;font-family:var(--mono);Color:var(--gray-400)">Opacity</div>
             <input type="range" id="opacity-sel" min="20" max="100" value="80" step="10"
               oninput="setOpacity(this.value)"
-              style="width:46px;cursor:pointer;accent-Colour:var(--blue-500)">
+              style="width:46px;cursor:pointer;accent-Color:var(--blue-500)">
           </div>
         </div>
         <div class="rgroup-label">Style</div>
@@ -322,15 +322,15 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn eraser-active" id="t-erase" data-tip="Eraser — click annotation to delete (E)" onclick="setTool('erase')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M20 20H7L3 16l11-11 6 6-3.5 3.5"/><path d="M6 17l-3-3"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l11-11 6 6-3.5 3.5"/><path d="M6 17l-3-3"/></svg>
             <span class="rbtn-label">Erase</span>
           </button>
           <button class="rbtn" data-tip="Undo (Ctrl+Z)" onclick="undoLast()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13A9 9 0 1 0 6 6.7L3 9"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13A9 9 0 1 0 6 6.7L3 9"/></svg>
             <span class="rbtn-label">Undo</span>
           </button>
           <button class="rbtn" id="redo-btn" data-tip="Redo (Ctrl+Y)" onclick="redoLast()" style="opacity:0.4">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M21 7v6h-6"/><path d="M21 13A9 9 0 1 1 18 6.7L21 9"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M21 13A9 9 0 1 1 18 6.7L21 9"/></svg>
             <span class="rbtn-label">Redo</span>
           </button>
         </div>
@@ -344,15 +344,15 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn lg" onclick="runStandardsCheck()" data-tip="Run NR drawing standards check">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
             <span class="rbtn-label">Standards<br>Check</span>
           </button>
           <button class="rbtn lg" onclick="openM('mcheck');switchCheckTab('spelling')" data-tip="AI spelling and grammar check on drawing text">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/><path d="M15 5l3 3"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/><path d="M15 5l3 3"/></svg>
             <span class="rbtn-label">Spelling &amp;<br>Grammar</span>
           </button>
           <button class="rbtn lg" onclick="openM('mcompare')" data-tip="Compare two PDF revisions pixel-by-pixel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><rect x="2" y="3" width="9" height="18" rx="1"/><rect x="13" y="3" width="9" height="18" rx="1"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="9" height="18" rx="1"/><rect x="13" y="3" width="9" height="18" rx="1"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
             <span class="rbtn-label">Compare<br>Revisions</span>
           </button>
         </div>
@@ -361,15 +361,15 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn lg" onclick="openEmmaExport()" data-tip="Export current drawing to EMMA Checksheet.xlsm">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
             <span class="rbtn-label">EMMA<br>Export</span>
           </button>
           <button class="rbtn lg" onclick="batchExportEmma()" data-tip="Export all drawings in set to a single consolidated EMMA register">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><rect x="3" y="11" width="4" height="6" rx="1"/><rect x="10" y="9" width="4" height="8" rx="1"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><rect x="3" y="11" width="4" height="6" rx="1"/><rect x="10" y="9" width="4" height="8" rx="1"/></svg>
             <span class="rbtn-label">Batch<br>Export</span>
           </button>
           <button class="rbtn lg" onclick="document.getElementById('fmergesession').click()" data-tip="Merge another reviewer's session">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><circle cx="12" cy="18" r="3"/><path d="M8 11v2a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4v-2"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><circle cx="12" cy="18" r="3"/><path d="M8 11v2a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4v-2"/></svg>
             <span class="rbtn-label">Merge<br>Session</span>
           </button>
         </div>
@@ -378,11 +378,11 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn lg" onclick="openM('mset')" data-tip="Drawing set register">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></svg>
             <span class="rbtn-label">Drawing<br>Set</span>
           </button>
           <button class="rbtn lg" onclick="openLayerModal()" data-tip="Show/hide PDF layers (Optional Content Groups)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
             <span class="rbtn-label">Layers</span>
           </button>
         </div>
@@ -395,7 +395,7 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn lg" onclick="document.getElementById('fopen').click()" data-tip="Open a PDF drawing">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2.2"><path d="M5 12H3l9-9 9 9h-2M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12H3l9-9 9 9h-2M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>
             <span class="rbtn-label">Open<br>PDF</span>
           </button>
         </div>
@@ -404,7 +404,7 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn lg" onclick="saveSessionWithPdf()" data-tip="Save session + embedded PDF (Ctrl+S)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
             <span class="rbtn-label">Save<br>.engdoc</span>
           </button>
         </div>
@@ -413,15 +413,15 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn lg" onclick="saveAsPdf()" data-tip="Save a clean copy of the PDF — no annotations burned in">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9 14 12 17 15 14"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9 14 12 17 15 14"/></svg>
             <span class="rbtn-label">Save<br>PDF</span>
           </button>
           <button class="rbtn lg" onclick="exportAnnotatedPdf()" data-tip="Export PDF with annotations burned in — shareable with anyone">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l2 2 4-4"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l2 2 4-4"/></svg>
             <span class="rbtn-label">Export<br>Annotated PDF</span>
           </button>
           <button class="rbtn lg" onclick="printDrawing()" data-tip="Print the current drawing with annotations">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             <span class="rbtn-label">Print</span>
           </button>
         </div>
@@ -430,11 +430,11 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn lg" onclick="openM('mm')" data-tip="Merge multiple PDFs into one">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M8 6H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-3M15 3h-6v4h6V3z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-3M15 3h-6v4h6V3z"/></svg>
             <span class="rbtn-label">Merge<br>PDF</span>
           </button>
           <button class="rbtn lg" onclick="openM('ms')" data-tip="Split a PDF into separate files">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M16 8l-4-4-4 4M8 16l4 4 4-4M12 4v16"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8l-4-4-4 4M8 16l4 4 4-4M12 4v16"/></svg>
             <span class="rbtn-label">Split<br>PDF</span>
           </button>
         </div>
@@ -443,16 +443,16 @@
       <div class="rgroup">
         <div class="rgroup-btns">
           <button class="rbtn" onclick="openM('mau')" data-tip="Set your reviewer name">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
             <span class="rbtn-label" id="hdr-author-r">Set Name</span>
           </button>
           <button class="rbtn" id="dark-btn" onclick="toggleDark()" data-tip="Toggle dark mode">
-            <svg id="dark-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-            <svg id="dark-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+            <svg id="dark-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            <svg id="dark-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
             <span class="rbtn-label">Dark</span>
           </button>
           <button class="rbtn" onclick="openM('mkeys')" data-tip="Keyboard shortcuts (?)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 16h8"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 16h8"/></svg>
             <span class="rbtn-label">Shortcuts</span>
           </button>
         </div>
@@ -481,15 +481,15 @@
       <span class="ptb-count" id="pages-sel-count">0 selected</span>
       <div class="ptb-actions">
         <button class="ptb-btn" id="ptb-up" onclick="moveSelectedPages(-1)" title="Move up">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2.5" width="12" height="12"><polyline points="18 15 12 9 6 15"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><polyline points="18 15 12 9 6 15"/></svg>
         </button>
         <button class="ptb-btn" id="ptb-down" onclick="moveSelectedPages(1)" title="Move down">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2.5" width="12" height="12"><polyline points="6 9 12 15 18 9"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <button class="ptb-btn danger" onclick="deleteSelectedPages()" title="Delete selected pages">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </button>
-        <button class="ptb-btn" onclick="clearPageSelection()" title="Clear selection" style="font-size:12px;border-Colour:var(--gray-300);Colour:var(--gray-500)">✕</button>
+        <button class="ptb-btn" onclick="clearPageSelection()" title="Clear selection" style="font-size:12px;border-Color:var(--gray-300);Color:var(--gray-500)">✕</button>
       </div>
     </div>
     <div class="spanel" id="sp-pages"></div>
@@ -506,7 +506,7 @@
     <div class="spanel hidden" id="sp-search">
       <div style="margin-bottom:8px">
         <input id="search-input" class="finput" placeholder="Search drawing text…" style="margin-bottom:4px" oninput="onSearchInput(this.value)">
-        <div id="search-status" style="font-size:10px;Colour:var(--gray-400);font-family:var(--mono)">Open a PDF to search its text</div>
+        <div id="search-status" style="font-size:10px;Color:var(--gray-400);font-family:var(--mono)">Open a PDF to search its text</div>
       </div>
       <div id="search-results"></div>
     </div>
@@ -564,8 +564,8 @@
         <div class="emma-dash-title">Review Status</div>
         <div class="dash-stats">
           <div class="dash-stat"><div class="dash-stat-num" id="ds-total">0</div><div class="dash-stat-lbl">Total</div></div>
-          <div class="dash-stat"><div class="dash-stat-num" id="ds-open" style="Colour:#ef4444">0</div><div class="dash-stat-lbl">Open</div></div>
-          <div class="dash-stat"><div class="dash-stat-num" id="ds-closed" style="Colour:#22c55e">0</div><div class="dash-stat-lbl">Closed</div></div>
+          <div class="dash-stat"><div class="dash-stat-num" id="ds-open" style="Color:#ef4444">0</div><div class="dash-stat-lbl">Open</div></div>
+          <div class="dash-stat"><div class="dash-stat-num" id="ds-closed" style="Color:#22c55e">0</div><div class="dash-stat-lbl">Closed</div></div>
           <div class="dash-stat"><div class="dash-stat-num" id="ds-pct">—</div><div class="dash-stat-lbl">Complete</div></div>
         </div>
         <div class="dash-bar"><div class="dash-bar-fill" id="ds-bar" style="width:0%"></div></div>
@@ -577,7 +577,7 @@
         <span id="emma-count-label">0 comments</span>
         <div style="flex:1"></div>
         <label class="emma-import-btn" title="Load existing Checksheet.xlsm to import project info">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Load Template
           <input type="file" id="emma-template-file" accept=".xlsm,.xlsx" style="display:none" onchange="loadEmmaTemplate(event)">
         </label>
@@ -604,12 +604,12 @@
     <div id="drop-landing">
       <div class="drop-card" id="drop-card">
         <div class="drop-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         </div>
         <div class="drop-h">Open a drawing or spec</div>
         <div class="drop-s">Drag &amp; drop a PDF, multiple PDFs (to collate), or .engdoc session file here, or click to browse</div>
         <button class="drop-btn" onclick="document.getElementById('fopen').click()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Browse Files
         </button>
       </div>
@@ -625,7 +625,7 @@
   <div class="sbi" id="sb-tool">Highlight</div>
   <div id="sb-measure"></div>
   <div class="sbi" id="sb-hint" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Click and drag to scroll &middot; drag any annotation to move it &middot; Space to temporarily pan</div>
-  <div class="sbi" id="sb-scale" style="cursor:pointer;Colour:var(--blue-500)" onclick="openM('mscale')" title="Set drawing scale">⚖ Scale: unset</div>
+  <div class="sbi" id="sb-scale" style="cursor:pointer;Color:var(--blue-500)" onclick="openM('mscale')" title="Set drawing scale">⚖ Scale: unset</div>
   <div class="sbi" id="sb-count">0 annotations</div>
   <div class="sbi" id="sb-pos">—</div>
 </div>
@@ -633,24 +633,24 @@
 <!-- CONTEXT MENU -->
 <div id="ctx-menu">
   <div class="ctx-item" id="ctx-edit" onclick="ctxEdit()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
     Edit text
   </div>
   <div class="ctx-item" id="ctx-dup" onclick="ctxDuplicate()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
     Duplicate
   </div>
   <div class="ctx-item" id="ctx-resize" onclick="ctxResizeImage()" style="display:none">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
     Resize image
   </div>
   <div class="ctx-sep"></div>
-  <div class="ctx-item" id="ctx-col-label" style="pointer-events:none;opacity:.5;font-size:10px;padding:4px 14px;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono)">Colour</div>
+  <div class="ctx-item" id="ctx-col-label" style="pointer-events:none;opacity:.5;font-size:10px;padding:4px 14px;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono)">Color</div>
   <div style="display:flex;gap:8px;padding:4px 14px 8px">
-    <div class="ctx-csw" style="background:#fbbf24" onclick="ctxSetColour('yellow')" title="Yellow"></div>
-    <div class="ctx-csw" style="background:#40d42d" onclick="ctxSetColour('green')"   title="Green"></div>
-    <div class="ctx-csw" style="background:#f81234" onclick="ctxSetColour('red')"   title="Red"></div>
-    <div class="ctx-csw" style="background: #2563eb" onclick="ctxSetColour('blue')" title="Blue"></div>
+    <div class="ctx-csw" style="background:#fbbf24" onclick="ctxSetColor('yellow')" title="Yellow"></div>
+    <div class="ctx-csw" style="background:#40d42d" onclick="ctxSetColor('green')"   title="Green"></div>
+    <div class="ctx-csw" style="background:#f81234" onclick="ctxSetColor('red')"   title="Red"></div>
+    <div class="ctx-csw" style="background: #2563eb" onclick="ctxSetColor('blue')" title="Blue"></div>
   </div>
   <div class="ctx-sep"></div>
   <div class="ctx-item" id="ctx-status-label" style="pointer-events:none;opacity:.5;font-size:10px;padding:4px 14px;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono)">Status</div>
@@ -668,7 +668,7 @@
   </div>
   <div class="ctx-sep"></div>
   <div class="ctx-item danger" id="ctx-del" onclick="ctxDelete()">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
     Delete annotation
   </div>
 </div>
@@ -683,7 +683,7 @@
       <label class="flabel">Select PDF files</label>
       <div class="fdrop" onclick="document.getElementById('mfi').click()">
         <input type="file" id="mfi" accept=".pdf" multiple onchange="onMergeFiles(event)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="1.5" width="22" height="22" style="margin-bottom:6px;Colour:var(--gray-400)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="22" height="22" style="margin-bottom:6px;Color:var(--gray-400)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <div>Click to select PDF files</div>
       </div>
       <div class="flist" id="mfl"></div>
@@ -798,7 +798,7 @@
     <div class="mhead"><span class="mtitle">Keyboard Shortcuts</span><button class="mclose" onclick="closeM('mkeys')">✕</button></div>
     <div class="mbody" style="column-count:2;column-gap:32px">
       <div style="break-inside:avoid">
-        <div style="font-size:10px;font-weight:700;Colour:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Tools</div>
+        <div style="font-size:10px;font-weight:700;Color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Tools</div>
         <div class="krow"><span class="kbd">H</span><span class="kdesc">Box Highlight</span></div>
         <div class="krow"><span class="kbd">M</span><span class="kdesc">Text Highlighter</span></div>
         <div class="krow"><span class="kbd">R</span><span class="kdesc">Rectangle</span></div>
@@ -817,7 +817,7 @@
         <div class="krow"><span class="kbd">Z</span><span class="kdesc">Marquee Zoom</span></div>
       </div>
       <div style="break-inside:avoid">
-        <div style="font-size:10px;font-weight:700;Colour:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Actions</div>
+        <div style="font-size:10px;font-weight:700;Color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Actions</div>
         <div class="krow"><span class="kbd">Ctrl Z</span><span class="kdesc">Undo</span></div>
         <div class="krow"><span class="kbd">Ctrl Y</span><span class="kdesc">Redo</span></div>
         <div class="krow"><span class="kbd">Ctrl S</span><span class="kdesc">Save session</span></div>
@@ -829,7 +829,7 @@
         <div class="krow"><span class="kbd">Alt 1</span><span class="kdesc">File tab</span></div>
         <div class="krow"><span class="kbd">Alt 2</span><span class="kdesc">Markup tab</span></div>
         <div class="krow"><span class="kbd">Alt 3</span><span class="kdesc">Review tab</span></div>
-        <div style="font-size:10px;font-weight:700;Colour:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">Measure Tool</div>
+        <div style="font-size:10px;font-weight:700;Color:var(--gray-400);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">Measure Tool</div>
         <div class="krow"><span class="kbd">Click 1</span><span class="kdesc">Set start point</span></div>
         <div class="krow"><span class="kbd">Click 2</span><span class="kdesc">Set end point</span></div>
         <div class="krow"><span class="kbd">Click 3</span><span class="kdesc">Commit measurement</span></div>
@@ -847,11 +847,11 @@
       <button class="mclose" onclick="closeM('mcompare')">✕</button>
     </div>
     <div class="mbody">
-      <p style="font-size:13px;Colour:var(--gray-600);margin-bottom:16px">Load a second revision of this drawing. Changed areas will be highlighted in red on the current view.</p>
+      <p style="font-size:13px;Color:var(--gray-600);margin-bottom:16px">Load a second revision of this drawing. Changed areas will be highlighted in red on the current view.</p>
       <label class="flabel">Second revision PDF</label>
       <div class="fdrop" onclick="document.getElementById('fcompare').click()">
         <input type="file" id="fcompare" accept=".pdf" style="display:none" onchange="onCompareFileSelect(event)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="1.5" width="22" height="22" style="margin-bottom:6px;Colour:var(--gray-400)"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="22" height="22" style="margin-bottom:6px;Color:var(--gray-400)"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <div id="compare-filename">Click to select comparison PDF</div>
       </div>
       <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -887,16 +887,16 @@
     <div class="mbody" style="padding:0">
       <div style="padding:16px 20px 10px;border-bottom:1px solid var(--gray-200);display:flex;gap:8px;align-items:center">
         <button class="hbtn outline" onclick="document.getElementById('fsetadd').click()" style="font-size:12px">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add PDF(s)
         </button>
         <input type="file" id="fsetadd" accept=".pdf" multiple style="display:none" onchange="addToDrawingSet(event)">
         <button class="hbtn outline" onclick="clearDrawingSet()" style="font-size:12px">Clear set</button>
         <span style="flex:1"></span>
-        <span id="set-count" style="font-size:12px;Colour:var(--gray-500)">0 drawings</span>
+        <span id="set-count" style="font-size:12px;Color:var(--gray-500)">0 drawings</span>
       </div>
       <div id="set-list" style="max-height:50vh;overflow-y:auto">
-        <div id="set-empty" style="padding:28px;text-align:center;Colour:var(--gray-400);font-size:13px">
+        <div id="set-empty" style="padding:28px;text-align:center;Color:var(--gray-400);font-size:13px">
           No drawings in set.<br>Add PDFs to build a register.
         </div>
       </div>
@@ -915,11 +915,11 @@
     <!-- Tab bar -->
     <div style="display:flex;border-bottom:1px solid var(--gray-200);background:var(--gray-50)">
       <button id="check-tab-standards" onclick="switchCheckTab('standards')"
-        style="flex:1;padding:10px;font-size:12px;font-weight:600;border:none;background:var(--white);border-bottom:2px solid var(--blue-500);cursor:pointer;Colour:var(--blue-600);font-family:var(--font)">
+        style="flex:1;padding:10px;font-size:12px;font-weight:600;border:none;background:var(--white);border-bottom:2px solid var(--blue-500);cursor:pointer;Color:var(--blue-600);font-family:var(--font)">
         NR Standards
       </button>
       <button id="check-tab-spelling" onclick="switchCheckTab('spelling')"
-        style="flex:1;padding:10px;font-size:12px;font-weight:600;border:none;background:transparent;border-bottom:2px solid transparent;cursor:pointer;Colour:var(--gray-500);font-family:var(--font)">
+        style="flex:1;padding:10px;font-size:12px;font-weight:600;border:none;background:transparent;border-bottom:2px solid transparent;cursor:pointer;Color:var(--gray-500);font-family:var(--font)">
         Spelling &amp; Grammar
       </button>
     </div>
@@ -927,7 +927,7 @@
       <!-- Standards panel -->
       <div id="check-panel-standards">
         <div id="check-running" style="padding:28px;text-align:center;display:none">
-          <div style="font-size:13px;Colour:var(--gray-600)">Analysing drawing…</div>
+          <div style="font-size:13px;Color:var(--gray-600)">Analysing drawing…</div>
           <div style="margin-top:10px;height:4px;background:var(--gray-200);border-radius:2px;overflow:hidden">
             <div id="check-progress" style="height:100%;background:var(--blue-500);border-radius:2px;width:0%;transition:width .4s"></div>
           </div>
@@ -937,22 +937,22 @@
       <!-- Spelling & Grammar panel -->
       <div id="check-panel-spelling" style="display:none">
         <div id="spell-running" style="padding:28px;text-align:center;display:none">
-          <div style="font-size:13px;Colour:var(--gray-600);margin-bottom:6px">Scanning drawing text with AI…</div>
+          <div style="font-size:13px;Color:var(--gray-600);margin-bottom:6px">Scanning drawing text with AI…</div>
           <div style="height:4px;background:var(--gray-200);border-radius:2px;overflow:hidden">
             <div id="spell-progress" style="height:100%;background:var(--blue-500);border-radius:2px;width:0%;transition:width 1s"></div>
           </div>
-          <div id="spell-status" style="font-size:11px;Colour:var(--gray-400);margin-top:8px;font-family:var(--mono)"></div>
+          <div id="spell-status" style="font-size:11px;Color:var(--gray-400);margin-top:8px;font-family:var(--mono)"></div>
         </div>
         <div id="spell-idle" style="padding:28px;text-align:center">
           <div style="font-size:32px;margin-bottom:12px">✍</div>
-          <div style="font-size:13px;Colour:var(--gray-700);font-weight:600;margin-bottom:6px">British English Spell Check</div>
-          <div style="font-size:12px;Colour:var(--gray-500);line-height:1.6;margin-bottom:18px">
+          <div style="font-size:13px;Color:var(--gray-700);font-weight:600;margin-bottom:6px">British English Spell Check</div>
+          <div style="font-size:12px;Color:var(--gray-500);line-height:1.6;margin-bottom:18px">
             Scans all text on the drawing for spelling errors (British English), American spellings,
             grammar issues and repeated words. No internet connection required.<br>
             Suggests corrected annotations you can add with one click.
           </div>
           <button class="hbtn primary" onclick="runSpellCheck()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2" width="15" height="15"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
             Scan Drawing Text
           </button>
         </div>
@@ -960,7 +960,7 @@
       </div>
     </div>
     <div class="mfoot" style="justify-content:space-between">
-      <span id="check-summary" style="font-size:12px;Colour:var(--gray-500)"></span>
+      <span id="check-summary" style="font-size:12px;Color:var(--gray-500)"></span>
       <div style="display:flex;gap:8px">
         <button class="hbtn outline" onclick="addAllCheckFindings()" id="check-add-btn" style="display:none">Add All as EMMA Comments</button>
         <button class="hbtn outline" onclick="addAllSpellSuggestions()" id="spell-add-btn" style="display:none">Add All as Comments</button>
@@ -975,7 +975,7 @@
   <div class="modal">
     <div class="mhead"><span class="mtitle">Set Drawing Scale</span><button class="mclose" onclick="closeM('mscale')">✕</button></div>
     <div class="mbody">
-      <p style="font-size:13px;Colour:var(--gray-600);margin-bottom:14px">Draw a measurement line on the drawing first, then enter what that line represents in real-world units. This calibrates all future measurements.</p>
+      <p style="font-size:13px;Color:var(--gray-600);margin-bottom:14px">Draw a measurement line on the drawing first, then enter what that line represents in real-world units. This calibrates all future measurements.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
           <label class="flabel">Line length on screen (px)</label>
@@ -1008,8 +1008,8 @@
   <div class="modal" style="width:720px;max-width:96vw">
     <div class="mhead"><span class="mtitle">Extract Table</span><button class="mclose" onclick="closeM('mtableextract')">✕</button></div>
     <div class="mbody">
-      <div id="te-status" style="font-size:12px;Colour:var(--gray-600);margin-bottom:10px"></div>
-      <div id="te-ocr-prompt" style="display:none;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px;font-size:12.5px;Colour:var(--gray-700)">
+      <div id="te-status" style="font-size:12px;Color:var(--gray-600);margin-bottom:10px"></div>
+      <div id="te-ocr-prompt" style="display:none;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px;font-size:12.5px;Color:var(--gray-700)">
         No embedded text was found in this area — it looks like a scanned image.
         <button class="hbtn primary" style="margin-left:8px" id="te-run-ocr-btn" onclick="runTableOcr()">Run OCR</button>
       </div>
@@ -1033,8 +1033,8 @@
   <div class="modal" style="width:400px">
     <div class="mhead"><span class="mtitle">Download EMMA Checksheet</span><button class="mclose" onclick="closeM('memma')">✕</button></div>
     <div class="mbody">
-      <p style="font-size:13px;Colour:var(--gray-600);margin-bottom:12px">Writes your comments into the <strong>Checking Review</strong> and <strong>Document Check Sheet</strong> tabs of the Amey EMMa Checksheet.</p>
-      <div id="emma-export-summary" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:10px;font-size:12px;Colour:var(--gray-700);line-height:1.8;font-family:var(--mono)"></div>
+      <p style="font-size:13px;Color:var(--gray-600);margin-bottom:12px">Writes your comments into the <strong>Checking Review</strong> and <strong>Document Check Sheet</strong> tabs of the Amey EMMa Checksheet.</p>
+      <div id="emma-export-summary" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:10px;font-size:12px;Color:var(--gray-700);line-height:1.8;font-family:var(--mono)"></div>
       <div id="emma-template-status" style="margin-top:10px;padding:8px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:500"></div>
     </div>
     <div class="mfoot">
@@ -1072,8 +1072,8 @@
     </div>
   </div>
   <div id="template-picker" style="display:none;background:var(--white);border:1px solid var(--gray-200);border-radius:4px;margin-bottom:6px;max-height:180px;overflow-y:auto">
-    <div style="padding:4px 8px;font-size:9px;font-weight:700;Colour:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--gray-100)">
-      Templates — <select id="tpl-disc" onchange="renderTemplates()" style="font-size:10px;border:none;background:transparent;Colour:var(--gray-600);cursor:pointer">
+    <div style="padding:4px 8px;font-size:9px;font-weight:700;Color:var(--gray-400);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--gray-100)">
+      Templates — <select id="tpl-disc" onchange="renderTemplates()" style="font-size:10px;border:none;background:transparent;Color:var(--gray-600);cursor:pointer">
         <option value="general">General</option>
         <option value="civils">Civils</option>
         <option value="track">Track</option>
@@ -1088,7 +1088,7 @@
   <div id="emma-fields" style="display:none;margin-top:6px;border-top:1px solid var(--gray-200);padding-top:8px">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
       <div>
-        <div style="font-size:9px;font-weight:600;Colour:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Discipline</div>
+        <div style="font-size:9px;font-weight:600;Color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Discipline</div>
         <select id="pop-discipline" style="width:100%;font-family:var(--font);font-size:12px;border:1px solid var(--gray-300);border-radius:3px;padding:4px 6px;background:var(--white)">
           <option value="">—</option>
           <option>Structural</option><option>Civil</option><option>Mechanical</option>
@@ -1097,7 +1097,7 @@
         </select>
       </div>
       <div>
-        <div style="font-size:9px;font-weight:600;Colour:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Priority</div>
+        <div style="font-size:9px;font-weight:600;Color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Priority</div>
         <select id="pop-priority" style="width:100%;font-family:var(--font);font-size:12px;border:1px solid var(--gray-300);border-radius:3px;padding:4px 6px;background:var(--white)">
           <option value="">—</option>
           <option value="Critical">🔴 Critical</option>
@@ -1108,18 +1108,18 @@
       </div>
     </div>
     <div style="margin-bottom:6px">
-      <div style="font-size:9px;font-weight:600;Colour:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Grid Ref / Location</div>
+      <div style="font-size:9px;font-weight:600;Color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Grid Ref / Location</div>
       <input id="pop-gridref" style="width:100%;font-family:var(--font);font-size:12px;border:1px solid var(--gray-300);border-radius:3px;padding:4px 6px" placeholder="e.g. B3 / Level 2 / Grid 4-5">
     </div>
     <div>
-      <div style="font-size:9px;font-weight:600;Colour:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Action Required</div>
+      <div style="font-size:9px;font-weight:600;Color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Action Required</div>
       <input id="pop-action" style="width:100%;font-family:var(--font);font-size:12px;border:1px solid var(--gray-300);border-radius:3px;padding:4px 6px" placeholder="e.g. Revise detail, Confirm specification…">
     </div>
   </div>
   <div class="pop-row" style="margin-top:8px">
     <button class="hbtn outline" style="padding:5px 11px;font-size:12px;margin-right:auto" id="emma-toggle-btn" onclick="toggleEmmaFields()">+ EMMA fields</button>
-    <label style="display:flex;align-items:center;gap:5px;font-size:11px;Colour:var(--gray-600);cursor:pointer;user-select:none">
-      <input type="checkbox" id="pop-emma-include" checked style="width:13px;height:13px;accent-Colour:var(--blue-500)">
+    <label style="display:flex;align-items:center;gap:5px;font-size:11px;Color:var(--gray-600);cursor:pointer;user-select:none">
+      <input type="checkbox" id="pop-emma-include" checked style="width:13px;height:13px;accent-Color:var(--blue-500)">
       EMMA
     </label>
     <button class="hbtn outline" style="padding:5px 11px;font-size:12px" onclick="txtPopCancel()">Cancel</button>
@@ -1153,15 +1153,15 @@
       <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:4px">
         <div style="font-size:28px;flex-shrink:0">💾</div>
         <div>
-          <div style="font-size:13px;font-weight:600;Colour:var(--gray-800);margin-bottom:6px" id="restore-title">Unsaved session found</div>
-          <div style="font-size:12px;Colour:var(--gray-500);line-height:1.6" id="restore-detail"></div>
+          <div style="font-size:13px;font-weight:600;Color:var(--gray-800);margin-bottom:6px" id="restore-title">Unsaved session found</div>
+          <div style="font-size:12px;Color:var(--gray-500);line-height:1.6" id="restore-detail"></div>
         </div>
       </div>
     </div>
     <div class="mfoot" style="justify-content:flex-end;gap:8px">
       <button class="hbtn outline" onclick="dismissRestore()">Discard</button>
       <button class="hbtn primary" onclick="doRestore()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2" width="14" height="14"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
         Restore Session
       </button>
     </div>
@@ -1176,21 +1176,21 @@
       <button class="mclose" onclick="closeM('mpdf-drop')">✕</button>
     </div>
     <div class="mbody">
-      <div style="font-size:13px;Colour:var(--gray-600);margin-bottom:16px;line-height:1.5">
+      <div style="font-size:13px;Color:var(--gray-600);margin-bottom:16px;line-height:1.5">
         A document is already open. What would you like to do with
-        <strong id="mpdf-drop-name" style="Colour:var(--gray-800)"></strong>?
+        <strong id="mpdf-drop-name" style="Color:var(--gray-800)"></strong>?
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <button class="hbtn primary" style="justify-content:flex-start;gap:10px;padding:10px 14px;font-size:13px" onclick="handleDropChoice('append')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
           <div style="text-align:left"><div style="font-weight:600">Append at end</div><div style="font-size:11px;font-weight:400;opacity:.75;margin-top:1px">Add pages after the last page</div></div>
         </button>
         <button class="hbtn outline" style="justify-content:flex-start;gap:10px;padding:10px 14px;font-size:13px" onclick="handleDropChoice('merge')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 8 12 1 5 8"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 8 12 1 5 8"/></svg>
           <div style="text-align:left"><div style="font-weight:600">Insert at current page</div><div style="font-size:11px;font-weight:400;opacity:.75;margin-top:1px">Insert pages after page <span id="mpdf-drop-curpg"></span></div></div>
         </button>
         <button class="hbtn outline" style="justify-content:flex-start;gap:10px;padding:10px 14px;font-size:13px" onclick="handleDropChoice('open')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           <div style="text-align:left"><div style="font-weight:600">Open as new document</div><div style="font-size:11px;font-weight:400;opacity:.75;margin-top:1px">Replaces the current document</div></div>
         </button>
       </div>
@@ -1223,7 +1223,7 @@ let pdfBytes = null, pdfName = '';
 let pendingDropFile = null;
 const selectedPages = new Set(); // pages selected in the thumbnail panel
 let lastClickedPage = null;      // anchor for shift-click range selection
-let tool = 'pan', Colour = 'yellow';
+let tool = 'pan', Color = 'yellow';
 let fontSize = 12;
 let annotOpacity = 80;
 let _openBubbleId  = null;
@@ -2576,7 +2576,7 @@ async function buildThumbs() {
     const delBtn = document.createElement('button');
     delBtn.className = 't-del-btn';
     delBtn.title = 'Delete this page';
-    delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2" width="10" height="10"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>';
+    delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>';
     delBtn.addEventListener('click', e => {
       e.stopPropagation();
       deletePages(new Set([i]));
@@ -2787,7 +2787,7 @@ async function applyZoom(val) {
 }
 
 /* ═══════════════════════════════════════════════
-   TOOL / Colour SELECTION
+   TOOL / Color SELECTION
 ═══════════════════════════════════════════════ */
 function setTool(t) {
   tool = t;
@@ -2917,8 +2917,8 @@ function refreshAnnotPointerEvents() {
   });
 }
 
-function setColour(c) {
-  Colour = c;
+function setColor(c) {
+  Color = c;
   document.querySelectorAll('.csw').forEach(s => s.classList.remove('active'));
   const map = { yellow: 'c-y', teal: 'c-t', rose: 'c-r' };
   if (map[c]) document.getElementById(map[c]).classList.add('active');
@@ -2971,7 +2971,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       const px = ox / vp.width * 100, py = oy / vp.height * 100;
       showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
         pushAnnot({ id: nextId(), pageNum, type: tool, x: px, y: py,
-          text: txt, Colour, fontSize, ...emmaFields });
+          text: txt, Color, fontSize, ...emmaFields });
       });
       return;
     }
@@ -3052,7 +3052,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
           : `${Math.round(pxDist)} px`;
         const x1 = measureP1.x / vp.width * 100, y1 = measureP1.y / vp.height * 100;
         const x2 = measureP2.x / vp.width * 100, y2 = measureP2.y / vp.height * 100;
-        pushAnnot({ id: nextId(), pageNum, type: 'measure', x1, y1, x2, y2, Colour, label,
+        pushAnnot({ id: nextId(), pageNum, type: 'measure', x1, y1, x2, y2, Color, label,
           pxDist, zoom, unit: measureScale?.unit || 'px' });
         measureState = 'idle'; measureP1 = null; measureP2 = null; measurePageNum = null;
         if (!measureScale) toast('Tip: click ⚖ Scale to calibrate real-world units', 4000);
@@ -3069,7 +3069,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       liveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
       liveSvg.setAttribute('width', vp.width); liveSvg.setAttribute('height', vp.height);
-      const c = CHex[Colour] || CHex.yellow;
+      const c = CHex[Color] || CHex.yellow;
       const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
       const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
       marker.setAttribute('id', `live-arr-${pageNum}`); marker.setAttribute('viewBox', '0 0 10 10');
@@ -3100,12 +3100,12 @@ function attachEvents(ov, pageNum, _vpInitial) {
       path.setAttribute('d', `M${ox},${oy}`);
       path.setAttribute('fill', 'none');
       if (tool === 'texthighlight') {
-        path.setAttribute('stroke', CVals[Colour] || CVals.yellow);
+        path.setAttribute('stroke', CVals[Color] || CVals.yellow);
         path.setAttribute('stroke-width', 14);
         path.setAttribute('opacity', '0.6');
         liveSvg.style.mixBlendMode = 'multiply';
       } else {
-        path.setAttribute('stroke', CHex[Colour]);
+        path.setAttribute('stroke', CHex[Color]);
         path.setAttribute('stroke-width', strokeW());
       }
       path.setAttribute('stroke-linecap', 'round');
@@ -3119,23 +3119,23 @@ function attachEvents(ov, pageNum, _vpInitial) {
     liveEl.style.cssText = 'position:absolute;pointer-events:none;z-index:10';
     if (tool === 'highlight') {
       liveEl.className = 'ah';
-      liveEl.style.background = CVals[Colour];
+      liveEl.style.background = CVals[Color];
       liveEl.style.mixBlendMode = 'multiply';
     } else if (tool === 'rect') {
       liveEl.className = 'ar';
-      liveEl.style.borderColour = CHex[Colour];
-      liveEl.style.background = CHex[Colour] + '11';
+      liveEl.style.borderColor = CHex[Color];
+      liveEl.style.background = CHex[Color] + '11';
     } else if (tool === 'tableextract') {
       liveEl.style.border = '2px dashed #2563eb';
       liveEl.style.background = '#2563eb11';
     } else if (tool === 'rectfill') {
-      liveEl.style.background = CHex[Colour];
+      liveEl.style.background = CHex[Color];
       liveEl.style.opacity = (annotOpacity / 100).toFixed(2);
       liveEl.style.borderRadius = '1px';
     } else if (tool === 'circle') {
       // Circle preview: SVG ellipse matching committed render
       liveEl = null;
-      const cc = CHex[Colour] || CHex.yellow;
+      const cc = CHex[Color] || CHex.yellow;
       liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       liveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
       liveSvg.setAttribute('width', vp.width); liveSvg.setAttribute('height', vp.height);
@@ -3149,7 +3149,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       return;
     } else if (tool === 'strike') {
       // Strike preview: center line through the selection, matching committed render
-      const sc = CHex[Colour] || CHex.rose;
+      const sc = CHex[Color] || CHex.rose;
       liveEl.style.background = `linear-gradient(transparent calc(50% - 1.5px),${sc} calc(50% - 1.5px),${sc} calc(50% + 1.5px),transparent calc(50% + 1.5px))`;
     } else if (tool === 'line') {
       // Line preview via SVG
@@ -3159,7 +3159,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       const lLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       lLine.setAttribute('x1', ox); lLine.setAttribute('y1', oy);
       lLine.setAttribute('x2', ox); lLine.setAttribute('y2', oy);
-      lLine.setAttribute('stroke', CHex[Colour]); lLine.setAttribute('stroke-width', strokeW());
+      lLine.setAttribute('stroke', CHex[Color]); lLine.setAttribute('stroke-width', strokeW());
       lLine.setAttribute('stroke-linecap', 'round');
       liveSvg.appendChild(lLine);
       ov.appendChild(liveSvg);
@@ -3168,7 +3168,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
     } else if (tool === 'cloud') {
       // Cloud: real scalloped SVG preview — discard the pre-created div
       liveEl = null;
-      const cc = CHex[Colour] || CHex.yellow;
+      const cc = CHex[Color] || CHex.yellow;
       liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       liveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
       liveSvg.setAttribute('width', vp.width); liveSvg.setAttribute('height', vp.height);
@@ -3180,7 +3180,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       ov.appendChild(liveSvg);
       return;
     } else if (tool === 'callout' || tool === 'textbox') {
-      liveEl.style.border = `2px dashed ${CHex[Colour] || CHex.yellow}`;
+      liveEl.style.border = `2px dashed ${CHex[Color] || CHex.yellow}`;
       liveEl.style.borderRadius = '3px';
       liveEl.style.background = 'rgba(255,255,255,0.7)';
     }
@@ -3299,7 +3299,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       if (Math.abs(mx - origin.x) < 3 && Math.abs(my - origin.y) < 3) return;
       const x1 = origin.x / vp.width * 100, y1 = origin.y / vp.height * 100;
       const x2 = mx / vp.width * 100, y2 = my / vp.height * 100;
-      pushAnnot({ id: nextId(), pageNum, type: 'arrow', x1, y1, x2, y2, Colour, sw: strokeW() });
+      pushAnnot({ id: nextId(), pageNum, type: 'arrow', x1, y1, x2, y2, Color, sw: strokeW() });
       return;
     }
 
@@ -3309,7 +3309,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       pushAnnot({
         id: nextId(), pageNum, type: tool,
         points: penPoints.map(p => ({ x: p.x / vp.width, y: p.y / vp.height })),
-        Colour, sw: tool === 'texthighlight' ? 14 : strokeW(),
+        Color, sw: tool === 'texthighlight' ? 14 : strokeW(),
         emmaExclude: tool === 'texthighlight' ? true : false
       });
       penPoints = [];
@@ -3329,7 +3329,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       if (Math.hypot(ex - origin.x, ey - origin.y) < 3) return;
       const lx1 = origin.x / vp.width * 100, ly1 = origin.y / vp.height * 100;
       const lx2 = ex / vp.width * 100,       ly2 = ey / vp.height * 100;
-      pushAnnot({ id: nextId(), pageNum, type: 'line', x1: lx1, y1: ly1, x2: lx2, y2: ly2, Colour, sw: strokeW() });
+      pushAnnot({ id: nextId(), pageNum, type: 'line', x1: lx1, y1: ly1, x2: lx2, y2: ly2, Color, sw: strokeW() });
       return;
     }
 
@@ -3345,16 +3345,16 @@ function attachEvents(ov, pageNum, _vpInitial) {
       openTableExtractModal(pageNum, x, y, w, h);
     } else if (tool === 'strike') {
       if (w < 0.5 || h < 0.5) return;
-      pushAnnot({ id: nextId(), pageNum, type: 'strike', x, y, w, h, Colour });
+      pushAnnot({ id: nextId(), pageNum, type: 'strike', x, y, w, h, Color });
     } else if (tool === 'highlight' || tool === 'rect') {
       if (w < 0.3 || h < 0.3) return;
-      pushAnnot({ id: nextId(), pageNum, type: tool, x, y, w, h, Colour });
+      pushAnnot({ id: nextId(), pageNum, type: tool, x, y, w, h, Color });
     } else if (tool === 'rectfill') {
       if (w < 0.3 || h < 0.3) return;
-      pushAnnot({ id: nextId(), pageNum, type: 'rectfill', x, y, w, h, Colour, opacity: annotOpacity });
+      pushAnnot({ id: nextId(), pageNum, type: 'rectfill', x, y, w, h, Color, opacity: annotOpacity });
     } else if (tool === 'cloud') {
       if (w < 0.5 || h < 0.5) return;
-      pushAnnot({ id: nextId(), pageNum, type: 'cloud', x, y, w, h, Colour });
+      pushAnnot({ id: nextId(), pageNum, type: 'cloud', x, y, w, h, Color });
     } else if (tool === 'circle') {
       if (liveSvg) { liveSvg.remove(); liveSvg = null; }
       let rw = mx - origin.x, rh = my - origin.y;
@@ -3364,7 +3364,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       const cw = Math.abs(rw) / vp.width * 100;
       const ch = Math.abs(rh) / vp.height * 100;
       if (cw < 0.3 || ch < 0.3) return;
-      pushAnnot({ id: nextId(), pageNum, type: 'circle', x: cx, y: cy, w: cw, h: ch, Colour, sw: strokeW() });
+      pushAnnot({ id: nextId(), pageNum, type: 'circle', x: cx, y: cy, w: cw, h: ch, Color, sw: strokeW() });
     }
   });
 
@@ -3559,7 +3559,7 @@ function buildNoteLeaderSvg(a, ov) {
   const vp = pageViewports[a.pageNum];
   if (!vp) return;
 
-  const c = CHex[a.Colour] || CHex.yellow;
+  const c = CHex[a.Color] || CHex.yellow;
 
   // Get the rendered pin element to find its actual pixel position
   const pin = ov.querySelector('[data-aid="' + a.id + '"]');
@@ -3896,24 +3896,24 @@ function buildAnnotEl(a) {
   let el;
   if (a.type === 'highlight') {
     el = document.createElement('div'); el.className = 'ah';
-    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;background:${CVals[a.Colour] || CVals.yellow};mix-blend-mode:multiply`;
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;background:${CVals[a.Color] || CVals.yellow};mix-blend-mode:multiply`;
   } else if (a.type === 'rect') {
     el = document.createElement('div'); el.className = 'ar';
-    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;border:2px solid ${CHex[a.Colour] || CHex.yellow};background:${CHex[a.Colour] || CHex.yellow}22`;
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;border:2px solid ${CHex[a.Color] || CHex.yellow};background:${CHex[a.Color] || CHex.yellow}22`;
   } else if (a.type === 'circle') {
     el = buildCircleAnnotEl(a);
   } else if (a.type === 'strike') {
     el = document.createElement('div'); el.className = 'astrike';
-    const sc = CHex[a.Colour] || CHex.rose;
+    const sc = CHex[a.Color] || CHex.rose;
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;` +
       `background:linear-gradient(transparent calc(50% - 1.5px),${sc} calc(50% - 1.5px),${sc} calc(50% + 1.5px),transparent calc(50% + 1.5px))`;
   } else if (a.type === 'note') {
     el = document.createElement('div');
     el.className = 'an';
-    const c = CHex[a.Colour] || CHex.yellow;
+    const c = CHex[a.Color] || CHex.yellow;
     el.style.cssText = 'position:absolute;left:' + a.x + '%;top:' + a.y + '%';
 
-    // Coloured header bar
+    // Colored header bar
     const header = document.createElement('div');
     header.className = 'an-header';
     header.style.background = c;
@@ -3928,7 +3928,7 @@ function buildAnnotEl(a) {
     if (emmaIdx > 0) {
       const badge = document.createElement('span');
       badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;' +
-        'width:15px;height:15px;background:rgba(0,0,0,.25);Colour:#fff;border-radius:50%;' +
+        'width:15px;height:15px;background:rgba(0,0,0,.25);Color:#fff;border-radius:50%;' +
         'font-size:9px;font-weight:700;font-family:var(--mono);flex-shrink:0';
       badge.textContent = emmaIdx;
       header.appendChild(badge);
@@ -3997,12 +3997,12 @@ function buildAnnotEl(a) {
 
   } else if (a.type === 'text') {
     el = document.createElement('div'); el.className = 'atxt';
-    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;Colour:${CHex[a.Colour] || CHex.yellow}`;
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;Color:${CHex[a.Color] || CHex.yellow}`;
     if (!a.emmaExclude) {
       const idx = getEmmaIndex(a.id);
       if (idx > 0) {
         const badge = document.createElement('span');
-        badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#7c3aed;Colour:#fff;border-radius:50%;font-size:8px;font-weight:700;font-family:var(--mono);margin-right:3px;vertical-align:middle;flex-shrink:0';
+        badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#7c3aed;Color:#fff;border-radius:50%;font-size:8px;font-weight:700;font-family:var(--mono);margin-right:3px;vertical-align:middle;flex-shrink:0';
         badge.textContent = idx;
         el.appendChild(badge);
       }
@@ -4010,7 +4010,7 @@ function buildAnnotEl(a) {
     el.appendChild(document.createTextNode(a.text));
     if (a.emmaExclude) {
       const tag = document.createElement('span');
-      tag.style.cssText = 'display:inline-block;font-size:8px;background:rgba(0,0,0,0.08);Colour:#888;border-radius:2px;padding:0 3px;margin-left:4px;vertical-align:middle;font-family:var(--mono)';
+      tag.style.cssText = 'display:inline-block;font-size:8px;background:rgba(0,0,0,0.08);Color:#888;border-radius:2px;padding:0 3px;margin-left:4px;vertical-align:middle;font-family:var(--mono)';
       tag.textContent = '⊘';
       el.appendChild(tag);
     }
@@ -4028,7 +4028,7 @@ function buildAnnotEl(a) {
     el = document.createElement('div');
     el.className = 'arectfill';
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;` +
-      `background:${CHex[a.Colour]||CHex.yellow};opacity:${(a.opacity||80)/100};border-radius:1px`;
+      `background:${CHex[a.Color]||CHex.yellow};opacity:${(a.opacity||80)/100};border-radius:1px`;
   } else if (a.type === 'textbox') {
     el = buildTextboxAnnotEl(a);
   } else if (a.type === 'callout') {
@@ -4049,9 +4049,9 @@ function buildAnnotEl(a) {
 
   // ── Post-build extensions (applied here, not via patch chain) ──
   if (el) {
-    // Author colour stripe for merged sessions
+    // Author Color stripe for merged sessions
     if (a.mergedFrom && a.author) {
-      const ac = getAuthorColour ? getAuthorColour(a.author) : null;
+      const ac = getAuthorColor ? getAuthorColor(a.author) : null;
       if (ac && el.style) { el.style.outline = '2px solid ' + ac; el.style.outlineOffset = '1px'; }
     }
     // Status badge on notes (only when status is not default 'open')
@@ -4105,13 +4105,13 @@ function buildPenAnnotEl(a) {
   path.setAttribute('d', d);
   path.setAttribute('fill', 'none');
   if (a.type === 'texthighlight') {
-    // Semi-transparent highlight stroke — use raw colour values for multiply blend
-    path.setAttribute('stroke', CHex[a.Colour] || CHex.yellow);
+    // Semi-transparent highlight stroke — use raw Color values for multiply blend
+    path.setAttribute('stroke', CHex[a.Color] || CHex.yellow);
     path.setAttribute('stroke-width', a.sw || 14);
     path.setAttribute('opacity', '0.45');
     svg.style.mixBlendMode = 'multiply';
   } else {
-    path.setAttribute('stroke', CHex[a.Colour] || CHex.yellow);
+    path.setAttribute('stroke', CHex[a.Color] || CHex.yellow);
     path.setAttribute('stroke-width', a.sw || 4);
   }
   path.setAttribute('vector-effect', 'non-scaling-stroke');
@@ -4134,7 +4134,7 @@ function buildArrowAnnotEl(a) {
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
 
-  const c = CHex[a.Colour] || CHex.yellow;
+  const c = CHex[a.Color] || CHex.yellow;
   const markerId = 'arr-' + a.id;
 
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -4259,7 +4259,7 @@ function buildCloudAnnotEl(a) {
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
-  const c = CHex[a.Colour] || CHex.yellow;
+  const c = CHex[a.Color] || CHex.yellow;
   const x1 = a.x, y1 = a.y, x2 = a.x + a.w, y2 = a.y + a.h;
   const bumpR = Math.min(a.w, a.h) * 0.08;
 
@@ -4295,7 +4295,7 @@ function buildLineAnnotEl(a) {
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
-  const c = CHex[a.Colour] || CHex.yellow;
+  const c = CHex[a.Color] || CHex.yellow;
   // Fat invisible ghost line for easier hit-testing
   const ghost = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   ghost.setAttribute('x1', a.x1); ghost.setAttribute('y1', a.y1);
@@ -4314,7 +4314,7 @@ function buildLineAnnotEl(a) {
 
 /* ── CIRCLE / ELLIPSE annotation ── */
 function buildCircleAnnotEl(a) {
-  const c = CHex[a.Colour] || CHex.yellow;
+  const c = CHex[a.Color] || CHex.yellow;
   const el = document.createElement('div');
   el.className = 'acircle';
   el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;overflow:visible`;
@@ -4348,7 +4348,7 @@ function buildCircleAnnotEl(a) {
 
 /* ── TEXTBOX annotation ── */
 function buildTextboxAnnotEl(a) {
-  const c   = CHex[a.Colour] || CHex.yellow;
+  const c   = CHex[a.Color] || CHex.yellow;
   const fs  = a.fontSize || 12;
   const op  = (a.opacity || 80) / 100;
   const el  = document.createElement('div');
@@ -4374,7 +4374,7 @@ function buildTextboxAnnotEl(a) {
 
 /* ── CALLOUT annotation ── */
 function buildCalloutAnnotEl(a) {
-  const c   = CHex[a.Colour] || CHex.yellow;
+  const c   = CHex[a.Color] || CHex.yellow;
   const fs  = a.fontSize || 12;
 
   // Outer wrapper — inset:0 so SVG can draw anywhere on the page overlay
@@ -4450,7 +4450,7 @@ function updateAnnotPanel() {
   if (!annots.length) { empty.classList.remove('hidden'); updateAnnotNavBar(); return; }
   empty.classList.add('hidden');
 
-  const statusColours = { open:'#fee2e2', progress:'#fef9c3', resolved:'#dcfce7', rejected:'#f1f5f9' };
+  const statusColors = { open:'#fee2e2', progress:'#fef9c3', resolved:'#dcfce7', rejected:'#f1f5f9' };
 
   [...annots].reverse().forEach(a => {
     const item = document.createElement('div');
@@ -4474,10 +4474,10 @@ function updateAnnotPanel() {
     item.innerHTML =
       '<button class="adel" title="Delete annotation (Del)">✕</button>' +
       '<div class="atype">' +
-        '<span class="adot" style="background:' + (CHex[a.Colour] || '#999') + '"></span>' +
+        '<span class="adot" style="background:' + (CHex[a.Color] || '#999') + '"></span>' +
         (typeLabels[a.type] || a.type) +
       '</div>' +
-      '<select class="aitem-status" data-annotid="' + a.id + '" style="background:' + (statusColours[status] || '#fff') + '">' +
+      '<select class="aitem-status" data-annotid="' + a.id + '" style="background:' + (statusColors[status] || '#fff') + '">' +
         STATUS_CYCLE.map(s => '<option value="' + s + '"' + (s === status ? ' selected' : '') + '>' + STATUS_LABEL[s] + '</option>').join('') +
       '</select>' +
       '<div class="apreview">' + preview + '</div>' +
@@ -4491,7 +4491,7 @@ function updateAnnotPanel() {
       const ann = annots.find(x => x.id === a.id);
       if (!ann) return;
       ann.status = this.value;
-      this.style.background = statusColours[this.value] || '#fff';
+      this.style.background = statusColors[this.value] || '#fff';
       syncAnnots(); updateAnnotPanel(); updateEmmaRegister(); pushHistory();
     };
 
@@ -4676,10 +4676,10 @@ function ctxDuplicate() {
   hideCtx(); ctxAnnotId = null;
 }
 
-function ctxSetColour(c) {
+function ctxSetColor(c) {
   if (ctxAnnotId == null) { hideCtx(); return; }
   const a = annots.find(x => x.id === ctxAnnotId);
-  if (a) { a.Colour = c; syncAnnots(); pushHistory(); }
+  if (a) { a.Color = c; syncAnnots(); pushHistory(); }
   hideCtx(); ctxAnnotId = null;
 }
 
@@ -4837,14 +4837,14 @@ function _promptSaveMode(filename) {
       'box-shadow:0 12px 40px rgba(0,0,0,.18);font-family:var(--font)';
 
     box.innerHTML =
-      '<div style="font-size:16px;font-weight:700;Colour:var(--gray-900);margin-bottom:8px">Save session</div>' +
-      '<div style="font-size:13px;Colour:var(--gray-600);margin-bottom:20px;line-height:1.5">' +
+      '<div style="font-size:16px;font-weight:700;Color:var(--gray-900);margin-bottom:8px">Save session</div>' +
+      '<div style="font-size:13px;Color:var(--gray-600);margin-bottom:20px;line-height:1.5">' +
         'Overwrite <strong>' + filename + '</strong> or save to a new file?' +
       '</div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
         '<button id="_sp-cancel" style="padding:8px 16px;border:1px solid var(--gray-300);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;font-family:var(--font)">Cancel</button>' +
         '<button id="_sp-saveas" style="padding:8px 16px;border:1px solid var(--gray-300);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;font-family:var(--font)">Save As…</button>' +
-        '<button id="_sp-overwrite" style="padding:8px 16px;border:none;border-radius:6px;background:var(--blue-500);Colour:#fff;cursor:pointer;font-size:13px;font-weight:600;font-family:var(--font)">Overwrite</button>' +
+        '<button id="_sp-overwrite" style="padding:8px 16px;border:none;border-radius:6px;background:var(--blue-500);Color:#fff;cursor:pointer;font-size:13px;font-weight:600;font-family:var(--font)">Overwrite</button>' +
       '</div>';
 
     overlay.appendChild(box);
@@ -5028,7 +5028,7 @@ async function exportAnnotatedPdf() {
     const srcDoc = await PDFDocument.load(pdfBytes.slice(0));
     const pages  = srcDoc.getPages();
 
-    // pdf-lib colour helpers from hex
+    // pdf-lib Color helpers from hex
     const hexToRgb = (hex, alpha = 1) => {
       const r = parseInt(hex.slice(1,3), 16) / 255;
       const g = parseInt(hex.slice(3,5), 16) / 255;
@@ -5037,7 +5037,7 @@ async function exportAnnotatedPdf() {
     };
     const C = (hex, a) => { const { r, g, b } = hexToRgb(hex); return rgb(r, g, b); };
 
-    // Colour map
+    // Color map
     const HEX  = { yellow: '#fbbf24', teal: '#2dd4bf', rose: '#fb7185' };
     const FILL = { yellow: '#fef9c3', teal: '#ccfbf1', rose: '#ffe4e6' };
 
@@ -5055,8 +5055,8 @@ async function exportAnnotatedPdf() {
       const { width: W, height: H } = page.getSize();
 
       for (const a of pageAnnots) {
-        const c = HEX[a.Colour] || HEX.yellow;
-        const cf = FILL[a.Colour] || FILL.yellow;
+        const c = HEX[a.Color] || HEX.yellow;
+        const cf = FILL[a.Color] || FILL.yellow;
         const { r, g, b } = hexToRgb(c);
 
         try {
@@ -5067,7 +5067,7 @@ async function exportAnnotatedPdf() {
               y: H - (a.y + a.h) / 100 * H,
               width:  a.w / 100 * W,
               height: a.h / 100 * H,
-              Colour: rgb(r, g, b),
+              Color: rgb(r, g, b),
               opacity: 0.3,
               borderOpacity: 0,
             });
@@ -5079,9 +5079,9 @@ async function exportAnnotatedPdf() {
               y: H - (a.y + a.h) / 100 * H,
               width:  a.w / 100 * W,
               height: a.h / 100 * H,
-              borderColour: rgb(r, g, b),
+              borderColor: rgb(r, g, b),
               borderWidth: 1.5,
-              Colour: rgb(r, g, b),
+              Color: rgb(r, g, b),
               opacity: 0.07,
               borderOpacity: 1,
             });
@@ -5095,7 +5095,7 @@ async function exportAnnotatedPdf() {
             page.drawLine({
               start: { x: sx, y: sy },
               end:   { x: ex, y: sy },
-              Colour: rgb(r, g, b),
+              Color: rgb(r, g, b),
               thickness: 2,
               opacity: 0.8,
             });
@@ -5108,7 +5108,7 @@ async function exportAnnotatedPdf() {
             page.drawLine({
               start: { x: x1, y: y1 },
               end:   { x: x2, y: y2 },
-              Colour: rgb(r, g, b),
+              Color: rgb(r, g, b),
               thickness: sw,
               opacity: 0.9,
             });
@@ -5117,21 +5117,21 @@ async function exportAnnotatedPdf() {
             const hs = sw * 4 + 4;
             const a1 = angle + Math.PI * 0.8;
             const a2 = angle - Math.PI * 0.8;
-            page.drawLine({ start: { x: x2, y: y2 }, end: { x: x2 + Math.cos(a1) * hs, y: y2 + Math.sin(a1) * hs }, Colour: rgb(r,g,b), thickness: sw, opacity: 0.9 });
-            page.drawLine({ start: { x: x2, y: y2 }, end: { x: x2 + Math.cos(a2) * hs, y: y2 + Math.sin(a2) * hs }, Colour: rgb(r,g,b), thickness: sw, opacity: 0.9 });
+            page.drawLine({ start: { x: x2, y: y2 }, end: { x: x2 + Math.cos(a1) * hs, y: y2 + Math.sin(a1) * hs }, Color: rgb(r,g,b), thickness: sw, opacity: 0.9 });
+            page.drawLine({ start: { x: x2, y: y2 }, end: { x: x2 + Math.cos(a2) * hs, y: y2 + Math.sin(a2) * hs }, Color: rgb(r,g,b), thickness: sw, opacity: 0.9 });
           }
 
           else if (a.type === 'measure') {
             const x1 = a.x1 / 100 * W, y1 = H - a.y1 / 100 * H;
             const x2 = a.x2 / 100 * W, y2 = H - a.y2 / 100 * H;
             // Measurement line (dashed look via two segments)
-            page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, Colour: rgb(0.49, 0.23, 0.93), thickness: 1, opacity: 0.8 });
+            page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, Color: rgb(0.49, 0.23, 0.93), thickness: 1, opacity: 0.8 });
             // End ticks
             const nx = -(y2 - y1), ny = x2 - x1;
             const len = Math.hypot(nx, ny) || 1;
             const tx = nx / len * 5, ty = ny / len * 5;
-            page.drawLine({ start: { x: x1-tx, y: y1-ty }, end: { x: x1+tx, y: y1+ty }, Colour: rgb(0.49,0.23,0.93), thickness: 1 });
-            page.drawLine({ start: { x: x2-tx, y: y2-ty }, end: { x: x2+tx, y: y2+ty }, Colour: rgb(0.49,0.23,0.93), thickness: 1 });
+            page.drawLine({ start: { x: x1-tx, y: y1-ty }, end: { x: x1+tx, y: y1+ty }, Color: rgb(0.49,0.23,0.93), thickness: 1 });
+            page.drawLine({ start: { x: x2-tx, y: y2-ty }, end: { x: x2+tx, y: y2+ty }, Color: rgb(0.49,0.23,0.93), thickness: 1 });
             // Label
             if (a.label) {
               const mx = (x1+x2)/2, my = (y1+y2)/2 + 8;
@@ -5143,15 +5143,15 @@ async function exportAnnotatedPdf() {
             const px = a.x / 100 * W;
             const py = H - a.y / 100 * H - 10;
             const text = a.text || '';
-            // Coloured badge background
+            // Colored badge background
             const { r: fr, g: fg, b: fb } = hexToRgb(cf);
             const badge_w = Math.min(text.length * 5.5 + 16, 180);
             const badge_h = 16;
             page.drawRectangle({
               x: px, y: py,
               width: badge_w, height: badge_h,
-              Colour: rgb(fr, fg, fb),
-              borderColour: rgb(r, g, b),
+              Color: rgb(fr, fg, fb),
+              borderColor: rgb(r, g, b),
               borderWidth: 0.8,
               borderOpacity: 1,
               opacity: 0.92,
@@ -5160,7 +5160,7 @@ async function exportAnnotatedPdf() {
             // EMMa index badge
             const emmaIdx = getEmmaIndex(a.id);
             if (emmaIdx > 0 && !a.emmaExclude) {
-              page.drawCircle({ x: px - 4, y: py + 8, size: 6, Colour: rgb(0.49, 0.23, 0.93), opacity: 0.9 });
+              page.drawCircle({ x: px - 4, y: py + 8, size: 6, Color: rgb(0.49, 0.23, 0.93), opacity: 0.9 });
               _drawPdfLabel(page, String(emmaIdx), px - 7, py + 4, rgb(1, 1, 1), 6);
             }
           }
@@ -5172,9 +5172,9 @@ async function exportAnnotatedPdf() {
               y: H - (a.y + a.h) / 100 * H,
               width:  a.w / 100 * W,
               height: a.h / 100 * H,
-              borderColour: rgb(r, g, b),
+              borderColor: rgb(r, g, b),
               borderWidth: 2,
-              Colour: rgb(r, g, b),
+              Color: rgb(r, g, b),
               opacity: 0.05,
               borderOpacity: 0.9,
             });
@@ -5192,7 +5192,7 @@ async function exportAnnotatedPdf() {
                 page.drawLine({
                   start: { x: p1.x * W, y: H - p1.y * H },
                   end:   { x: p2.x * W, y: H - p2.y * H },
-                  Colour: rgb(r, g, b),
+                  Color: rgb(r, g, b),
                   thickness: sw,
                   opacity: alpha,
                 });
@@ -5210,7 +5210,7 @@ async function exportAnnotatedPdf() {
                 page.drawLine({
                   start: { x: p1.x * W, y: H - p1.y * H },
                   end:   { x: p2.x * W, y: H - p2.y * H },
-                  Colour: rgb(r, g, b),
+                  Color: rgb(r, g, b),
                   thickness: 1.5,
                   opacity: 0.8,
                 });
@@ -5239,12 +5239,12 @@ async function exportAnnotatedPdf() {
 
 // Helper: draw small text on a pdf-lib page (pdf-lib requires embedded font for non-latin;
 // we use the built-in Helvetica which covers ASCII)
-function _drawPdfLabel(page, text, x, y, Colour, size = 8) {
+function _drawPdfLabel(page, text, x, y, Color, size = 8) {
   try {
     page.drawText(String(text).replace(/[^\x20-\x7E]/g, '?'), {
       x, y,
       size,
-      Colour,
+      Color,
       opacity: 0.95,
     });
   } catch(e) { /* skip if font issue */ }
@@ -5505,7 +5505,7 @@ async function runTableOcr() {
 function teRenderGrid() {
   const wrap = document.getElementById('te-grid-wrap');
   if (!teGrid.length) {
-    wrap.innerHTML = '<div style="padding:16px;Colour:var(--gray-500);font-size:12.5px">No table data yet — use "+ Row" / "+ Column" to start one manually, or run OCR above.</div>';
+    wrap.innerHTML = '<div style="padding:16px;Color:var(--gray-500);font-size:12.5px">No table data yet — use "+ Row" / "+ Column" to start one manually, or run OCR above.</div>';
     return;
   }
   let html = '<table style="border-collapse:collapse;width:100%">';
@@ -5616,10 +5616,10 @@ function updateEmmaRegister() {
       <div>
         <div class="emma-row-comment">${a.text || (a.type === 'measure' ? a.label || '—' : '—')}</div>
         <div class="emma-row-doc">Pg ${a.pageNum} · ${a.author || '—'}</div>
-        ${row.reply ? `<div class="emma-row-reply"><span style="Colour:var(--blue-500);font-weight:600">↩ </span>${row.reply}</div>` : ''}
+        ${row.reply ? `<div class="emma-row-reply"><span style="Color:var(--blue-500);font-weight:600">↩ </span>${row.reply}</div>` : ''}
       </div>
       <div><span class="emma-cat-badge ${catClass}">${row.cat || '—'}</span></div>
-      <div style="font-size:9px;Colour:var(--gray-500);padding-top:3px">${row.commentType || '—'}</div>
+      <div style="font-size:9px;Color:var(--gray-500);padding-top:3px">${row.commentType || '—'}</div>
       <div><span class="emma-status ${stClass}">${stLabel}</span></div>`;
 
     div.addEventListener('click', () => openEmmaRowEdit(a.id));
@@ -5927,10 +5927,10 @@ function openEmmaExport() {
   // Template status
   const statusEl = document.getElementById('emma-template-status');
   if (emmaTemplateBuf) {
-    statusEl.style.cssText = 'background:#dcfce7;Colour:#166534;border:1px solid #bbf7d0;margin-top:10px;padding:8px 10px;border-radius:4px;font-size:12px;font-weight:500';
-    statusEl.textContent = '✓ Template loaded — all formatting, colours and macros will be preserved';
+    statusEl.style.cssText = 'background:#dcfce7;Color:#166534;border:1px solid #bbf7d0;margin-top:10px;padding:8px 10px;border-radius:4px;font-size:12px;font-weight:500';
+    statusEl.textContent = '✓ Template loaded — all formatting, Colors and macros will be preserved';
   } else {
-    statusEl.style.cssText = 'background:#fee2e2;Colour:#b91c1c;border:1px solid #fca5a5;margin-top:10px;padding:8px 10px;border-radius:4px;font-size:12px;font-weight:500';
+    statusEl.style.cssText = 'background:#fee2e2;Color:#b91c1c;border:1px solid #fca5a5;margin-top:10px;padding:8px 10px;border-radius:4px;font-size:12px;font-weight:500';
     statusEl.textContent = '⚠ No template loaded — load your Checksheet.xlsm via the EMMA panel → Load Template before exporting. Without it the formatting will be lost.';
   }
   openM('memma');
@@ -6051,18 +6051,18 @@ function updateTemplateUI(filename) {
   if (filename) {
     const short = filename.replace(/\.xlsm$/i,'').replace(/\.xlsx$/i,'').slice(0, 24);
     btn.innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2" width="12" height="12"><path d="M9 11l3 3L22 4"/></svg> ' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 11l3 3L22 4"/></svg> ' +
       short +
-      ' <span onclick="clearEmmaTemplate(event)" style="margin-left:6px;Colour:#b91c1c;font-weight:700;cursor:pointer" title="Remove saved template">&times;</span>';
-    btn.style.Colour = '#166534';
-    btn.style.borderColour = '#bbf7d0';
+      ' <span onclick="clearEmmaTemplate(event)" style="margin-left:6px;Color:#b91c1c;font-weight:700;cursor:pointer" title="Remove saved template">&times;</span>';
+    btn.style.Color = '#166534';
+    btn.style.borderColor = '#bbf7d0';
     btn.style.background = '#f0fdf4';
   } else {
     btn.innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColour" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ' +
       'Load Template';
-    btn.style.Colour = '';
-    btn.style.borderColour = '';
+    btn.style.Color = '';
+    btn.style.borderColor = '';
     btn.style.background = '';
   }
 }
@@ -6151,7 +6151,7 @@ function startAreaTool(ov, pageNum, vp, ox, oy) {
 function updateAreaPreview(mx, my) {
   if (!areaLiveSvg || areaPoints.length === 0) return;
   areaLiveSvg.innerHTML = '';
-  const c = CHex[Colour] || '#7c3aed';
+  const c = CHex[Color] || '#7c3aed';
   const pts = [...areaPoints, { x: mx, y: my }];
 
   // Closed polygon fill
@@ -6218,7 +6218,7 @@ function commitArea() {
     : `${Math.round(area)} px²`;
   const pts = areaPoints.map(p => ({ x: p.x / vp.width, y: p.y / vp.height }));
   pushAnnot({ id: nextId(), pageNum: areaPageNum, type: 'area',
-    points: pts, Colour, label: areaLabel, areaPx: area });
+    points: pts, Color, label: areaLabel, areaPx: area });
   areaPoints = []; areaPageNum = null; areaVp = null;
 }
 
@@ -6264,7 +6264,7 @@ function buildAreaAnnotEl(a) {
   svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('preserveAspectRatio', 'none');
-  const c = CHex[a.Colour] || '#7c3aed';
+  const c = CHex[a.Color] || '#7c3aed';
   const pts = a.points.map(p => `${p.x * 100},${p.y * 100}`).join(' ');
 
   // Ghost stroke for eraser
@@ -6722,7 +6722,7 @@ function renderCheckResults(findings) {
     head.innerHTML = `
       <span class="check-badge ${ws}">${failCount || warnCount || items.filter(i=>i.status==='pass').length}</span>
       <span class="check-group-title">${groupName}</span>
-      <span style="font-size:10px;Colour:var(--gray-400)">${items.length} check${items.length!==1?'s':''}</span>
+      <span style="font-size:10px;Color:var(--gray-400)">${items.length} check${items.length!==1?'s':''}</span>
     `;
 
     const itemsDiv = document.createElement('div');
@@ -6775,7 +6775,7 @@ function _addFindingAnnot(f) {
   const a = {
     id: nextId(), pageNum: 1, type: 'note',
     x, y, text: `[Standards Check] ${f.title}: ${f.desc.slice(0, 120)}`,
-    Colour: f.status === 'fail' ? 'rose' : f.status === 'warn' ? 'yellow' : 'teal',
+    Color: f.status === 'fail' ? 'rose' : f.status === 'warn' ? 'yellow' : 'teal',
     author: currentAuthor || 'Standards Checker',
     timestamp: new Date().toISOString(),
     emmaExclude: false
@@ -6840,10 +6840,10 @@ function updateEmmaDash() {
       if (cat && catCounts[cat] !== undefined) catCounts[cat]++;
     });
     const catStyles = {
-      '1': 'background:#fee2e2;Colour:#b91c1c',
-      '2': 'background:#fef9c3;Colour:#854d0e',
-      '3': 'background:#ffedd5;Colour:#c2410c',
-      'BP': 'background:#dbeafe;Colour:#1d4ed8'
+      '1': 'background:#fee2e2;Color:#b91c1c',
+      '2': 'background:#fef9c3;Color:#854d0e',
+      '3': 'background:#ffedd5;Color:#c2410c',
+      'BP': 'background:#dbeafe;Color:#1d4ed8'
     };
     catsEl.innerHTML = Object.entries(catCounts)
       .filter(([,v]) => v > 0)
@@ -6946,19 +6946,19 @@ document.addEventListener('keydown', e => {
 });
 
 // ═══════════════════════════════════════════════
-//  AUTHOR COLOUR-CODING (multi-user sessions)
+//  AUTHOR Color-CODING (multi-user sessions)
 // ═══════════════════════════════════════════════
 const AUTHOR_PALETTE = ['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#0891b2','#be185d','#65a30d'];
-const authorColours = {}; // name → hex colour
-let authorColourIdx = 0;
+const authorColors = {}; // name → hex Color
+let authorColorIdx = 0;
 
-function getAuthorColour(name) {
+function getAuthorColor(name) {
   if (!name) return '#6b7280';
-  if (!authorColours[name]) {
-    authorColours[name] = AUTHOR_PALETTE[authorColourIdx % AUTHOR_PALETTE.length];
-    authorColourIdx++;
+  if (!authorColors[name]) {
+    authorColors[name] = AUTHOR_PALETTE[authorColorIdx % AUTHOR_PALETTE.length];
+    authorColorIdx++;
   }
-  return authorColours[name];
+  return authorColors[name];
 }
 
 // ═══════════════════════════════════════════════
@@ -6989,8 +6989,8 @@ async function mergeSession(e) {
       added++;
     });
 
-    // Record all new authors for colour palette
-    data.annots.forEach(a => { if (a.author) getAuthorColour(a.author); });
+    // Record all new authors for Color palette
+    data.annots.forEach(a => { if (a.author) getAuthorColor(a.author); });
 
     syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister(); updateEmmaDash();
     toast(`✓ Merged ${added} annotation${added !== 1 ? 's' : ''} from "${data.pdfName || file.name}"${skipped ? ` (${skipped} duplicates skipped)` : ''}`);
@@ -6999,7 +6999,7 @@ async function mergeSession(e) {
   }
 }
 
-// Author colour stripe for merged annotations handled in core buildAnnotEl
+// Author Color stripe for merged annotations handled in core buildAnnotEl
 
 // ═══════════════════════════════════════════════
 //  REVISION COMPARISON
@@ -7158,7 +7158,7 @@ function renderDrawingSet() {
         ${Object.entries(statusLabels).map(([v,l]) =>
           `<option value="${v}" ${d.status===v?'selected':''}>${l}</option>`).join('')}
       </select>
-      <button onclick="loadDrawingFromSet(${i})" style="padding:3px 8px;font-size:11px;background:none;border:1px solid var(--gray-300);border-radius:3px;cursor:pointer;Colour:var(--gray-600)" title="Open this drawing">Open</button>`;
+      <button onclick="loadDrawingFromSet(${i})" style="padding:3px 8px;font-size:11px;background:none;border:1px solid var(--gray-300);border-radius:3px;cursor:pointer;Color:var(--gray-600)" title="Open this drawing">Open</button>`;
     list.insertBefore(item, empty);
   });
 }
@@ -7513,7 +7513,7 @@ const TOOL_HINTS = {
   pan:          'Click and drag to scroll · drag any annotation to move it · Space to temporarily pan',
   select:       'Drag to select text · Ctrl+C to copy · Ctrl+A to select all text on this page · Esc or V to return to Pan',
   erase:        'Click any annotation to delete it · works on all annotation types',
-  highlight:    'Drag to highlight a region · colour set in Style group',
+  highlight:    'Drag to highlight a region · Color set in Style group',
   texthighlight:'Swipe across text like a physical highlighter pen',
   rect:         'Drag to draw a rectangle markup box',
   circle:       'Drag to draw a circle or ellipse · hold Shift to constrain to perfect circle',
@@ -7609,21 +7609,21 @@ setTool = function(t) {
   if (mobLabel) mobLabel.textContent = Math.round(zoom * 100) + '%';
 };
 
-// Patch setColour to update ribbon swatches
-const _ribbonSetColour = setColour;
-setColour = function(c) {
-  _ribbonSetColour(c);
+// Patch setColor to update ribbon swatches
+const _ribbonSetColor = setColor;
+setColor = function(c) {
+  _ribbonSetColor(c);
   document.querySelectorAll('.rcsw').forEach(s => s.classList.remove('active'));
   const map = { yellow: 'c-y', teal: 'c-t', rose: 'c-r' };
   if (map[c]) document.getElementById(map[c])?.classList.add('active');
 };
 
-// Number key colour shortcuts (1=yellow, 2=teal, 3=rose)
+// Number key Color shortcuts (1=yellow, 2=teal, 3=rose)
 document.addEventListener('keydown', e => {
   if (e.target.closest('input,textarea,select')) return;
-  if (e.key === '1') setColour('yellow');
-  if (e.key === '2') setColour('teal');
-  if (e.key === '3') setColour('rose');
+  if (e.key === '1') setColor('yellow');
+  if (e.key === '2') setColor('teal');
+  if (e.key === '3') setColor('rose');
 });
 
 // Single applyZoom post-hook — updates ribbon, labels, and measure annotations
@@ -8131,7 +8131,7 @@ function show3DBanner() {
   banner.id = 'banner-3d';
   banner.style.cssText = [
     'position:fixed;bottom:36px;left:50%;transform:translateX(-50%)',
-    'background:#1e293b;Colour:#fff;font-size:12px;font-family:var(--font)',
+    'background:#1e293b;Color:#fff;font-size:12px;font-family:var(--font)',
     'padding:10px 18px;border-radius:8px;z-index:600',
     'display:flex;align-items:center;gap:12px',
     'box-shadow:0 4px 20px rgba(0,0,0,.3);max-width:560px;text-align:left',
@@ -8143,7 +8143,7 @@ function show3DBanner() {
     'All 2D content, annotations and markup will work normally. ',
     'To view the 3D model, open the original file in <strong>Adobe Acrobat</strong>.</span>',
     '<button onclick="document.getElementById(\'banner-3d\').remove()" ',
-    'style="background:none;border:none;Colour:#94a3b8;cursor:pointer;font-size:16px;flex-shrink:0;padding:0 4px">✕</button>',
+    'style="background:none;border:none;Color:#94a3b8;cursor:pointer;font-size:16px;flex-shrink:0;padding:0 4px">✕</button>',
   ].join('');
   document.body.appendChild(banner);
 }
@@ -8265,7 +8265,7 @@ function _selEnd(ev) {
   // Remove the drag rect's border animation, keep the fill to show selected area
   const { rectEl } = _selState;
   rectEl.style.borderStyle = 'solid';
-  rectEl.style.borderColour = 'rgba(37,99,235,0.35)';
+  rectEl.style.borderColor = 'rgba(37,99,235,0.35)';
   rectEl.style.background  = 'rgba(37,99,235,0.04)';
 
   // Copy to clipboard
@@ -8571,11 +8571,11 @@ function switchCheckTab(tab) {
   const ts = document.getElementById('check-tab-standards');
   const tg = document.getElementById('check-tab-spelling');
   ts.style.background = isStandards ? 'var(--white)' : 'transparent';
-  ts.style.borderBottomColour = isStandards ? 'var(--blue-500)' : 'transparent';
-  ts.style.Colour = isStandards ? 'var(--blue-600)' : 'var(--gray-500)';
+  ts.style.borderBottomColor = isStandards ? 'var(--blue-500)' : 'transparent';
+  ts.style.Color = isStandards ? 'var(--blue-600)' : 'var(--gray-500)';
   tg.style.background = isStandards ? 'transparent' : 'var(--white)';
-  tg.style.borderBottomColour = isStandards ? 'transparent' : 'var(--blue-500)';
-  tg.style.Colour = isStandards ? 'var(--gray-500)' : 'var(--blue-600)';
+  tg.style.borderBottomColor = isStandards ? 'transparent' : 'var(--blue-500)';
+  tg.style.Color = isStandards ? 'var(--gray-500)' : 'var(--blue-600)';
 }
 
 // ═══════════════════════════════════════════════
@@ -8600,7 +8600,7 @@ const AMERICAN_TO_BRITISH = {
   'specialize':'specialise','specialized':'specialised',
   'characterize':'characterise','characterised':'characterised',
   // -or → -our
-  'Colour':'colour','Colours':'colours','Coloured':'coloured',
+  'Color':'Color','Colors':'Colors','Colored':'Colored',
   'labor':'labour','labors':'labours',
   'harbor':'harbour','harbors':'harbours',
   'flavor':'flavour','flavors':'flavours',
@@ -8767,7 +8767,7 @@ async function runSpellCheck() {
     document.getElementById('spell-running').style.display = 'none';
     document.getElementById('spell-idle').style.display    = 'block';
     document.getElementById('spell-idle').innerHTML =
-      '<div style="padding:28px;text-align:center;Colour:var(--gray-500);font-size:13px">' +
+      '<div style="padding:28px;text-align:center;Color:var(--gray-500);font-size:13px">' +
       'No readable text found in this drawing.</div>';
     return;
   }
@@ -8839,8 +8839,8 @@ function renderSpellResults() {
     container.innerHTML =
       '<div style="padding:32px;text-align:center">' +
       '<div style="font-size:28px;margin-bottom:10px">✓</div>' +
-      '<div style="font-size:13px;font-weight:600;Colour:var(--gray-700)">No issues found</div>' +
-      '<div style="font-size:12px;Colour:var(--gray-500);margin-top:4px">Spelling and grammar look good.</div>' +
+      '<div style="font-size:13px;font-weight:600;Color:var(--gray-700)">No issues found</div>' +
+      '<div style="font-size:12px;Color:var(--gray-500);margin-top:4px">Spelling and grammar look good.</div>' +
       '</div>';
     container.style.display = '';
     summary.textContent = 'No issues found';
@@ -8848,21 +8848,21 @@ function renderSpellResults() {
   }
 
   const typeIcon  = { spelling:'Sp', grammar:'Gr', punctuation:'Pu' };
-  const typeColour = { spelling:'var(--red-500)', grammar:'#d97706', punctuation:'var(--blue-500)' };
+  const typeColor = { spelling:'var(--red-500)', grammar:'#d97706', punctuation:'var(--blue-500)' };
 
   let html = '';
   _spellSuggestions.forEach((s, i) => {
     const icon  = typeIcon[s.type]  || 'Sp';
-    const Colour = typeColour[s.type] || 'var(--red-500)';
+    const Color = typeColor[s.type] || 'var(--red-500)';
     html +=
       '<div id="spell-item-' + i + '" style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid var(--gray-100);' + (s.added ? 'opacity:.45;' : '') + '">' +
-        '<span style="flex-shrink:0;width:24px;height:24px;border-radius:4px;background:' + Colour + ';Colour:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:var(--mono)">' + icon + '</span>' +
+        '<span style="flex-shrink:0;width:24px;height:24px;border-radius:4px;background:' + Color + ';Color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:var(--mono)">' + icon + '</span>' +
         '<div style="flex:1;min-width:0">' +
-          '<div style="font-size:12px;font-weight:600;Colour:var(--gray-700);margin-bottom:2px">' +
-            '<span style="text-decoration:line-through;Colour:var(--red-500)">' + escHtml(s.original) + '</span>' +
-            ' → <span style="Colour:var(--gray-900)">' + escHtml(s.corrected) + '</span>' +
+          '<div style="font-size:12px;font-weight:600;Color:var(--gray-700);margin-bottom:2px">' +
+            '<span style="text-decoration:line-through;Color:var(--red-500)">' + escHtml(s.original) + '</span>' +
+            ' → <span style="Color:var(--gray-900)">' + escHtml(s.corrected) + '</span>' +
           '</div>' +
-          '<div style="font-size:11px;Colour:var(--gray-500)">' + escHtml(s.reason) + ' · Pg ' + s.pageNum + '</div>' +
+          '<div style="font-size:11px;Color:var(--gray-500)">' + escHtml(s.reason) + ' · Pg ' + s.pageNum + '</div>' +
         '</div>' +
         '<button onclick="addSpellSuggestion(' + i + ')" id="spell-btn-' + i + '" ' +
           'style="flex-shrink:0;padding:4px 10px;font-size:11px;border:1px solid var(--gray-300);border-radius:4px;background:var(--white);cursor:pointer;font-family:var(--font);white-space:nowrap" ' +
@@ -8887,7 +8887,7 @@ function addSpellSuggestion(idx) {
   if (!s || s.added) return;
   pushAnnot({
     id: nextId(), pageNum: s.pageNum, type: 'note',
-    x: s.x, y: s.y, Colour: 'rose',
+    x: s.x, y: s.y, Color: 'rose',
     text: '[' + (s.type.charAt(0).toUpperCase() + s.type.slice(1)) + '] ' +
           '"' + s.original + '" → "' + s.corrected + '"\n' + s.reason
   });
@@ -8927,15 +8927,15 @@ document.addEventListener('keydown', ev => {
 //  styled SVG overlays on the page.
 // ═══════════════════════════════════════════════
 const STAMPS = [
-  { id:'approved',    label:'Approved',         Colour:'#16a34a', textColour:'#fff', icon:'✓' },
-  { id:'for-constr',  label:'For Construction', Colour:'#2563eb', textColour:'#fff', icon:'⚙' },
-  { id:'ifc',         label:'Issued for Comment',Colour:'#7c3aed', textColour:'#fff', icon:'✎' },
-  { id:'checked',     label:'Checked',          Colour:'#0891b2', textColour:'#fff', icon:'✔' },
-  { id:'superseded',  label:'Superseded',       Colour:'#dc2626', textColour:'#fff', icon:'✕' },
-  { id:'preliminary', label:'Preliminary',      Colour:'#d97706', textColour:'#fff', icon:'~' },
-  { id:'draft',       label:'Draft',            Colour:'#6b7280', textColour:'#fff', icon:'D' },
-  { id:'void',        label:'Void',             Colour:'#991b1b', textColour:'#fff', icon:'∅' },
-  { id:'returned',    label:'Returned',         Colour:'#c2410c', textColour:'#fff', icon:'↩' },
+  { id:'approved',    label:'Approved',         Color:'#16a34a', textColor:'#fff', icon:'✓' },
+  { id:'for-constr',  label:'For Construction', Color:'#2563eb', textColor:'#fff', icon:'⚙' },
+  { id:'ifc',         label:'Issued for Comment',Color:'#7c3aed', textColor:'#fff', icon:'✎' },
+  { id:'checked',     label:'Checked',          Color:'#0891b2', textColor:'#fff', icon:'✔' },
+  { id:'superseded',  label:'Superseded',       Color:'#dc2626', textColor:'#fff', icon:'✕' },
+  { id:'preliminary', label:'Preliminary',      Color:'#d97706', textColor:'#fff', icon:'~' },
+  { id:'draft',       label:'Draft',            Color:'#6b7280', textColor:'#fff', icon:'D' },
+  { id:'void',        label:'Void',             Color:'#991b1b', textColor:'#fff', icon:'∅' },
+  { id:'returned',    label:'Returned',         Color:'#c2410c', textColor:'#fff', icon:'↩' },
 ];
 
 let _pendingStamp = null;
@@ -8948,8 +8948,8 @@ function openStampPicker() {
     div.className = 'stamp-opt';
     div.innerHTML =
       '<svg width="60" height="28" viewBox="0 0 60 28">' +
-      '<rect x="1" y="1" width="58" height="26" rx="4" fill="' + s.Colour + '" opacity=".15" stroke="' + s.Colour + '" stroke-width="1.5"/>' +
-      '<text x="30" y="17" text-anchor="middle" font-size="9" font-weight="700" font-family="monospace" fill="' + s.Colour + '">' + s.label.toUpperCase() + '</text>' +
+      '<rect x="1" y="1" width="58" height="26" rx="4" fill="' + s.Color + '" opacity=".15" stroke="' + s.Color + '" stroke-width="1.5"/>' +
+      '<text x="30" y="17" text-anchor="middle" font-size="9" font-weight="700" font-family="monospace" fill="' + s.Color + '">' + s.label.toUpperCase() + '</text>' +
       '</svg>' +
       '<div class="stamp-opt-label">' + s.label + '</div>';
     div.onclick = () => { _pendingStamp = s; closeM('mstamp'); activateStampPlacement(); };
@@ -8979,9 +8979,9 @@ function activateStampPlacement() {
     rect.setAttribute('x','1'); rect.setAttribute('y','1');
     rect.setAttribute('width','108'); rect.setAttribute('height','34');
     rect.setAttribute('rx','4');
-    rect.setAttribute('fill', stamp.Colour);
+    rect.setAttribute('fill', stamp.Color);
     rect.setAttribute('fill-opacity','0.15');
-    rect.setAttribute('stroke', stamp.Colour);
+    rect.setAttribute('stroke', stamp.Color);
     rect.setAttribute('stroke-width','2');
     rect.setAttribute('stroke-dasharray','5,3');
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -8989,7 +8989,7 @@ function activateStampPlacement() {
     text.setAttribute('text-anchor','middle');
     text.setAttribute('font-size','11'); text.setAttribute('font-weight','700');
     text.setAttribute('font-family','monospace');
-    text.setAttribute('fill', stamp.Colour);
+    text.setAttribute('fill', stamp.Color);
     text.textContent = stamp.label.toUpperCase();
     svg.appendChild(rect); svg.appendChild(text);
     g.appendChild(svg);
@@ -9034,8 +9034,8 @@ function activateStampPlacement() {
     const y  = (ev.clientY - r.top)  / ov.offsetHeight * 100;
     cleanup();
     pushAnnot({ id: nextId(), pageNum: pn, type: 'stamp',
-      stampId: stamp.id, x, y, Colour: stamp.Colour,
-      textColour: stamp.textColour, label: stamp.label });
+      stampId: stamp.id, x, y, Color: stamp.Color,
+      textColor: stamp.textColor, label: stamp.label });
   };
 
   function cleanup() {
@@ -9071,14 +9071,14 @@ function buildStampEl(a) {
   const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   rect.setAttribute('x','1'); rect.setAttribute('y','1');
   rect.setAttribute('width','108'); rect.setAttribute('height','34');
-  rect.setAttribute('rx','4'); rect.setAttribute('fill', a.Colour || stamp.Colour);
+  rect.setAttribute('rx','4'); rect.setAttribute('fill', a.Color || stamp.Color);
   rect.setAttribute('fill-opacity','0.12');
-  rect.setAttribute('stroke', a.Colour || stamp.Colour); rect.setAttribute('stroke-width','2');
+  rect.setAttribute('stroke', a.Color || stamp.Color); rect.setAttribute('stroke-width','2');
   const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
   text.setAttribute('x','55'); text.setAttribute('y','23');
   text.setAttribute('text-anchor','middle');
   text.setAttribute('font-size','11'); text.setAttribute('font-weight','700');
-  text.setAttribute('font-family','monospace'); text.setAttribute('fill', a.Colour || stamp.Colour);
+  text.setAttribute('font-family','monospace'); text.setAttribute('fill', a.Color || stamp.Color);
   text.textContent = (a.label || stamp.label).toUpperCase();
   svg.appendChild(rect); svg.appendChild(text);
   wrap.appendChild(svg);
@@ -9635,7 +9635,7 @@ function activateImagePlacement() {
     cleanup();
     const a = { id: nextId(), pageNum: pn, type: 'image',
       x: xPct - w/2, y: yPct - h/2, w, h,
-      src: img.src, Colour: 'yellow' };
+      src: img.src, Color: 'yellow' };
     pushAnnot(a);
     // Select it immediately so resize handles show
     setTimeout(() => {
@@ -9693,7 +9693,7 @@ async function printDrawing() {
     '.ar{position:absolute;border:2px solid #2563eb;background:rgba(37,99,235,.07);border-radius:1px}' +
     '.an{position:absolute;min-width:140px;background:#fff;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.18);font-family:sans-serif;font-size:11px}' +
     '.an-header{padding:5px 8px;font-size:10px;font-weight:700;font-family:monospace;border-radius:4px 4px 0 0}' +
-    '.an-body{padding:5px 8px;font-size:11.5px;line-height:1.45;Colour:#333;background:#fff}' +
+    '.an-body{padding:5px 8px;font-size:11.5px;line-height:1.45;Color:#333;background:#fff}' +
     '.atxt{position:absolute;font-size:13px;font-weight:500;padding:2px 4px}' +
     '.aimage{position:absolute;overflow:hidden;border-radius:2px}' +
     '.aimage img{width:100%;height:100%;object-fit:fill;display:block}' +

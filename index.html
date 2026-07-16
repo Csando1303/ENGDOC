@@ -69,8 +69,9 @@
   <div style="display:flex;gap:10px;padding:12px 16px 4px;align-items:center">
     <span style="font-size:10px;font-family:var(--mono);Color:var(--gray-400);text-transform:uppercase">Color</span>
     <div onclick="setColor('yellow');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')" class="mob-csw active" style="width:28px;height:28px;border-radius:50%;background:#fbbf24;border:3px solid transparent;cursor:pointer"></div>
-    <div onclick="setColor('teal');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')"   class="mob-csw"        style="width:28px;height:28px;border-radius:50%;background:#2dd4bf;border:3px solid transparent;cursor:pointer"></div>
-    <div onclick="setColor('rose');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')"   class="mob-csw"        style="width:28px;height:28px;border-radius:50%;background:#fb7185;border:3px solid transparent;cursor:pointer"></div>
+    <div onclick="setColor('green');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')"  class="mob-csw"        style="width:28px;height:28px;border-radius:50%;background:#38f71f;border:3px solid transparent;cursor:pointer"></div>
+    <div onclick="setColor('red');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')"    class="mob-csw"        style="width:28px;height:28px;border-radius:50%;background:#fa193b;border:3px solid transparent;cursor:pointer"></div>
+    <div onclick="setColor('blue');this.parentNode.querySelectorAll('.mob-csw').forEach(e=>e.classList.remove('active'));this.classList.add('active')"   class="mob-csw"        style="width:28px;height:28px;border-radius:50%;background:#2563eb;border:3px solid transparent;cursor:pointer"></div>
   </div>
 </div>
 
@@ -286,6 +287,7 @@
               <div class="rcsw cg" id="c-g" onclick="setColor('green')" title="Green (2)"></div>
               <div class="rcsw cr" id="c-r" onclick="setColor('red')" title="Red (3)"></div>
               <div class="rcsw cb" id="c-b" onclick="setColor('blue')" title="Blue (4)"></div>
+              <div class="rcsw custom-trigger" id="c-custom" onclick="toggleStylePopover(event,'color')" title="Custom colour…"></div>
             </div>
             <div style="font-size:8.5px;font-family:var(--mono);Color:var(--gray-400)">Color 1&middot;2&middot;3</div>
           </div>
@@ -294,18 +296,12 @@
             <div class="rsw-opt active" onclick="setStrokeW(4,this)"><div class="rsw-line" style="width:26px;height:3px"></div><span class="rsw-lbl">Med</span></div>
             <div class="rsw-opt" onclick="setStrokeW(8,this)"><div class="rsw-line" style="width:26px;height:5px"></div><span class="rsw-lbl">Thick</span></div>
             <div class="rsw-opt" onclick="setStrokeW(14,this)"><div class="rsw-line" style="width:26px;height:8px"></div><span class="rsw-lbl">Bold</span></div>
+            <div class="rsw-opt custom-trigger" id="rsw-custom" onclick="toggleStylePopover(event,'stroke')"><div class="rsw-line" style="width:26px;height:3px;background:repeating-linear-gradient(90deg,var(--gray-500) 0 3px,transparent 3px 6px)"></div><span class="rsw-lbl">Custom</span></div>
           </div>
           <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
             <div style="font-size:8.5px;font-family:var(--mono);Color:var(--gray-400)">Font</div>
-            <select id="font-size-sel" onchange="setFontSize(this.value)" style="font-family:var(--mono);font-size:10px;background:var(--gray-50);border:1px solid var(--gray-300);border-radius:3px;Color:var(--gray-700);padding:2px 4px;cursor:pointer;width:46px">
-              <option value="8">8pt</option>
-              <option value="10">10pt</option>
-              <option value="12" selected>12pt</option>
-              <option value="14">14pt</option>
-              <option value="16">16pt</option>
-              <option value="20">20pt</option>
-              <option value="24">24pt</option>
-            </select>
+            <button type="button" id="font-size-btn" class="custom-trigger" onclick="toggleStylePopover(event,'font')"
+              style="font-family:var(--mono);font-size:10px;background:var(--gray-50);border:1px solid var(--gray-300);border-radius:3px;Color:var(--gray-700);padding:2px 4px;cursor:pointer;width:46px">12pt</button>
             <div style="font-size:8.5px;font-family:var(--mono);Color:var(--gray-400)">Opacity</div>
             <input type="range" id="opacity-sel" min="20" max="100" value="80" step="10"
               oninput="setOpacity(this.value)"
@@ -672,6 +668,11 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
     Delete annotation
   </div>
+</div>
+
+<!-- STYLE POPOVER — custom colour / stroke width / font size pickers -->
+<div id="style-popover">
+  <div id="sp-body"></div>
 </div>
 
 <!-- MERGE MODAL -->
@@ -1280,8 +1281,30 @@ const renderQueue = new Set();
 let renderScheduled = false;
 const OVERSCAN = 2; // extra pages above/below viewport to pre-render
 
-const CVals = { yellow: 'rgba(251,191,36,.38)', teal: 'rgba(45,212,191,.32)', rose: 'rgba(251,113,133,.36)' };
-const CHex  = { yellow: '#fbbf24', teal: '#2dd4bf', rose: '#fb7185' };
+const CVals = { yellow: 'rgba(251,191,36,.38)', green: 'rgba(56,247,31,.32)', red: 'rgba(250,25,59,.36)', blue: 'rgba(37,99,235,.32)', teal: 'rgba(45,212,191,.32)', rose: 'rgba(251,113,133,.36)' };
+const CHex  = { yellow: '#fbbf24', green: '#38f71f', red: '#fa193b', blue: '#2563eb', teal: '#2dd4bf', rose: '#fb7185' };
+
+// ── Colour resolution — supports both named presets (above) and
+//    arbitrary custom hex strings stored directly as an annotation's Color ──
+function isHexColor(s) { return typeof s === 'string' && /^#[0-9a-f]{6}$/i.test(s); }
+function colorHex(name, fallback = 'yellow') {
+  if (isHexColor(name)) return name;
+  if (CHex[name]) return CHex[name];
+  return isHexColor(fallback) ? fallback : (CHex[fallback] || CHex.yellow);
+}
+function colorRgba(name, alpha = 0.35) {
+  if (isHexColor(name)) {
+    const r = parseInt(name.slice(1,3),16), g = parseInt(name.slice(3,5),16), b = parseInt(name.slice(5,7),16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  return CVals[name] || CVals.yellow;
+}
+// Pale tint of a hex colour (mix toward white) — used for light annotation fills
+function tintHex(hex, amount = 0.85) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  const mix = (c) => Math.round(c + (255 - c) * amount).toString(16).padStart(2,'0');
+  return `#${mix(r)}${mix(g)}${mix(b)}`;
+}
 const typeLabels = { highlight:'Highlight', rect:'Rectangle', strike:'Strikethrough',
   pen:'Freehand', arrow:'Arrow', note:'Note', text:'Text Label',
   texthighlight:'Text Highlight', cloud:'Cloud', measure:'Measure', area:'Area',
@@ -2922,11 +2945,18 @@ function setColor(c) {
   Color = c;
   document.querySelectorAll('.csw').forEach(s => s.classList.remove('active'));
   const map = { yellow: 'c-y', green: 'c-g', red: 'c-r', blue: 'c-b' };
-  if (map[c]) document.getElementById(map[c]).classList.add('active');
+  if (map[c]) {
+    document.getElementById(map[c]).classList.add('active');
+  } else if (isHexColor(c)) {
+    const custom = document.getElementById('c-custom');
+    if (custom) { custom.classList.add('active', 'has-custom'); custom.style.background = c; }
+  }
 }
 
 function setFontSize(v) {
   fontSize = parseInt(v) || 12;
+  const btn = document.getElementById('font-size-btn');
+  if (btn) btn.textContent = fontSize + 'pt';
 }
 
 function setOpacity(v) {
@@ -3070,7 +3100,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       liveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
       liveSvg.setAttribute('width', vp.width); liveSvg.setAttribute('height', vp.height);
-      const c = CHex[Color] || CHex.yellow;
+      const c = colorHex(Color);
       const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
       const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
       marker.setAttribute('id', `live-arr-${pageNum}`); marker.setAttribute('viewBox', '0 0 10 10');
@@ -3101,12 +3131,12 @@ function attachEvents(ov, pageNum, _vpInitial) {
       path.setAttribute('d', `M${ox},${oy}`);
       path.setAttribute('fill', 'none');
       if (tool === 'texthighlight') {
-        path.setAttribute('stroke', CVals[Color] || CVals.yellow);
+        path.setAttribute('stroke', colorRgba(Color));
         path.setAttribute('stroke-width', 14);
         path.setAttribute('opacity', '0.6');
         liveSvg.style.mixBlendMode = 'multiply';
       } else {
-        path.setAttribute('stroke', CHex[Color]);
+        path.setAttribute('stroke', colorHex(Color));
         path.setAttribute('stroke-width', strokeW());
       }
       path.setAttribute('stroke-linecap', 'round');
@@ -3120,23 +3150,23 @@ function attachEvents(ov, pageNum, _vpInitial) {
     liveEl.style.cssText = 'position:absolute;pointer-events:none;z-index:10';
     if (tool === 'highlight') {
       liveEl.className = 'ah';
-      liveEl.style.background = CVals[Color];
+      liveEl.style.background = colorRgba(Color);
       liveEl.style.mixBlendMode = 'multiply';
     } else if (tool === 'rect') {
       liveEl.className = 'ar';
-      liveEl.style.borderColor = CHex[Color];
-      liveEl.style.background = CHex[Color] + '11';
+      liveEl.style.borderColor = colorHex(Color);
+      liveEl.style.background = colorHex(Color) + '11';
     } else if (tool === 'tableextract') {
       liveEl.style.border = '2px dashed #2563eb';
       liveEl.style.background = '#2563eb11';
     } else if (tool === 'rectfill') {
-      liveEl.style.background = CHex[Color];
+      liveEl.style.background = colorHex(Color);
       liveEl.style.opacity = (annotOpacity / 100).toFixed(2);
       liveEl.style.borderRadius = '1px';
     } else if (tool === 'circle') {
       // Circle preview: SVG ellipse matching committed render
       liveEl = null;
-      const cc = CHex[Color] || CHex.yellow;
+      const cc = colorHex(Color);
       liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       liveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
       liveSvg.setAttribute('width', vp.width); liveSvg.setAttribute('height', vp.height);
@@ -3150,7 +3180,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       return;
     } else if (tool === 'strike') {
       // Strike preview: center line through the selection, matching committed render
-      const sc = CHex[Color] || CHex.rose;
+      const sc = colorHex(Color, 'rose');
       liveEl.style.background = `linear-gradient(transparent calc(50% - 1.5px),${sc} calc(50% - 1.5px),${sc} calc(50% + 1.5px),transparent calc(50% + 1.5px))`;
     } else if (tool === 'line') {
       // Line preview via SVG
@@ -3160,7 +3190,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       const lLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       lLine.setAttribute('x1', ox); lLine.setAttribute('y1', oy);
       lLine.setAttribute('x2', ox); lLine.setAttribute('y2', oy);
-      lLine.setAttribute('stroke', CHex[Color]); lLine.setAttribute('stroke-width', strokeW());
+      lLine.setAttribute('stroke', colorHex(Color)); lLine.setAttribute('stroke-width', strokeW());
       lLine.setAttribute('stroke-linecap', 'round');
       liveSvg.appendChild(lLine);
       ov.appendChild(liveSvg);
@@ -3169,7 +3199,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
     } else if (tool === 'cloud') {
       // Cloud: real scalloped SVG preview — discard the pre-created div
       liveEl = null;
-      const cc = CHex[Color] || CHex.yellow;
+      const cc = colorHex(Color);
       liveSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       liveSvg.style.cssText = 'position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:10';
       liveSvg.setAttribute('width', vp.width); liveSvg.setAttribute('height', vp.height);
@@ -3181,7 +3211,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       ov.appendChild(liveSvg);
       return;
     } else if (tool === 'callout' || tool === 'textbox') {
-      liveEl.style.border = `2px dashed ${CHex[Color] || CHex.yellow}`;
+      liveEl.style.border = `2px dashed ${colorHex(Color)}`;
       liveEl.style.borderRadius = '3px';
       liveEl.style.background = 'rgba(255,255,255,0.7)';
     }
@@ -3560,7 +3590,7 @@ function buildNoteLeaderSvg(a, ov) {
   const vp = pageViewports[a.pageNum];
   if (!vp) return;
 
-  const c = CHex[a.Color] || CHex.yellow;
+  const c = colorHex(a.Color);
 
   // Get the rendered pin element to find its actual pixel position
   const pin = ov.querySelector('[data-aid="' + a.id + '"]');
@@ -3897,21 +3927,21 @@ function buildAnnotEl(a) {
   let el;
   if (a.type === 'highlight') {
     el = document.createElement('div'); el.className = 'ah';
-    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;background:${CVals[a.Color] || CVals.yellow};mix-blend-mode:multiply`;
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;background:${colorRgba(a.Color)};mix-blend-mode:multiply`;
   } else if (a.type === 'rect') {
     el = document.createElement('div'); el.className = 'ar';
-    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;border:2px solid ${CHex[a.Color] || CHex.yellow};background:${CHex[a.Color] || CHex.yellow}22`;
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;border:2px solid ${colorHex(a.Color)};background:${colorHex(a.Color)}22`;
   } else if (a.type === 'circle') {
     el = buildCircleAnnotEl(a);
   } else if (a.type === 'strike') {
     el = document.createElement('div'); el.className = 'astrike';
-    const sc = CHex[a.Color] || CHex.rose;
+    const sc = colorHex(a.Color, 'rose');
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;` +
       `background:linear-gradient(transparent calc(50% - 1.5px),${sc} calc(50% - 1.5px),${sc} calc(50% + 1.5px),transparent calc(50% + 1.5px))`;
   } else if (a.type === 'note') {
     el = document.createElement('div');
     el.className = 'an';
-    const c = CHex[a.Color] || CHex.yellow;
+    const c = colorHex(a.Color);
     el.style.cssText = 'position:absolute;left:' + a.x + '%;top:' + a.y + '%';
 
     // Colored header bar
@@ -3998,7 +4028,7 @@ function buildAnnotEl(a) {
 
   } else if (a.type === 'text') {
     el = document.createElement('div'); el.className = 'atxt';
-    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;Color:${CHex[a.Color] || CHex.yellow}`;
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;Color:${colorHex(a.Color)}`;
     if (!a.emmaExclude) {
       const idx = getEmmaIndex(a.id);
       if (idx > 0) {
@@ -4029,7 +4059,7 @@ function buildAnnotEl(a) {
     el = document.createElement('div');
     el.className = 'arectfill';
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;` +
-      `background:${CHex[a.Color]||CHex.yellow};opacity:${(a.opacity||80)/100};border-radius:1px`;
+      `background:${colorHex(a.Color)};opacity:${(a.opacity||80)/100};border-radius:1px`;
   } else if (a.type === 'textbox') {
     el = buildTextboxAnnotEl(a);
   } else if (a.type === 'callout') {
@@ -4107,12 +4137,12 @@ function buildPenAnnotEl(a) {
   path.setAttribute('fill', 'none');
   if (a.type === 'texthighlight') {
     // Semi-transparent highlight stroke — use raw Color values for multiply blend
-    path.setAttribute('stroke', CHex[a.Color] || CHex.yellow);
+    path.setAttribute('stroke', colorHex(a.Color));
     path.setAttribute('stroke-width', a.sw || 14);
     path.setAttribute('opacity', '0.45');
     svg.style.mixBlendMode = 'multiply';
   } else {
-    path.setAttribute('stroke', CHex[a.Color] || CHex.yellow);
+    path.setAttribute('stroke', colorHex(a.Color));
     path.setAttribute('stroke-width', a.sw || 4);
   }
   path.setAttribute('vector-effect', 'non-scaling-stroke');
@@ -4135,7 +4165,7 @@ function buildArrowAnnotEl(a) {
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
 
-  const c = CHex[a.Color] || CHex.yellow;
+  const c = colorHex(a.Color);
   const markerId = 'arr-' + a.id;
 
   const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
@@ -4260,7 +4290,7 @@ function buildCloudAnnotEl(a) {
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
-  const c = CHex[a.Color] || CHex.yellow;
+  const c = colorHex(a.Color);
   const x1 = a.x, y1 = a.y, x2 = a.x + a.w, y2 = a.y + a.h;
   const bumpR = Math.min(a.w, a.h) * 0.08;
 
@@ -4296,7 +4326,7 @@ function buildLineAnnotEl(a) {
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
-  const c = CHex[a.Color] || CHex.yellow;
+  const c = colorHex(a.Color);
   // Fat invisible ghost line for easier hit-testing
   const ghost = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   ghost.setAttribute('x1', a.x1); ghost.setAttribute('y1', a.y1);
@@ -4315,7 +4345,7 @@ function buildLineAnnotEl(a) {
 
 /* ── CIRCLE / ELLIPSE annotation ── */
 function buildCircleAnnotEl(a) {
-  const c = CHex[a.Color] || CHex.yellow;
+  const c = colorHex(a.Color);
   const el = document.createElement('div');
   el.className = 'acircle';
   el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;overflow:visible`;
@@ -4349,7 +4379,7 @@ function buildCircleAnnotEl(a) {
 
 /* ── TEXTBOX annotation ── */
 function buildTextboxAnnotEl(a) {
-  const c   = CHex[a.Color] || CHex.yellow;
+  const c   = colorHex(a.Color);
   const fs  = a.fontSize || 12;
   const op  = (a.opacity || 80) / 100;
   const el  = document.createElement('div');
@@ -4375,7 +4405,7 @@ function buildTextboxAnnotEl(a) {
 
 /* ── CALLOUT annotation ── */
 function buildCalloutAnnotEl(a) {
-  const c   = CHex[a.Color] || CHex.yellow;
+  const c   = colorHex(a.Color);
   const fs  = a.fontSize || 12;
 
   // Outer wrapper — inset:0 so SVG can draw anywhere on the page overlay
@@ -4475,7 +4505,7 @@ function updateAnnotPanel() {
     item.innerHTML =
       '<button class="adel" title="Delete annotation (Del)">✕</button>' +
       '<div class="atype">' +
-        '<span class="adot" style="background:' + (CHex[a.Color] || '#999') + '"></span>' +
+        '<span class="adot" style="background:' + colorHex(a.Color, '#999') + '"></span>' +
         (typeLabels[a.type] || a.type) +
       '</div>' +
       '<select class="aitem-status" data-annotid="' + a.id + '" style="background:' + (statusColors[status] || '#fff') + '">' +
@@ -5038,9 +5068,8 @@ async function exportAnnotatedPdf() {
     };
     const C = (hex, a) => { const { r, g, b } = hexToRgb(hex); return rgb(r, g, b); };
 
-    // Color map
-    const HEX  = { yellow: '#fbbf24', teal: '#2dd4bf', rose: '#fb7185' };
-    const FILL = { yellow: '#fef9c3', teal: '#ccfbf1', rose: '#ffe4e6' };
+    // Fallback fill tints for named presets (custom hex colours use tintHex() instead)
+    const FILL = { yellow: '#fef9c3', green: '#dcfce1', red: '#fee0e5', blue: '#dbeafe', teal: '#ccfbf1', rose: '#ffe4e6' };
 
     // Group annotations by page
     const byPage = {};
@@ -5056,8 +5085,8 @@ async function exportAnnotatedPdf() {
       const { width: W, height: H } = page.getSize();
 
       for (const a of pageAnnots) {
-        const c = HEX[a.Color] || HEX.yellow;
-        const cf = FILL[a.Color] || FILL.yellow;
+        const c = colorHex(a.Color);
+        const cf = isHexColor(a.Color) ? tintHex(a.Color) : (FILL[a.Color] || FILL.yellow);
         const { r, g, b } = hexToRgb(c);
 
         try {
@@ -6152,7 +6181,7 @@ function startAreaTool(ov, pageNum, vp, ox, oy) {
 function updateAreaPreview(mx, my) {
   if (!areaLiveSvg || areaPoints.length === 0) return;
   areaLiveSvg.innerHTML = '';
-  const c = CHex[Color] || '#7c3aed';
+  const c = colorHex(Color, '#7c3aed');
   const pts = [...areaPoints, { x: mx, y: my }];
 
   // Closed polygon fill
@@ -6265,7 +6294,7 @@ function buildAreaAnnotEl(a) {
   svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible';
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('preserveAspectRatio', 'none');
-  const c = CHex[a.Color] || '#7c3aed';
+  const c = colorHex(a.Color, '#7c3aed');
   const pts = a.points.map(p => `${p.x * 100},${p.y * 100}`).join(' ');
 
   // Ghost stroke for eraser
@@ -6776,7 +6805,7 @@ function _addFindingAnnot(f) {
   const a = {
     id: nextId(), pageNum: 1, type: 'note',
     x, y, text: `[Standards Check] ${f.title}: ${f.desc.slice(0, 120)}`,
-    Color: f.status === 'fail' ? 'rose' : f.status === 'warn' ? 'yellow' : 'teal',
+    Color: f.status === 'fail' ? 'red' : f.status === 'warn' ? 'yellow' : 'green',
     author: currentAuthor || 'Standards Checker',
     timestamp: new Date().toISOString(),
     emmaExclude: false
@@ -7616,7 +7645,12 @@ setColor = function(c) {
   _ribbonSetColor(c);
   document.querySelectorAll('.rcsw').forEach(s => s.classList.remove('active'));
   const map = { yellow: 'c-y', green: 'c-g', red: 'c-r', blue: 'c-b' };
-  if (map[c]) document.getElementById(map[c])?.classList.add('active');
+  if (map[c]) {
+    document.getElementById(map[c])?.classList.add('active');
+  } else if (isHexColor(c)) {
+    const custom = document.getElementById('c-custom');
+    if (custom) { custom.classList.add('active', 'has-custom'); custom.style.background = c; }
+  }
 };
 
 // Number key Color shortcuts (1=yellow, 2=green, 3=red, 4=blue)
@@ -7627,6 +7661,173 @@ document.addEventListener('keydown', e => {
   if (e.key === '3') setColor('red');
   if (e.key === '4') setColor('blue');
 });
+
+// ═══════════════════════════════════════════════
+//  STYLE POPOVER — custom colour / stroke width / font size
+//  One shared floating panel, repositioned + repopulated
+//  per trigger (mirrors the #ctx-menu pattern).
+// ═══════════════════════════════════════════════
+let _spKind = null;
+
+function toggleStylePopover(e, kind) {
+  e.stopPropagation();
+  const pop = document.getElementById('style-popover');
+  if (pop.classList.contains('open') && _spKind === kind) { closeStylePopover(); return; }
+  _spKind = kind;
+  renderStylePopover(kind);
+  const r = e.currentTarget.getBoundingClientRect();
+  pop.style.left = '0px'; pop.style.top = '0px';
+  pop.classList.add('open');
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = r.left, top = r.bottom + 6;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  if (left < 8) left = 8;
+  if (top + ph > window.innerHeight - 8) top = r.top - ph - 6;
+  pop.style.left = left + 'px';
+  pop.style.top  = top + 'px';
+}
+function closeStylePopover() {
+  document.getElementById('style-popover').classList.remove('open');
+  _spKind = null;
+}
+document.addEventListener('mousedown', e => {
+  const pop = document.getElementById('style-popover');
+  if (pop.classList.contains('open') && !pop.contains(e.target) && !e.target.closest('.custom-trigger')) {
+    closeStylePopover();
+  }
+});
+
+function renderStylePopover(kind) {
+  const body = document.getElementById('sp-body');
+  if (kind === 'color') {
+    body.innerHTML =
+      '<div class="sp-label">Custom colour</div>' +
+      '<canvas id="sp-sv" width="176" height="100"></canvas>' +
+      '<input type="range" id="sp-hue" min="0" max="360" value="45">' +
+      '<div class="sp-row"><div id="sp-preview"></div><input id="sp-hex" type="text" maxlength="7" value="#fbbf24"></div>' +
+      '<div id="sp-recents"></div>' +
+      '<button class="sp-btn" onclick="applyCustomColor()">Apply</button>';
+    initColorPopover();
+  } else if (kind === 'stroke') {
+    body.innerHTML =
+      '<div class="sp-label">Custom width</div>' +
+      '<div class="sp-row"><input type="range" id="sp-stroke" min="1" max="24" value="' + _strokeW + '">' +
+      '<span id="sp-stroke-val" style="font-family:var(--mono);font-size:11px;width:34px;text-align:right">' + _strokeW + 'px</span></div>' +
+      '<div id="sp-stroke-preview"></div>';
+    initStrokePopover();
+  } else if (kind === 'font') {
+    const presets = [8,10,12,14,16,20,24];
+    body.innerHTML =
+      '<div class="sp-label">Font size</div>' +
+      '<div class="sp-presets">' + presets.map(v =>
+        '<button class="sp-preset-btn' + (v === fontSize ? ' active' : '') + '" onclick="applyFontPreset(' + v + ')">' + v + 'pt</button>'
+      ).join('') + '</div>' +
+      '<div class="sp-row"><input type="number" id="sp-font-input" min="6" max="96" value="' + fontSize + '">' +
+      '<span style="font-size:10px;color:var(--gray-500)">pt</span></div>' +
+      '<button class="sp-btn" onclick="applyCustomFont()" style="margin-top:8px">Set</button>';
+    const fi = document.getElementById('sp-font-input');
+    fi.addEventListener('keydown', e => { if (e.key === 'Enter') applyCustomFont(); });
+  }
+}
+
+// ── Colour tab: HSV square + hue slider + hex input + recents ──
+let _spHue = 45, _spHex = '#fbbf24';
+function initColorPopover() {
+  const canvas = document.getElementById('sp-sv');
+  const ctx = canvas.getContext('2d');
+  function draw() {
+    const w = canvas.width, h = canvas.height;
+    ctx.fillStyle = `hsl(${_spHue},100%,50%)`;
+    ctx.fillRect(0, 0, w, h);
+    const gw = ctx.createLinearGradient(0, 0, w, 0);
+    gw.addColorStop(0, '#fff'); gw.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gw; ctx.fillRect(0, 0, w, h);
+    const gb = ctx.createLinearGradient(0, 0, 0, h);
+    gb.addColorStop(0, 'rgba(0,0,0,0)'); gb.addColorStop(1, '#000');
+    ctx.fillStyle = gb; ctx.fillRect(0, 0, w, h);
+  }
+  draw();
+  const hue = document.getElementById('sp-hue');
+  hue.value = _spHue;
+  hue.oninput = () => { _spHue = +hue.value; draw(); };
+  function pick(e) {
+    const r = canvas.getBoundingClientRect();
+    const x = Math.max(0, Math.min(canvas.width - 1, Math.round((e.clientX - r.left) * (canvas.width / r.width))));
+    const y = Math.max(0, Math.min(canvas.height - 1, Math.round((e.clientY - r.top) * (canvas.height / r.height))));
+    const d = ctx.getImageData(x, y, 1, 1).data;
+    const hex = '#' + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, '0')).join('');
+    setSpHex(hex);
+  }
+  let dragging = false;
+  canvas.onmousedown = e => { dragging = true; pick(e); };
+  window.addEventListener('mousemove', e => { if (dragging) pick(e); });
+  window.addEventListener('mouseup', () => { dragging = false; });
+  document.getElementById('sp-hex').addEventListener('input', e => setSpHex(e.target.value, false));
+  renderRecentColors();
+  setSpHex(_spHex);
+}
+function setSpHex(hex, updateInput = true) {
+  if (!isHexColor(hex)) { if (!updateInput) return; }
+  _spHex = hex;
+  const preview = document.getElementById('sp-preview');
+  if (preview) preview.style.background = hex;
+  if (updateInput) {
+    const input = document.getElementById('sp-hex');
+    if (input) input.value = hex;
+  }
+}
+function getRecentColors() {
+  try { return JSON.parse(localStorage.getItem('engdoc_recent_colors') || '[]'); }
+  catch (e) { return []; }
+}
+function addRecentColor(hex) {
+  const list = [hex, ...getRecentColors().filter(c => c !== hex)].slice(0, 8);
+  localStorage.setItem('engdoc_recent_colors', JSON.stringify(list));
+}
+function renderRecentColors() {
+  const wrap = document.getElementById('sp-recents');
+  if (!wrap) return;
+  wrap.innerHTML = getRecentColors().map(hex =>
+    `<div class="sp-recent-sw" style="background:${hex}" onclick="setSpHex('${hex}')" title="${hex}"></div>`
+  ).join('');
+}
+function applyCustomColor() {
+  const hex = document.getElementById('sp-hex').value.trim();
+  if (!isHexColor(hex)) { toast('Enter a valid hex colour, e.g. #a855f7'); return; }
+  setColor(hex);
+  addRecentColor(hex);
+  closeStylePopover();
+}
+
+// ── Stroke tab ──
+function initStrokePopover() {
+  const slider = document.getElementById('sp-stroke');
+  const preview = document.getElementById('sp-stroke-preview');
+  const val = document.getElementById('sp-stroke-val');
+  const update = (v) => {
+    preview.style.height = v + 'px';
+    val.textContent = v + 'px';
+  };
+  update(slider.value);
+  slider.oninput = () => {
+    update(slider.value);
+    const custom = document.getElementById('rsw-custom');
+    setStrokeW(parseInt(slider.value), custom);
+    if (custom) custom.querySelector('.rsw-lbl').textContent = slider.value + 'px';
+  };
+}
+
+// ── Font tab ──
+function applyFontPreset(v) {
+  setFontSize(v);
+  closeStylePopover();
+}
+function applyCustomFont() {
+  const v = parseInt(document.getElementById('sp-font-input').value);
+  if (!v || v < 6 || v > 96) { toast('Enter a font size between 6 and 96'); return; }
+  setFontSize(v);
+  closeStylePopover();
+}
 
 // Single applyZoom post-hook — updates ribbon, labels, and measure annotations
 const _origApplyZoomBase = applyZoom;
@@ -8889,7 +9090,7 @@ function addSpellSuggestion(idx) {
   if (!s || s.added) return;
   pushAnnot({
     id: nextId(), pageNum: s.pageNum, type: 'note',
-    x: s.x, y: s.y, Color: 'rose',
+    x: s.x, y: s.y, Color: 'red',
     text: '[' + (s.type.charAt(0).toUpperCase() + s.type.slice(1)) + '] ' +
           '"' + s.original + '" → "' + s.corrected + '"\n' + s.reason
   });

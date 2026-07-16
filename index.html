@@ -3395,17 +3395,23 @@ function autoDetectTitleBlock() {
   }
 
   // ── Auto-calibrate measure tool from detected scale string ──
-  if (scale) {
-    const scaleMatch = scale.match(/1\s*[:\/]\s*(\d+)/);
-    if (scaleMatch) {
-      const ratio = parseInt(scaleMatch[1]);
-      const pxPerMm = 96 / 25.4;
-      measureScale = { pxPerUnit: pxPerMm * 1000 / ratio, unit: 'm' };
-      localStorage.setItem('engdoc_scale', JSON.stringify(measureScale));
-      document.getElementById('sb-scale').textContent = `⚖ 1:${ratio} (m)`;
-      detected++;
-      toast(`✓ Scale auto-set: 1:${ratio} — measuring in metres`, 3500);
-    }
+  // The label/value cell lookup above requires the "SCALE" label and its value to be
+  // separate text runs in different font sizes — many title blocks instead render
+  // them as a single combined run (e.g. "SCALE 1:100") or in matching font sizes, so
+  // fall back to a plain text-scan (same approach as checkScaleBar()) when it misses.
+  let scaleMatch = scale ? scale.match(/1\s*[:\/]\s*(\d+)/) : null;
+  if (!scaleMatch) {
+    const pageStr = sorted.map(it => it.str).join(' ');
+    scaleMatch = pageStr.match(/scale[^0-9]{0,15}1\s*[:\/]\s*(\d+)/i) || pageStr.match(/1\s*[:\/]\s*(\d+)/);
+  }
+  if (scaleMatch) {
+    const ratio = parseInt(scaleMatch[1]);
+    const pxPerMm = 96 / 25.4;
+    measureScale = { pxPerUnit: pxPerMm * 1000 / ratio, unit: 'm' };
+    localStorage.setItem('engdoc_scale', JSON.stringify(measureScale));
+    document.getElementById('sb-scale').textContent = `⚖ 1:${ratio} (m)`;
+    detected++;
+    toast(`✓ Scale auto-set: 1:${ratio} — measuring in metres`, 3500);
   }
 
   if (detected > 0) {

@@ -462,23 +462,6 @@
 
   </div><!-- /ribbon-body -->
 
-  <!-- Active tool strip -->
-  <div id="ribbon-activetool">
-    <span id="rat-name">Highlight</span>
-    <span class="rat-hint" id="rat-hint">Drag to highlight a region &middot; colour and weight in Style group</span>
-    <div style="flex:1"></div>
-    <span id="rat-zoom" class="rat-hint"><span id="sb-zoom-val">100%</span></span>
-    <span class="rat-hint" style="margin:0 5px">&middot;</span>
-    <span class="rat-hint" id="rat-count">0 annotations</span>
-    <span class="rat-hint" style="margin:0 5px">&middot;</span>
-    <span class="rat-hint" id="rat-pos">&mdash;</span>
-    <span class="rat-hint" style="margin:0 5px">&middot;</span>
-    <span id="rat-measure" class="rat-hint" style="color:#7c3aed;font-weight:600"></span>
-    <span class="rat-hint" style="margin:0 5px">&middot;</span>
-    <span id="rat-scale" class="rat-hint" style="cursor:pointer;color:var(--blue-500)" onclick="openM('mscale')">&#9878; Scale: unset</span>
-    <div id="rat-autosave" title="Auto-saved" style="margin-left:8px"></div>
-  </div>
-
 </div>
 <select id="stroke-w" style="display:none"><option value="4" selected>4</option></select>
 <span id="hdr-author" style="display:none">Set Name</span>
@@ -641,7 +624,7 @@
   <div class="sbi" id="sb-zoom"><div class="sbdot b"></div>100%</div>
   <div class="sbi" id="sb-tool">Highlight</div>
   <div id="sb-measure"></div>
-  <div style="flex:1"></div>
+  <div class="sbi" id="sb-hint" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Click and drag to scroll &middot; drag any annotation to move it &middot; Space to temporarily pan</div>
   <div class="sbi" id="sb-scale" style="cursor:pointer;color:var(--blue-500)" onclick="openM('mscale')" title="Set drawing scale">⚖ Scale: unset</div>
   <div class="sbi" id="sb-count">0 annotations</div>
   <div class="sbi" id="sb-pos">—</div>
@@ -2089,10 +2072,7 @@ async function autoDetectTitleBlock() {
 
     measureScale = { pxPerUnit: pxPerMm * 1000 / ratio, unit: 'm' };
     localStorage.setItem('engdoc_scale', JSON.stringify(measureScale));
-    const scaleTxt = `⚖ 1:${ratio} (m)`;
-    document.getElementById('sb-scale').textContent = scaleTxt;
-    const ratScaleEl = document.getElementById('rat-scale');
-    if (ratScaleEl) ratScaleEl.textContent = scaleTxt;
+    document.getElementById('sb-scale').textContent = `⚖ 1:${ratio} (m)`;
     detected++;
     toast(`✓ Scale auto-set: 1:${ratio} — measuring in metres`, 3500);
   }
@@ -6028,11 +6008,8 @@ async function idbSave() {
     };
     const tx = idb.transaction('sessions', 'readwrite');
     tx.objectStore('sessions').put(data);
-    const dot  = document.getElementById('autosave-dot');
-    const dot2 = document.getElementById('rat-autosave');
-    [dot, dot2].forEach(d => {
-      if (d) { d.classList.add('pulse'); setTimeout(() => d.classList.remove('pulse'), 1500); }
-    });
+    const dot = document.getElementById('autosave-dot');
+    if (dot) { dot.classList.add('pulse'); setTimeout(() => dot.classList.remove('pulse'), 1500); }
     const sbAs = document.getElementById('sb-autosave');
     if (sbAs) sbAs.textContent = '\u2713 ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
   } catch(e) { /* quota exceeded or idb error — silent */ }
@@ -7609,11 +7586,9 @@ setTool = function(t) {
   const erBtn = document.getElementById('t-erase');
   if (erBtn && t !== 'erase') erBtn.classList.add('eraser-active');
 
-  // Update active tool strip
-  const ratName = document.getElementById('rat-name');
-  const ratHint = document.getElementById('rat-hint');
-  if (ratName) ratName.textContent = typeLabels[t] || t;
-  if (ratHint) ratHint.textContent = TOOL_HINTS[t] || '';
+  // Update status bar tool hint
+  const sbHint = document.getElementById('sb-hint');
+  if (sbHint) sbHint.textContent = TOOL_HINTS[t] || '';
 
   // Auto-switch ribbon tab to match tool
   const targetTab = TOOL_TABS[t];
@@ -7655,51 +7630,13 @@ const _origApplyZoomBase = applyZoom;
 applyZoom = async function(val) {
   await _origApplyZoomBase(val);
   const pct = Math.round(zoom * 100) + '%';
-  const ratZoom = document.getElementById('rat-zoom');
   const sbZoom  = document.getElementById('sb-zoom');
-  const zoomVal = document.getElementById('sb-zoom-val');
-  if (ratZoom) ratZoom.textContent = pct;
   if (sbZoom)  sbZoom.innerHTML = '<div class="sbdot b"></div>' + pct;
-  if (zoomVal) zoomVal.textContent = pct;
   const sel = document.getElementById('zsel');
   if (sel && !isNaN(parseFloat(val))) sel.value = String(parseFloat(val));
   // Update measure labels in-place (no DOM rebuild)
   recalcMeasureLabels();
 };
-
-// Patch updateStatusCount to also update ribbon strip
-const _origUpdateStatusCount = updateStatusCount;
-updateStatusCount = function() {
-  _origUpdateStatusCount();
-  const txt = `${annots.length} annotation${annots.length !== 1 ? 's' : ''}`;
-  const el = document.getElementById('rat-count');
-  if (el) el.textContent = txt;
-};
-
-// Patch scale display to update both ribbon strip and status bar
-const _origApplyScale = applyScale;
-applyScale = function() {
-  _origApplyScale();
-  updateRibbonScale();
-};
-function updateRibbonScale() {
-  const ratScale = document.getElementById('rat-scale');
-  const sbScale  = document.getElementById('sb-scale');
-  const ratR     = document.getElementById('sb-scale-r');
-  if (measureScale) {
-    const txt = '⚖ 1:set (' + measureScale.unit + ')';
-    if (ratScale) ratScale.textContent = txt;
-    if (sbScale)  sbScale.textContent = txt;
-    if (ratR)     ratR.innerHTML = '<strong style="color:var(--blue-600)">1:set (' + measureScale.unit + ')</strong>';
-  }
-}
-
-// Mouse position: mirror sb-pos to rat-pos
-document.getElementById('viewer').addEventListener('mousemove', () => {
-  const sbPos  = document.getElementById('sb-pos');
-  const ratPos = document.getElementById('rat-pos');
-  if (sbPos && ratPos) ratPos.textContent = sbPos.textContent;
-});
 
 // ═══════════════════════════════════════════════
 //  MARQUEE ZOOM

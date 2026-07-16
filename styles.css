@@ -87,9 +87,9 @@ body.dark select, body.dark input { color-scheme: dark; }
 /* Area tool */
 .area-preview { position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10; }
 /* Autosave indicator */
-#autosave-dot, #rat-autosave { width:6px;height:6px;border-radius:50%;background:#22c55e;
+#autosave-dot { width:6px;height:6px;border-radius:50%;background:#22c55e;
   opacity:0;transition:opacity .5s;flex-shrink:0; }
-#autosave-dot.pulse, #rat-autosave.pulse { opacity:1; }
+#autosave-dot.pulse { opacity:1; }
 .aoverlay.cur-move { cursor: move; }
 .aoverlay.cur-zoombox { cursor: crosshair; }
 [data-aid].moveable { cursor: move; }
@@ -420,21 +420,6 @@ body{font-family:var(--font);background:var(--gray-100);color:var(--gray-900);
   width:72px;
 }
 .rzoom:focus { outline:none;border-color:var(--blue-500); }
-
-/* Active tool indicator strip — bottom of ribbon */
-#ribbon-activetool {
-  height:24px;
-  background:var(--gray-50);
-  border-top:1px solid var(--gray-100);
-  display:flex;align-items:center;
-  padding:0 12px;gap:8px;
-  font-size:11px;color:var(--gray-500);
-}
-#rat-name {
-  font-weight:600;color:var(--blue-600);
-  font-family:var(--mono);font-size:10.5px;
-}
-.rat-hint { color:var(--gray-400);font-size:10px; }
 
 /* ── HEADER PAGE NAV ─────────────────────── */
 #hdr-page-nav {

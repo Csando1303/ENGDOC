@@ -752,6 +752,25 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
 .an-act-btn.danger { Color: var(--red-500); }
 .an-act-btn.danger:hover { background: var(--red-50); border-Color: #fca5a5; }
 
+/* Marker shown at the arrow-tip click while placing a note (before the
+   second click sets where the note box itself goes) */
+.note-leader-pending {
+  position: absolute;
+  width: 10px; height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--blue-500, #3b82f6);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--blue-500, #3b82f6), 0 1px 4px rgba(0,0,0,.35);
+  pointer-events: none;
+  z-index: 6;
+  animation: note-leader-pulse 1s ease-in-out infinite;
+}
+@keyframes note-leader-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: .6; }
+}
+
 /* Leader SVG — sits behind the note box */
 .an-leader {
   position: absolute;

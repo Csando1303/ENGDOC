@@ -19,7 +19,8 @@ let fontSize = 12;
 let annotOpacity = 80;
 let lineStyle = 'solid'; // 'solid' | 'dashed' | 'dotted' — applies to line/arrow/rect/circle
 let _openBubbleId  = null;
-let _leaderPlaceId = null;
+let _notePendingLeader = null; // { x, y, pageNum } — arrow tip placed, waiting for the note-box click
+let _notePendingMarker = null; // DOM cue shown at the pending leader tip
 let annots = [];
 let mergeFiles = [];
 let annotIdSeq = 0;
@@ -208,6 +209,11 @@ function openM(id)  { document.getElementById(id).classList.add('open'); }
 function closeM(id) { document.getElementById(id).classList.remove('open'); }
 function hideCtx()  { document.getElementById('ctx-menu').classList.remove('open'); }
 function hideQuickToolbar() { document.getElementById('ctx-quickbar').classList.remove('open'); }
+function cancelPendingNoteLeader() {
+  _notePendingLeader = null;
+  _notePendingMarker?.remove();
+  _notePendingMarker = null;
+}
 
 /* ═══════════════════════════════════════════════
    FILE OPEN
@@ -1680,6 +1686,8 @@ function setTool(t) {
 
   // Clear any active selection when switching away from select
   if (tool === 'select' && t !== 'select') clearTextSelection();
+  // Cancel an in-progress note placement (arrow tip set, box not yet clicked)
+  if (t !== 'note' && _notePendingLeader) cancelPendingNoteLeader();
 
   refreshAnnotPointerEvents();
 }
@@ -1811,8 +1819,34 @@ function attachEvents(ov, pageNum, _vpInitial) {
     const r = ov.getBoundingClientRect();
     const ox = e.clientX - r.left, oy = e.clientY - r.top;
 
-    // ── NOTE / TEXT: always click-only — show popover immediately ──
-    if (tool === 'note' || tool === 'text') {
+    // ── NOTE: two clicks — first places the arrow tip, second places the note
+    // box (anchored back to that tip), then the text popover opens ──
+    if (tool === 'note') {
+      const px = ox / vp.width * 100, py = oy / vp.height * 100;
+      if (!_notePendingLeader || _notePendingLeader.pageNum !== pageNum) {
+        _notePendingMarker?.remove();
+        _notePendingLeader = { x: px, y: py, pageNum };
+        const dot = document.createElement('div');
+        dot.className = 'note-leader-pending';
+        dot.style.cssText = 'left:' + px + '%;top:' + py + '%';
+        ov.appendChild(dot);
+        _notePendingMarker = dot;
+        toast('Click again to place the note · Esc to cancel', 3000);
+        return;
+      }
+      const leader = _notePendingLeader;
+      _notePendingLeader = null;
+      _notePendingMarker?.remove(); _notePendingMarker = null;
+      showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
+        pushAnnot({ id: nextId(), pageNum, type: 'note', x: px, y: py,
+          leaderX: leader.x, leaderY: leader.y,
+          text: txt, Color, fontSize, ...emmaFields });
+      });
+      return;
+    }
+
+    // ── TEXT: always click-only — show popover immediately ──
+    if (tool === 'text') {
       const px = ox / vp.width * 100, py = oy / vp.height * 100;
       showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
         pushAnnot({ id: nextId(), pageNum, type: tool, x: px, y: py,
@@ -2318,6 +2352,7 @@ document.addEventListener('keydown', e => {
 
   if (e.key === 'Escape') {
     hideCtx(); hideQuickToolbar(); txtPopCancel();
+    if (_notePendingLeader) { cancelPendingNoteLeader(); toast('Note placement cancelled'); }
     if (measureState !== 'idle') {
       if (measureLiveSvg) { measureLiveSvg.remove(); measureLiveSvg = null; }
       measureState = 'idle'; measureP1 = null; measureP2 = null; measurePageNum = null;
@@ -2529,42 +2564,6 @@ function buildNoteLeaderSvg(a, ov) {
 function openNoteBubble() {}
 function _bubbleOutsideHandler() {}
 function closeNoteBubble() { _openBubbleId = null; }
-
-function startLeaderPlacement(annotId, ov) {
-  _leaderPlaceId = annotId;
-  // Visual cue
-  toast('Click anywhere on the drawing to place the note arrow tip · Esc to cancel', 4000);
-  ov.style.cursor = 'crosshair';
-
-  const onLeaderClick = ev => {
-    if (_leaderPlaceId === null) return;
-    ev.stopPropagation();
-    const r = ov.getBoundingClientRect();
-    const mx = (ev.clientX - r.left) / ov.offsetWidth  * 100;
-    const my = (ev.clientY - r.top)  / ov.offsetHeight * 100;
-    const ann = annots.find(x => x.id === _leaderPlaceId);
-    if (ann) {
-      ann.leaderX = mx;
-      ann.leaderY = my;
-      syncAnnots(); pushHistory();
-    }
-    _leaderPlaceId = null;
-    ov.style.cursor = '';
-    ov.removeEventListener('click', onLeaderClick, true);
-  };
-
-  const onEsc = ev => {
-    if (ev.key === 'Escape') {
-      _leaderPlaceId = null;
-      ov.style.cursor = '';
-      ov.removeEventListener('click', onLeaderClick, true);
-      document.removeEventListener('keydown', onEsc);
-    }
-  };
-
-  ov.addEventListener('click', onLeaderClick, true);
-  document.addEventListener('keydown', onEsc);
-}
 
 // ── Overlay-level right-click handler — works in ALL tool modes ──
 // Attached once per overlay. Uses capture phase so pointer-events:none is irrelevant.
@@ -2837,35 +2836,13 @@ function buildAnnotEl(a) {
     editBtn.textContent = 'Edit';
     editBtn.onclick = ev => { ev.stopPropagation(); editAnnotById(a.id); };
 
-    const leaderBtn = document.createElement('button');
-    leaderBtn.className = 'an-act-btn';
-    leaderBtn.textContent = a.leaderX !== undefined ? '↗ Arrow' : '+ Arrow';
-    leaderBtn.title = 'Click on drawing to place leader arrow';
-    leaderBtn.onclick = ev => {
-      ev.stopPropagation();
-      const ov = el.closest('.aoverlay');
-      startLeaderPlacement(a.id, ov);
-    };
-
     const delBtn = document.createElement('button');
     delBtn.className = 'an-act-btn danger';
     delBtn.textContent = '✕';
     delBtn.title = 'Delete note';
     delBtn.onclick = ev => { ev.stopPropagation(); deleteAnnotById(a.id); };
 
-    if (a.leaderX !== undefined) {
-      const rmBtn = document.createElement('button');
-      rmBtn.className = 'an-act-btn';
-      rmBtn.textContent = '✕ Arrow';
-      rmBtn.onclick = ev => {
-        ev.stopPropagation();
-        a.leaderX = undefined; a.leaderY = undefined;
-        syncAnnots(); pushHistory();
-      };
-      actions.appendChild(rmBtn);
-    }
     actions.appendChild(editBtn);
-    actions.appendChild(leaderBtn);
     actions.appendChild(delBtn);
     el.appendChild(actions);
 
@@ -6522,7 +6499,7 @@ const TOOL_HINTS = {
   line:         'Drag to draw a straight line · Shift = constrain to horizontal / vertical / 45°',
   callout:      'Drag to place the callout box · then click to set the leader point · type text',
   textbox:      'Drag to set the text box size · then type your text · font size in Style group',
-  note:         'Click to place a note · hover to Edit / add Arrow · drag the ● tip handle to reposition the arrow',
+  note:         'Click to place the arrow tip, click again to place the note · drag the ● tip handle to reposition the arrow',
   text:         'Click to place a text label · click label to edit',
   pen:          'Click and drag to draw freehand · release to commit',
   arrow:        'Drag to draw an arrow with arrowhead · snap to annotations nearby',

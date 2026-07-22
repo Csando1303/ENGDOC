@@ -2611,7 +2611,7 @@ function attachOverlayCtxMenu(ov) {
 // of requiring a trip back up to the ribbon.
 function openQuickToolbar(cx, cy) {
   const bar = document.getElementById('ctx-quickbar');
-  bar.querySelectorAll('.qtb-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
+  bar.querySelectorAll('.qtb-item').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
   bar.style.left = '0'; bar.style.top = '0';
   bar.classList.add('open');
   const bw = bar.offsetWidth, bh = bar.offsetHeight;

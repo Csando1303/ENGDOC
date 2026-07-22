@@ -2851,6 +2851,7 @@ function buildAnnotEl(a) {
     const body = document.createElement('div');
     body.className = 'an-body';
     body.style.fontSize = (a.fontSize || 11.5) + 'px';
+    body.style.color = c;
     body.textContent = a.text || '';
     el.appendChild(body);
 

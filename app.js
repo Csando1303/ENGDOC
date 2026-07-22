@@ -73,8 +73,8 @@ const renderQueue = new Set();
 let renderScheduled = false;
 const OVERSCAN = 2; // extra pages above/below viewport to pre-render
 
-const CVals = { yellow: 'rgba(251,191,36,.38)', green: 'rgba(56,247,31,.32)', red: 'rgba(250,25,59,.36)', blue: 'rgba(37,99,235,.32)', teal: 'rgba(45,212,191,.32)', rose: 'rgba(251,113,133,.36)' };
-const CHex  = { yellow: '#fbbf24', green: '#38f71f', red: '#fa193b', blue: '#2563eb', teal: '#2dd4bf', rose: '#fb7185' };
+const CVals = { yellow: 'rgba(251,191,36,.38)', green: 'rgba(56,247,31,.32)', red: 'rgba(250,25,59,.36)', blue: 'rgba(37,99,235,.32)', black: 'rgba(0,0,0,.35)', teal: 'rgba(45,212,191,.32)', rose: 'rgba(251,113,133,.36)' };
+const CHex  = { yellow: '#fbbf24', green: '#38f71f', red: '#fa193b', blue: '#2563eb', black: '#000000', teal: '#2dd4bf', rose: '#fb7185' };
 
 // ── Colour resolution — supports both named presets (above) and
 //    arbitrary custom hex strings stored directly as an annotation's Color ──
@@ -1791,7 +1791,7 @@ function setColor(c) {
     if (swatch) swatch.style.background = colorHex(c);
   }
   // If the style popover is open, refresh its preset swatches' active state
-  const presetMap = { yellow: 'cy', green: 'cg', red: 'cr', blue: 'cb' };
+  const presetMap = { yellow: 'cy', green: 'cg', red: 'cr', blue: 'cb', black: 'ck' };
   document.querySelectorAll('#sp-body .rcsw').forEach(s => {
     const cls = Object.values(presetMap).find(k => s.classList.contains(k));
     s.classList.toggle('active', cls === presetMap[c]);
@@ -3959,7 +3959,7 @@ async function exportAnnotatedPdf() {
     };
 
     // Fallback fill tints for named presets (custom hex colours use tintHex() instead)
-    const FILL = { yellow: '#fef9c3', green: '#dcfce1', red: '#fee0e5', blue: '#dbeafe', teal: '#ccfbf1', rose: '#ffe4e6' };
+    const FILL = { yellow: '#fef9c3', green: '#dcfce1', red: '#fee0e5', blue: '#dbeafe', black: '#e9ecef', teal: '#ccfbf1', rose: '#ffe4e6' };
 
     // Group annotations by page
     const byPage = {};
@@ -6620,13 +6620,14 @@ setTool = function(t) {
   if (mobLabel) mobLabel.textContent = Math.round(zoom * 100) + '%';
 };
 
-// Number key Color shortcuts (1=yellow, 2=green, 3=red, 4=blue)
+// Number key Color shortcuts (1=yellow, 2=green, 3=red, 4=blue, 5=black)
 document.addEventListener('keydown', e => {
   if (e.target.closest('input,textarea,select')) return;
   if (e.key === '1') setColor('yellow');
   if (e.key === '2') setColor('green');
   if (e.key === '3') setColor('red');
   if (e.key === '4') setColor('blue');
+  if (e.key === '5') setColor('black');
 });
 
 // ═══════════════════════════════════════════════
@@ -6711,6 +6712,7 @@ function renderStylePopover() {
       '<div class="rcsw cg' + (curColor==='green'?' active':'') + '" onclick="setColor(\'green\');_spCommit()" title="Green (2)"></div>' +
       '<div class="rcsw cr' + (curColor==='red'?' active':'') + '" onclick="setColor(\'red\');_spCommit()" title="Red (3)"></div>' +
       '<div class="rcsw cb' + (curColor==='blue'?' active':'') + '" onclick="setColor(\'blue\');_spCommit()" title="Blue (4)"></div>' +
+      '<div class="rcsw ck' + (curColor==='black'?' active':'') + '" onclick="setColor(\'black\');_spCommit()" title="Black (5)"></div>' +
     '</div>' +
     '<canvas id="sp-sv" width="176" height="90"></canvas>' +
     '<input type="range" id="sp-hue" min="0" max="360" value="45">' +

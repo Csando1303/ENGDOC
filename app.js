@@ -2478,8 +2478,7 @@ function buildNoteLeaderSvg(a, ov) {
   // Get the rendered pin element to find its actual pixel position
   const pin = ov.querySelector('[data-aid="' + a.id + '"]');
 
-  // Anchor point: bottom-left corner of the note box in CSS px
-  // a.x, a.y are percentages of the overlay
+  // Top-left corner of the note box in CSS px — a.x, a.y are percentages of the overlay
   const anchorPxX = a.x / 100 * vp.width;
   const anchorPxY = a.y / 100 * vp.height;
 
@@ -2491,18 +2490,9 @@ function buildNoteLeaderSvg(a, ov) {
   const tipPxX = a.leaderX / 100 * vp.width;
   const tipPxY = a.leaderY / 100 * vp.height;
 
-  // Choose the anchor corner closest to the tip
-  const corners = [
-    [anchorPxX,         anchorPxY        ],  // top-left
-    [anchorPxX + boxW,  anchorPxY        ],  // top-right
-    [anchorPxX,         anchorPxY + boxH ],  // bottom-left
-    [anchorPxX + boxW,  anchorPxY + boxH ],  // bottom-right
-  ];
-  const [fromX, fromY] = corners.reduce((best, corner) => {
-    const d = Math.hypot(corner[0] - tipPxX, corner[1] - tipPxY);
-    const bd = Math.hypot(best[0]  - tipPxX, best[1]  - tipPxY);
-    return d < bd ? corner : best;
-  }, corners[2]); // default bottom-left
+  // Anchor at the note box's centre, regardless of which side the tip is on
+  const fromX = anchorPxX + boxW / 2;
+  const fromY = anchorPxY + boxH / 2;
 
   // Build SVG in pixel space — fills the overlay exactly
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -7066,7 +7056,8 @@ function wireMoveOverlay(el, ann, ov) {
       }
       if (orig.points) ann.points = orig.points.map(p => ({ x: p.x + dx/100, y: p.y + dy/100 }));
       if (orig.lx !== undefined) { ann.lx = orig.lx + dx; ann.ly = orig.ly + dy; }
-      if (orig.leaderX !== undefined) { ann.leaderX = orig.leaderX + dx; ann.leaderY = orig.leaderY + dy; }
+      // Note leader arrow tip is NOT translated with the note box — it stays
+      // pointing at the same fixed spot on the drawing while the box moves.
 
       // Move ghost live
       if (ghost) {

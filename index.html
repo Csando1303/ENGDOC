@@ -620,12 +620,9 @@
     Resize image
   </div>
   <div class="ctx-sep"></div>
-  <div class="ctx-item" id="ctx-col-label" style="pointer-events:none;opacity:.5;font-size:10px;padding:4px 14px;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono)">Color</div>
-  <div style="display:flex;gap:8px;padding:4px 14px 8px">
-    <div class="ctx-csw" style="background:#fbbf24" onclick="ctxSetColor('yellow')" title="Yellow"></div>
-    <div class="ctx-csw" style="background:#40d42d" onclick="ctxSetColor('green')"   title="Green"></div>
-    <div class="ctx-csw" style="background:#f81234" onclick="ctxSetColor('red')"   title="Red"></div>
-    <div class="ctx-csw" style="background: #2563eb" onclick="ctxSetColor('blue')" title="Blue"></div>
+  <div class="ctx-item" id="ctx-style" onclick="ctxOpenStyle(event)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.4 0 2-1 2-2 0-.5-.2-1-.5-1.4-.3-.4-.5-.9-.5-1.4 0-1 .8-1.8 1.8-1.8H17c2.8 0 5-2.2 5-5C22 6.5 17.5 2 12 2z"/></svg>
+    Style…
   </div>
   <div class="ctx-sep"></div>
   <div class="ctx-item" id="ctx-status-label" style="pointer-events:none;opacity:.5;font-size:10px;padding:4px 14px;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono)">Status</div>

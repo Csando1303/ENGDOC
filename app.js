@@ -19,6 +19,7 @@ let fontSize = 12;
 let annotOpacity = 80;
 let lineStyle = 'solid'; // 'solid' | 'dashed' | 'dotted' — applies to line/arrow/rect/circle
 let _openBubbleId  = null;
+let _spTargetAnnotId = null; // set while the style popover is editing one specific annotation (right-click → Style), vs the global "next annotation" style
 let _notePendingLeader = null; // { x, y, pageNum } — arrow tip placed, waiting for the note-box click
 let _notePendingMarker = null; // DOM cue shown at the pending leader tip
 let annots = [];
@@ -1766,9 +1767,14 @@ function refreshAnnotPointerEvents() {
 }
 
 function setColor(c) {
-  Color = c;
-  const swatch = document.getElementById('style-trigger-swatch');
-  if (swatch) swatch.style.background = colorHex(c);
+  const a = _spTarget();
+  if (a) {
+    a.Color = c; syncAnnots();
+  } else {
+    Color = c;
+    const swatch = document.getElementById('style-trigger-swatch');
+    if (swatch) swatch.style.background = colorHex(c);
+  }
   // If the style popover is open, refresh its preset swatches' active state
   const presetMap = { yellow: 'cy', green: 'cg', red: 'cr', blue: 'cb' };
   document.querySelectorAll('#sp-body .rcsw').forEach(s => {
@@ -1778,11 +1784,15 @@ function setColor(c) {
 }
 
 function setFontSize(v) {
-  fontSize = parseInt(v) || 12;
+  const n = parseInt(v) || 12;
+  const a = _spTarget();
+  if (a) { a.fontSize = n; syncAnnots(); } else { fontSize = n; }
 }
 
 function setOpacity(v) {
-  annotOpacity = parseInt(v) || 80;
+  const n = parseInt(v) || 80;
+  const a = _spTarget();
+  if (a) { a.opacity = n; syncAnnots(); } else { annotOpacity = n; }
 }
 
 /* ═══════════════════════════════════════════════
@@ -2351,7 +2361,7 @@ document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveSession(); return; }
 
   if (e.key === 'Escape') {
-    hideCtx(); hideQuickToolbar(); txtPopCancel();
+    hideCtx(); hideQuickToolbar(); txtPopCancel(); closeStylePopover();
     if (_notePendingLeader) { cancelPendingNoteLeader(); toast('Note placement cancelled'); }
     if (measureState !== 'idle') {
       if (measureLiveSvg) { measureLiveSvg.remove(); measureLiveSvg = null; }
@@ -3519,6 +3529,13 @@ function ctxResizeImage() {
   ctxAnnotId = null;
 }
 
+function ctxOpenStyle(ev) {
+  if (ctxAnnotId == null) { hideCtx(); return; }
+  const id = ctxAnnotId;
+  hideCtx(); ctxAnnotId = null;
+  openAnnotStylePopover(id, ev.clientX, ev.clientY);
+}
+
 function ctxDuplicate() {
   if (ctxAnnotId == null) { hideCtx(); return; }
   if (!src) { hideCtx(); return; }
@@ -3530,13 +3547,6 @@ function ctxDuplicate() {
   if (copy.points) copy.points = copy.points.map(p => ({ x: p.x + 0.02, y: p.y + 0.02 }));
   pushAnnot(copy);
   toast('Annotation duplicated');
-  hideCtx(); ctxAnnotId = null;
-}
-
-function ctxSetColor(c) {
-  if (ctxAnnotId == null) { hideCtx(); return; }
-  const a = annots.find(x => x.id === ctxAnnotId);
-  if (a) { a.Color = c; syncAnnots(); pushHistory(); }
   hideCtx(); ctxAnnotId = null;
 }
 
@@ -6533,6 +6543,8 @@ function switchRibbon(tab, btn) {
 let _strokeW = 4;
 function strokeW() { return _strokeW; }
 function setStrokeW(val) {
+  const a = _spTarget();
+  if (a) { a.sw = val; syncAnnots(); return; }
   _strokeW = val;
   // Keep hidden select in sync
   const sel = document.getElementById('stroke-w');
@@ -6600,6 +6612,7 @@ function toggleStylePopover(e) {
   e.stopPropagation();
   const pop = document.getElementById('style-popover');
   if (pop.classList.contains('open')) { closeStylePopover(); return; }
+  _spTargetAnnotId = null; // ribbon trigger always edits the default style for the next annotation
   renderStylePopover();
   const r = e.currentTarget.getBoundingClientRect();
   pop.style.left = '0px'; pop.style.top = '0px';
@@ -6612,8 +6625,29 @@ function toggleStylePopover(e) {
   pop.style.left = left + 'px';
   pop.style.top  = top + 'px';
 }
+
+// Right-click → Style… opens the same popover, but scoped to one existing
+// annotation: every control mutates that annotation directly (with a single
+// history entry on release) instead of the global "next annotation" style.
+function openAnnotStylePopover(annotId, cx, cy) {
+  _spTargetAnnotId = annotId;
+  const pop = document.getElementById('style-popover');
+  renderStylePopover();
+  pop.style.left = '0px'; pop.style.top = '0px';
+  pop.classList.add('open');
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(cx, window.innerWidth  - pw - 8)) + 'px';
+  pop.style.top  = Math.max(8, Math.min(cy, window.innerHeight - ph - 8)) + 'px';
+}
 function closeStylePopover() {
   document.getElementById('style-popover').classList.remove('open');
+  _spTargetAnnotId = null;
+}
+function _spTarget() {
+  return _spTargetAnnotId != null ? annots.find(x => x.id === _spTargetAnnotId) : null;
+}
+function _spCommit() {
+  if (_spTargetAnnotId != null) pushHistory();
 }
 document.addEventListener('mousedown', e => {
   const pop = document.getElementById('style-popover');
@@ -6622,54 +6656,81 @@ document.addEventListener('mousedown', e => {
   }
 });
 
+const SP_STROKE_TYPES  = ['rect','circle','line','arrow','cloud','pen','measure','area'];
+const SP_FONT_TYPES    = ['note','text','textbox','callout'];
+const SP_OPACITY_TYPES = ['highlight','rectfill','note','text','textbox','callout'];
+
 function renderStylePopover() {
   const body = document.getElementById('sp-body');
   const presets = [8,10,12,14,16,20,24];
   const strokePresets = [{v:2,lbl:'Fine'},{v:4,lbl:'Med'},{v:8,lbl:'Thick'},{v:14,lbl:'Bold'}];
+
+  const target   = _spTarget();
+  const curColor = target ? target.Color             : Color;
+  const curStroke= target ? (target.sw ?? _strokeW)  : _strokeW;
+  const curLine  = target ? (target.lineStyle || 'solid') : lineStyle;
+  const curFont  = target ? (target.fontSize || 12)  : fontSize;
+  const curOpac  = target ? (target.opacity || 80)   : annotOpacity;
+
+  const showStroke  = !target || SP_STROKE_TYPES.includes(target.type);
+  const showFont    = !target || SP_FONT_TYPES.includes(target.type);
+  const showOpacity = !target || SP_OPACITY_TYPES.includes(target.type);
+
   body.innerHTML =
+    (target ? '<div class="sp-label" style="opacity:.6;margin-bottom:6px">Editing ' +
+      (typeLabels[target.type] || target.type) + '</div>' : '') +
     '<div class="sp-label">Colour</div>' +
     '<div class="sp-row" style="margin-bottom:8px">' +
-      '<div class="rcsw cy' + (Color==='yellow'?' active':'') + '" onclick="setColor(\'yellow\')" title="Yellow (1)"></div>' +
-      '<div class="rcsw cg' + (Color==='green'?' active':'') + '" onclick="setColor(\'green\')" title="Green (2)"></div>' +
-      '<div class="rcsw cr' + (Color==='red'?' active':'') + '" onclick="setColor(\'red\')" title="Red (3)"></div>' +
-      '<div class="rcsw cb' + (Color==='blue'?' active':'') + '" onclick="setColor(\'blue\')" title="Blue (4)"></div>' +
+      '<div class="rcsw cy' + (curColor==='yellow'?' active':'') + '" onclick="setColor(\'yellow\');_spCommit()" title="Yellow (1)"></div>' +
+      '<div class="rcsw cg' + (curColor==='green'?' active':'') + '" onclick="setColor(\'green\');_spCommit()" title="Green (2)"></div>' +
+      '<div class="rcsw cr' + (curColor==='red'?' active':'') + '" onclick="setColor(\'red\');_spCommit()" title="Red (3)"></div>' +
+      '<div class="rcsw cb' + (curColor==='blue'?' active':'') + '" onclick="setColor(\'blue\');_spCommit()" title="Blue (4)"></div>' +
     '</div>' +
     '<canvas id="sp-sv" width="176" height="90"></canvas>' +
     '<input type="range" id="sp-hue" min="0" max="360" value="45">' +
     '<div class="sp-row"><div id="sp-preview"></div><input id="sp-hex" type="text" maxlength="7" value="#fbbf24"></div>' +
     '<div id="sp-recents"></div>' +
 
+    (showStroke ?
     '<div class="sp-label" style="margin-top:4px">Line width</div>' +
     '<div class="sp-presets">' + strokePresets.map(p =>
-      '<button class="sp-preset-btn' + (_strokeW === p.v ? ' active' : '') + '" onclick="applyStrokePreset(' + p.v + ')">' + p.lbl + '</button>'
+      '<button class="sp-preset-btn' + (curStroke === p.v ? ' active' : '') + '" onclick="applyStrokePreset(' + p.v + ')">' + p.lbl + '</button>'
     ).join('') + '</div>' +
-    '<div class="sp-row"><input type="range" id="sp-stroke" min="1" max="24" value="' + _strokeW + '">' +
-    '<span id="sp-stroke-val" style="font-family:var(--mono);font-size:11px;width:34px;text-align:right">' + _strokeW + 'px</span></div>' +
+    '<div class="sp-row"><input type="range" id="sp-stroke" min="1" max="24" value="' + curStroke + '">' +
+    '<span id="sp-stroke-val" style="font-family:var(--mono);font-size:11px;width:34px;text-align:right">' + curStroke + 'px</span></div>' +
     '<div id="sp-stroke-preview"></div>' +
 
     '<div class="sp-label" style="margin-top:10px">Line style</div>' +
     '<div class="sp-presets">' +
-      '<button class="sp-preset-btn' + (lineStyle==='solid'?' active':'') + '" onclick="applyLineStyle(\'solid\')">Solid</button>' +
-      '<button class="sp-preset-btn' + (lineStyle==='dashed'?' active':'') + '" onclick="applyLineStyle(\'dashed\')">Dashed</button>' +
-      '<button class="sp-preset-btn' + (lineStyle==='dotted'?' active':'') + '" onclick="applyLineStyle(\'dotted\')">Dotted</button>' +
-    '</div>' +
+      '<button class="sp-preset-btn' + (curLine==='solid'?' active':'') + '" onclick="applyLineStyle(\'solid\')">Solid</button>' +
+      '<button class="sp-preset-btn' + (curLine==='dashed'?' active':'') + '" onclick="applyLineStyle(\'dashed\')">Dashed</button>' +
+      '<button class="sp-preset-btn' + (curLine==='dotted'?' active':'') + '" onclick="applyLineStyle(\'dotted\')">Dotted</button>' +
+    '</div>' : '') +
 
+    (showFont ?
     '<div class="sp-label" style="margin-top:10px">Font size</div>' +
     '<div class="sp-presets">' + presets.map(v =>
-      '<button class="sp-preset-btn' + (v === fontSize ? ' active' : '') + '" onclick="applyFontPreset(' + v + ')">' + v + 'pt</button>'
+      '<button class="sp-preset-btn' + (v === curFont ? ' active' : '') + '" onclick="applyFontPreset(' + v + ')">' + v + 'pt</button>'
     ).join('') + '</div>' +
-    '<div class="sp-row"><input type="number" id="sp-font-input" min="6" max="96" value="' + fontSize + '">' +
-    '<span style="font-size:10px;color:var(--gray-500)">pt</span></div>' +
+    '<div class="sp-row"><input type="number" id="sp-font-input" min="6" max="96" value="' + curFont + '">' +
+    '<span style="font-size:10px;color:var(--gray-500)">pt</span></div>' : '') +
 
+    (showOpacity ?
     '<div class="sp-label" style="margin-top:10px">Opacity</div>' +
-    '<input type="range" id="sp-opacity" min="20" max="100" value="' + annotOpacity + '" step="10">';
+    '<input type="range" id="sp-opacity" min="20" max="100" value="' + curOpac + '" step="10">' : '');
 
   initColorPopover();
-  initStrokePopover();
-  document.getElementById('sp-opacity').oninput = e => setOpacity(e.target.value);
-  const fi = document.getElementById('sp-font-input');
-  fi.addEventListener('keydown', e => { if (e.key === 'Enter') applyCustomFont(); });
-  fi.addEventListener('blur', applyCustomFont);
+  if (showStroke) initStrokePopover();
+  if (showOpacity) {
+    const op = document.getElementById('sp-opacity');
+    op.oninput  = e => setOpacity(e.target.value);
+    op.onchange = () => _spCommit();
+  }
+  if (showFont) {
+    const fi = document.getElementById('sp-font-input');
+    fi.addEventListener('keydown', e => { if (e.key === 'Enter') applyCustomFont(); });
+    fi.addEventListener('blur', applyCustomFont);
+  }
 }
 
 // ── Colour section: HSV square + hue slider + hex input + recents ──
@@ -6705,7 +6766,7 @@ function initColorPopover() {
   canvas.onmousedown = e => { dragging = true; pick(e); };
   window.addEventListener('mousemove', e => { if (dragging) pick(e); });
   window.addEventListener('mouseup', () => {
-    if (dragging) addRecentColor(document.getElementById('sp-hex').value);
+    if (dragging) { addRecentColor(document.getElementById('sp-hex').value); _spCommit(); }
     dragging = false;
   });
   document.getElementById('sp-hex').addEventListener('input', e => {
@@ -6713,10 +6774,11 @@ function initColorPopover() {
     if (isHexColor(e.target.value)) setColor(e.target.value);
   });
   document.getElementById('sp-hex').addEventListener('change', e => {
-    if (isHexColor(e.target.value)) addRecentColor(e.target.value);
+    if (isHexColor(e.target.value)) { addRecentColor(e.target.value); _spCommit(); }
   });
   renderRecentColors();
-  setSpHex(isHexColor(Color) ? Color : '#fbbf24');
+  const startColor = _spTarget()?.Color ?? Color;
+  setSpHex(isHexColor(startColor) ? startColor : '#fbbf24');
 }
 function setSpHex(hex, updateInput = true) {
   if (!isHexColor(hex) && !updateInput) return;
@@ -6741,7 +6803,7 @@ function renderRecentColors() {
   const wrap = document.getElementById('sp-recents');
   if (!wrap) return;
   wrap.innerHTML = getRecentColors().map(hex =>
-    `<div class="sp-recent-sw" style="background:${hex}" onclick="setSpHex('${hex}');setColor('${hex}')" title="${hex}"></div>`
+    `<div class="sp-recent-sw" style="background:${hex}" onclick="setSpHex('${hex}');setColor('${hex}');_spCommit()" title="${hex}"></div>`
   ).join('');
 }
 
@@ -6757,6 +6819,7 @@ function initStrokePopover() {
     setStrokeW(parseInt(slider.value));
     document.querySelectorAll('#sp-body .sp-presets')[0]?.querySelectorAll('.sp-preset-btn').forEach(b => b.classList.remove('active'));
   };
+  slider.onchange = () => _spCommit();
 }
 function applyStrokePreset(v) {
   setStrokeW(v);
@@ -6764,11 +6827,14 @@ function applyStrokePreset(v) {
   if (slider) { slider.value = v; slider.dispatchEvent(new Event('input')); }
   document.querySelectorAll('#sp-body .sp-presets')[0]?.querySelectorAll('.sp-preset-btn').forEach(b =>
     b.classList.toggle('active', b.textContent === {2:'Fine',4:'Med',8:'Thick',14:'Bold'}[v]));
+  _spCommit();
 }
 function applyLineStyle(style) {
-  lineStyle = style;
+  const a = _spTarget();
+  if (a) { a.lineStyle = style; syncAnnots(); } else { lineStyle = style; }
   document.querySelectorAll('#sp-body .sp-presets')[1]?.querySelectorAll('.sp-preset-btn').forEach(b =>
     b.classList.toggle('active', b.textContent.toLowerCase() === style));
+  _spCommit();
 }
 
 // ── Font size section ──
@@ -6778,6 +6844,7 @@ function applyFontPreset(v) {
     b.classList.toggle('active', b.textContent === v + 'pt'));
   const fi = document.getElementById('sp-font-input');
   if (fi) fi.value = v;
+  _spCommit();
 }
 function applyCustomFont() {
   const fi = document.getElementById('sp-font-input');
@@ -6785,6 +6852,7 @@ function applyCustomFont() {
   const v = parseInt(fi.value);
   if (!v || v < 6 || v > 96) return;
   setFontSize(v);
+  _spCommit();
 }
 
 // Single applyZoom post-hook — updates ribbon, labels, and measure annotations

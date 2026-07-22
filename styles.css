@@ -1029,8 +1029,6 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
 .ctx-item:hover{background:var(--gray-100)}
 .ctx-item.danger{Color:var(--red-500)}
 .ctx-item.danger:hover{background:var(--red-50)}
-.ctx-csw{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .1s,border-Color .1s;flex-shrink:0}
-.ctx-csw:hover{transform:scale(1.2);border-Color:var(--gray-700)}
 .ctx-item svg{width:14px;height:14px;flex-shrink:0}
 .ctx-sep{height:1px;background:var(--gray-200);margin:3px 0}
 

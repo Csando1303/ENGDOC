@@ -1016,9 +1016,13 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
 #txt-pop textarea:focus{border-Color:var(--blue-500);box-shadow:0 0 0 2px var(--blue-50)}
 #txt-pop .pop-row{display:flex;gap:6px;justify-content:flex-end;align-items:center}
 
-/* Style row — colour / font size / opacity for the note or text being composed */
-#txtpop-style{display:flex;align-items:center;gap:12px;margin-bottom:8px;padding-bottom:8px;
+/* Style row — colour / font size / opacity for the note or text being composed.
+   Two stacked rows (not one flex row) so the opacity slider always gets the
+   full popover width instead of being squeezed to nothing — or overflowing
+   past the popover's edge — alongside the swatches and size controls. */
+#txtpop-style{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;padding-bottom:8px;
   border-bottom:1px solid var(--gray-200)}
+.txtpop-style-row{display:flex;align-items:center;gap:12px;min-width:0}
 .txtpop-style-group{display:flex;align-items:center;gap:4px;flex-shrink:0}
 #txtpop-swatches{gap:5px}
 #txtpop-hex{width:18px;height:18px;padding:0;border:none;border-radius:50%;cursor:pointer;

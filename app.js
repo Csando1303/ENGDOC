@@ -207,6 +207,7 @@ function toast(m, ms = 2600) {
 function openM(id)  { document.getElementById(id).classList.add('open'); }
 function closeM(id) { document.getElementById(id).classList.remove('open'); }
 function hideCtx()  { document.getElementById('ctx-menu').classList.remove('open'); }
+function hideQuickToolbar() { document.getElementById('ctx-quickbar').classList.remove('open'); }
 
 /* ═══════════════════════════════════════════════
    FILE OPEN
@@ -2316,7 +2317,7 @@ document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveSession(); return; }
 
   if (e.key === 'Escape') {
-    hideCtx(); txtPopCancel();
+    hideCtx(); hideQuickToolbar(); txtPopCancel();
     if (measureState !== 'idle') {
       if (measureLiveSvg) { measureLiveSvg.remove(); measureLiveSvg = null; }
       measureState = 'idle'; measureP1 = null; measureP2 = null; measurePageNum = null;
@@ -2600,8 +2601,27 @@ function attachOverlayCtxMenu(ov) {
       });
       if (hits.length) annotId = hits[hits.length - 1].id;
     }
-    if (annotId) { ev.stopPropagation(); openCtxMenu(annotId, ev.clientX, ev.clientY); }
+    if (annotId) { ev.stopPropagation(); hideQuickToolbar(); openCtxMenu(annotId, ev.clientX, ev.clientY); }
+    else { ev.stopPropagation(); hideCtx(); openQuickToolbar(ev.clientX, ev.clientY); }
   }, true); // capture — fires regardless of child pointer-events
+}
+
+// Right-click on empty drawing space (no annotation under the cursor) opens a
+// small floating toolbar for one-click access to the most-used tools, instead
+// of requiring a trip back up to the ribbon.
+function openQuickToolbar(cx, cy) {
+  const bar = document.getElementById('ctx-quickbar');
+  bar.querySelectorAll('.qtb-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
+  bar.style.left = '0'; bar.style.top = '0';
+  bar.classList.add('open');
+  const bw = bar.offsetWidth, bh = bar.offsetHeight;
+  bar.style.left = Math.min(cx, window.innerWidth  - bw - 8) + 'px';
+  bar.style.top  = Math.min(cy, window.innerHeight - bh - 8) + 'px';
+}
+
+function quickTool(t) {
+  setTool(t);
+  hideQuickToolbar();
 }
 
 function syncAnnotsOnOverlay(ov, pn) {
@@ -3553,6 +3573,7 @@ function ctxSetStatus(s) {
 
 document.addEventListener('click', e => {
   if (!document.getElementById('ctx-menu').contains(e.target)) hideCtx();
+  if (!document.getElementById('ctx-quickbar').contains(e.target)) hideQuickToolbar();
 });
 
 /* ═══════════════════════════════════════════════

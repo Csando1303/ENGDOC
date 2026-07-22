@@ -153,12 +153,24 @@ function showTxtPop(screenX, screenY, cb, initialVal = '', emmaData = null) {
   const hasEmma = emmaData && (emmaData.discipline || emmaData.priority || emmaData.gridRef || emmaData.action);
   document.getElementById('emma-fields').style.display = hasEmma ? 'block' : 'none';
   document.getElementById('emma-toggle-btn').textContent = hasEmma ? '− EMMA fields' : '+ EMMA fields';
+  // Style controls — colour / font size / opacity, pre-filled from the
+  // annotation being edited (or the current default style when adding new)
+  txtPopSetColor(emmaData?.Color ?? Color);
+  const startHex = emmaData?.Color ?? Color;
+  document.getElementById('txtpop-hex').value = isHexColor(startHex) ? startHex : '#fbbf24';
+  document.getElementById('txtpop-font').value = emmaData?.fontSize ?? fontSize;
+  document.getElementById('txtpop-opacity').value = emmaData?.opacity ?? 100;
   pop.classList.add('open');
-  const pw = 300, ph = 160;
+  const pw = 300, ph = 190;
   const vw = window.innerWidth, vh = window.innerHeight;
   pop.style.left = Math.min(screenX, vw - pw - 12) + 'px';
   pop.style.top  = Math.min(screenY + 8, vh - ph - 12) + 'px';
   requestAnimationFrame(() => { ta.focus(); ta.select(); });
+}
+let _txtPopColor = 'yellow';
+function txtPopSetColor(c) {
+  _txtPopColor = c;
+  document.querySelectorAll('#txtpop-swatches .rcsw').forEach(s => s.classList.toggle('active', s.dataset.c === c));
 }
 function toggleEmmaFields() {
   const el = document.getElementById('emma-fields');
@@ -177,6 +189,9 @@ function txtPopConfirm() {
       gridRef:     document.getElementById('pop-gridref').value.trim(),
       action:      document.getElementById('pop-action').value.trim(),
       emmaExclude: !document.getElementById('pop-emma-include').checked,
+      Color:       _txtPopColor,
+      fontSize:    parseInt(document.getElementById('txtpop-font').value) || 12,
+      opacity:     parseInt(document.getElementById('txtpop-opacity').value) || 100,
     };
     txtPopCallback(val, emmaFields);
   }
@@ -2794,7 +2809,8 @@ function buildAnnotEl(a) {
     el = document.createElement('div');
     el.className = 'an';
     const c = colorHex(a.Color);
-    el.style.cssText = 'position:absolute;left:' + a.x + '%;top:' + a.y + '%';
+    el.style.cssText = 'position:absolute;left:' + a.x + '%;top:' + a.y + '%;' +
+      'opacity:' + ((a.opacity ?? 100) / 100);
 
     // Colored header bar
     const header = document.createElement('div');
@@ -2834,6 +2850,7 @@ function buildAnnotEl(a) {
     // Text body — always visible
     const body = document.createElement('div');
     body.className = 'an-body';
+    body.style.fontSize = (a.fontSize || 11.5) + 'px';
     body.textContent = a.text || '';
     el.appendChild(body);
 
@@ -2858,7 +2875,8 @@ function buildAnnotEl(a) {
 
   } else if (a.type === 'text') {
     el = document.createElement('div'); el.className = 'atxt';
-    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;Color:${colorHex(a.Color)}`;
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;Color:${colorHex(a.Color)};` +
+      `font-size:${a.fontSize || 13}px;opacity:${(a.opacity ?? 100) / 100}`;
     if (!a.emmaExclude) {
       const idx = getEmmaIndex(a.id);
       if (idx > 0) {
@@ -3301,6 +3319,7 @@ function buildCalloutAnnotEl(a) {
     'white-space:pre-wrap',
     'box-shadow:0 2px 8px rgba(0,0,0,.12)',
     'pointer-events:all',
+    'opacity:' + ((a.opacity ?? 100) / 100),
   ].join(';');
   box.textContent = a.text || '';
   wrap.appendChild(box);
@@ -3452,7 +3471,13 @@ function editAnnotById(id) {
   const emmaData = {
     discipline: a.discipline, priority: a.priority,
     gridRef: a.gridRef, action: a.action,
-    emmaExclude: a.emmaExclude || false
+    emmaExclude: a.emmaExclude || false,
+    Color: a.Color, fontSize: a.fontSize,
+    // textbox has always defaulted to 80% opacity; note/text/callout were
+    // always fully opaque until now — resolve to whichever this annotation
+    // is actually rendering, so re-saving without touching the slider can't
+    // silently change its appearance
+    opacity: a.opacity ?? (a.type === 'textbox' ? 80 : 100),
   };
   showTxtPop(sx, sy, (txt, emmaFields) => {
     a.text = txt;

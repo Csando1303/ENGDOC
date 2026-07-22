@@ -1081,6 +1081,23 @@
 
 <!-- TEXT INPUT POPOVER (replaces prompt() for note/text tools) -->
 <div id="txt-pop">
+  <div id="txtpop-style">
+    <div class="txtpop-style-group" id="txtpop-swatches">
+      <div class="rcsw cy" data-c="yellow" title="Yellow" onclick="txtPopSetColor('yellow')"></div>
+      <div class="rcsw cg" data-c="green"  title="Green"  onclick="txtPopSetColor('green')"></div>
+      <div class="rcsw cr" data-c="red"    title="Red"    onclick="txtPopSetColor('red')"></div>
+      <div class="rcsw cb" data-c="blue"   title="Blue"   onclick="txtPopSetColor('blue')"></div>
+      <input type="color" id="txtpop-hex" title="Custom colour" oninput="txtPopSetColor(this.value)">
+    </div>
+    <div class="txtpop-style-group">
+      <span class="txtpop-style-label">Size</span>
+      <input type="number" id="txtpop-font" min="6" max="96" value="12">
+    </div>
+    <div class="txtpop-style-group" id="txtpop-opacity-wrap" style="flex:1">
+      <span class="txtpop-style-label">Opacity</span>
+      <input type="range" id="txtpop-opacity" min="20" max="100" step="10" value="100">
+    </div>
+  </div>
   <div style="display:flex;gap:4px;margin-bottom:5px">
     <textarea id="txt-pop-input" placeholder="Enter comment…" style="flex:1"></textarea>
     <div style="display:flex;flex-direction:column;gap:3px">

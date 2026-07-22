@@ -1196,13 +1196,30 @@ async function renderPageContent(pageNum) {
     }
   }
 
+  // Map each item's raw PDF-space transform into viewport CSS-pixel space via
+  // vp.transform rather than a plain e/f * zoom + flip. A plain multiply only
+  // matches the viewport for an unrotated page — pdf.js reports item.transform
+  // in the page's raw content space, which for a rotated page (page.rotate =
+  // 90/180/270, common on landscape engineering sheets stored as rotated
+  // portrait) does NOT line up with the rotated viewport's axes, silently
+  // scrambling every item's x/y/angle and making the select-tool's hit-test
+  // rectangles land in the wrong place.
   _pageTextItems[pageNum] = (window._pageRawText[pageNum] || []).map(item => {
-    const [a, b, , d, e, f] = item.transform;
-    const scaleX = Math.sqrt(a * a + b * b);
-    const w = (item.width  || 0) * zoom;
-    const h = (item.height || scaleX) * zoom;
-    const angle = Math.atan2(b, a);
-    return { str: item.str, x: e * zoom, y: vp.height - f * zoom, w, h, angle };
+    const [a, b, c, d, tx, ty] = item.transform;
+    const start = pdfjsLib.Util.applyTransform([tx, ty], vp.transform);
+    const magW = Math.hypot(a, b) || 1;
+    const wLocal = item.width || 0;
+    const end = pdfjsLib.Util.applyTransform([tx + (a / magW) * wLocal, ty + (b / magW) * wLocal], vp.transform);
+    const magH = Math.hypot(c, d) || 1;
+    const hLocal = item.height || magH;
+    const endH = pdfjsLib.Util.applyTransform([tx + (c / magH) * hLocal, ty + (d / magH) * hLocal], vp.transform);
+    const w = Math.hypot(end[0] - start[0], end[1] - start[1]);
+    const h = Math.hypot(endH[0] - start[0], endH[1] - start[1]);
+    // Angle of the width vector in viewport (CSS, y-down) space — already
+    // accounts for any page rotation and the PDF-to-CSS y-flip, so downstream
+    // rendering must use it directly (no extra negation).
+    const angle = Math.atan2(end[1] - start[1], end[0] - start[0]);
+    return { str: item.str, x: start[0], y: start[1], w, h, angle };
   });
 
   // Atomic swap: remove old canvas only after new one is fully rendered
@@ -7386,7 +7403,7 @@ function _selEnd(ev) {
       rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
       rect.setAttribute('width', hit.w.toFixed(1)); rect.setAttribute('height', hit.h.toFixed(1));
       const tx = hit.x, ty = hit.y - hit.h;
-      const deg = -(hit.angle * 180 / Math.PI);
+      const deg = hit.angle * 180 / Math.PI;
       rect.setAttribute('transform',
         'translate(' + tx.toFixed(1) + ',' + ty.toFixed(1) + ')' +
         (deg !== 0 ? ' rotate(' + deg.toFixed(2) + ')' : '')
@@ -7459,7 +7476,7 @@ function _selHighlight(state) {
     // Transform: translate to item position, then rotate
     const tx = item.x;
     const ty = item.y - item.h; // y is baseline; move up by height
-    const deg = -(item.angle * 180 / Math.PI);
+    const deg = item.angle * 180 / Math.PI;
     rect.setAttribute('transform',
       'translate(' + tx.toFixed(1) + ',' + ty.toFixed(1) + ')' +
       (deg !== 0 ? ' rotate(' + deg.toFixed(2) + ')' : '')
@@ -7482,9 +7499,13 @@ function _rectHitsItem(rx, ry, rw, rh, item) {
     const corners = [
       [ix, iy], [ix + iw, iy], [ix + iw, iy + ih], [ix, iy + ih]
     ].map(([cx, cy]) => {
-      // Rotate around item origin (ix, item.y)
-      const dx = cx - ix, dy = cy - item.y;
-      return [ix + dx * cos - dy * sin, item.y + dx * sin + dy * cos];
+      // Rotate around (ix, iy) — the same top-left point the SVG rect is
+      // translated to before its rotate() is applied, so the AABB lines up
+      // with what's actually drawn (previously pivoted on the baseline
+      // item.y, offset from iy by the full item height, which skewed the
+      // hit-test box away from the real glyph position on any rotated item).
+      const dx = cx - ix, dy = cy - iy;
+      return [ix + dx * cos - dy * sin, iy + dx * sin + dy * cos];
     });
     const minX = Math.min(...corners.map(c => c[0]));
     const maxX = Math.max(...corners.map(c => c[0]));

@@ -3158,7 +3158,7 @@ function buildAnnotEl(a) {
       `font-size:${a.fontSize || 13}px;opacity:${(a.opacity ?? 100) / 100};` +
       `display:flex;flex-direction:column;justify-content:${vAlignCss(a.vAlign)};` +
       (txtBox ? `border:1.5px solid ${txtC};border-radius:3px;background:rgba(255,255,255,.85)` : 'border:none;background:none') +
-      (a.w !== undefined ? `;width:${a.w}%` : '') +
+      (a.w !== undefined ? `;width:${a.w}%;min-width:0;max-width:none` : '') +
       (a.h !== undefined ? `;min-height:${a.h}%` : '');
     // Inner wrapper carries the horizontal alignment so it applies to the
     // wrapped text run (badge + text + tag) without disturbing the outer
@@ -7584,6 +7584,10 @@ function showResizeHandles(el, a, ov) {
           if (domEl.style.width  !== undefined) domEl.style.width  = ann.w + '%';
           if (domEl.style.height !== undefined) domEl.style.height = ann.h + '%';
           if (origFontSize != null) domEl.style.fontSize = ann.fontSize + 'px';
+          // A text box being resized for the first time still carries its
+          // original CSS max-width:280px (only cleared on rebuild) — clear
+          // it inline too so the live drag isn't clamped before that happens.
+          if (ann.type === 'text') { domEl.style.minWidth = '0'; domEl.style.maxWidth = 'none'; }
         }
         // Keep any leader arrow anchored to the box edge while it resizes
         if (ann.type === 'text' && ann.leaderEdge) buildTextLeaderSvg(ann, ov);
@@ -7695,6 +7699,18 @@ function showEdgeArrowButtons(a, ov) {
     { edge: 'left',   lx: '0%',  ly: '50%'  },
   ];
 
+  // Nudged outward (beyond the base -8px/-8px centering) so the button
+  // doesn't sit exactly on top of the resize-handle at the same edge
+  // midpoint — the button has a higher z-index and would win every click,
+  // making the plain e/n/s/w resize handles unreachable otherwise.
+  const OUTWARD = 16;
+  const edgeMargin = {
+    top:    `${-8 - OUTWARD}px 0 0 -8px`,
+    bottom: `${-8 + OUTWARD}px 0 0 -8px`,
+    left:   `-8px 0 0 ${-8 - OUTWARD}px`,
+    right:  `-8px 0 0 ${-8 + OUTWARD}px`,
+  };
+
   edges.forEach(({ edge, lx, ly }) => {
     const btn = document.createElement('div');
     btn.className = 'edge-arrow-btn';
@@ -7702,6 +7718,7 @@ function showEdgeArrowButtons(a, ov) {
     btn.title = 'Drag to add a leader arrow';
     btn.style.left = (a.x + (parseFloat(lx) / 100) * a.w) + '%';
     btn.style.top  = (a.y + (parseFloat(ly) / 100) * a.h) + '%';
+    btn.style.margin = edgeMargin[edge];
     btn.dataset.edge = edge;
     btn.dataset.annotId = a.id;
 

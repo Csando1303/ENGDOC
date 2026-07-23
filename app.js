@@ -19,6 +19,8 @@ let fontSize = 12;
 let annotOpacity = 80;
 let lineStyle = 'solid'; // 'solid' | 'dashed' | 'dotted' — applies to line/arrow/rect/circle
 let textBoxDefault = true; // whether new text annotations get a border/background box
+let textAlignDefault = 'center'; // 'left' | 'center' | 'right' — horizontal justification for new note/text annots
+let vAlignDefault = 'center';    // 'top' | 'center' | 'bottom' — vertical justification for new note/text annots
 let _openBubbleId  = null;
 let _spTargetAnnotId = null; // set while the style popover is editing one specific annotation (right-click → Style), vs the global "next annotation" style
 let _notePendingLeader = null; // { x, y, pageNum } — arrow tip placed, waiting for the note-box click
@@ -98,6 +100,11 @@ function tintHex(hex, amount = 0.85) {
   const mix = (c) => Math.round(c + (255 - c) * amount).toString(16).padStart(2,'0');
   return `#${mix(r)}${mix(g)}${mix(b)}`;
 }
+// Justification for note/text annotations — CSS values for horizontal (text-align)
+// and vertical (flex justify-content) alignment, defaulting to center/center.
+function hAlignCss(a) { return { left:'left', center:'center', right:'right' }[a] || 'center'; }
+function vAlignCss(a) { return { top:'flex-start', center:'center', bottom:'flex-end' }[a] || 'center'; }
+
 // SVG stroke-dasharray for a line style, scaled to the stroke width
 const LINE_DASH = { dashed: [2.5, 1.6], dotted: [0.3, 1.4] };
 function dashArrayFor(style, sw) {
@@ -2110,6 +2117,22 @@ function setTextBox(on) {
   _spCommit();
 }
 
+function setTextAlign(v) {
+  const a = _spTarget();
+  if (a) { a.textAlign = v; syncAnnots(); } else { textAlignDefault = v; }
+  document.getElementById('sp-halign')?.querySelectorAll('.sp-preset-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.v === v));
+  _spCommit();
+}
+
+function setVAlign(v) {
+  const a = _spTarget();
+  if (a) { a.vAlign = v; syncAnnots(); } else { vAlignDefault = v; }
+  document.getElementById('sp-valign')?.querySelectorAll('.sp-preset-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.v === v));
+  _spCommit();
+}
+
 /* ═══════════════════════════════════════════════
    DRAWING EVENTS
 ═══════════════════════════════════════════════ */
@@ -2169,7 +2192,8 @@ function attachEvents(ov, pageNum, _vpInitial) {
       showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
         pushAnnot({ id: nextId(), pageNum, type: 'note', x: px, y: py,
           leaderX: leader.x, leaderY: leader.y,
-          text: txt, Color, fontSize, ...emmaFields });
+          text: txt, Color, fontSize,
+          textAlign: textAlignDefault, vAlign: vAlignDefault, ...emmaFields });
       });
       return;
     }
@@ -2179,7 +2203,8 @@ function attachEvents(ov, pageNum, _vpInitial) {
       const px = ox / vp.width * 100, py = oy / vp.height * 100;
       showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
         pushAnnot({ id: nextId(), pageNum, type: tool, x: px, y: py,
-          text: txt, Color, fontSize, box: textBoxDefault, ...emmaFields });
+          text: txt, Color, fontSize, box: textBoxDefault,
+          textAlign: textAlignDefault, vAlign: vAlignDefault, ...emmaFields });
       });
       return;
     }
@@ -3023,8 +3048,19 @@ function attachAnnotListeners(el, a, ov) {
     });
   });
 
-  // Pan/select tool: click on note/text/callout/textbox to open
-  if (a.type === 'note' || a.type === 'text' || a.type === 'textbox' || a.type === 'callout') {
+  // Pan/select tool: click on note/text to edit directly in place;
+  // callout/textbox still use the popover (no in-place editor for those yet)
+  if (a.type === 'note' || a.type === 'text') {
+    el.addEventListener('click', ev => {
+      if (tool !== 'pan') return;
+      ev.stopPropagation();
+      startInlineEdit(a, el, ov);
+    });
+    el.addEventListener('dblclick', ev => {
+      ev.stopPropagation();
+      startInlineEdit(a, el, ov);
+    });
+  } else if (a.type === 'textbox' || a.type === 'callout') {
     el.addEventListener('click', ev => {
       if (tool !== 'pan') return;
       ev.stopPropagation();
@@ -3167,7 +3203,14 @@ function buildAnnotEl(a) {
     body.className = 'an-body';
     body.style.fontSize = (a.fontSize || 11.5) + 'px';
     body.style.color = c;
-    body.textContent = a.text || '';
+    body.style.display = 'flex';
+    body.style.flexDirection = 'column';
+    body.style.justifyContent = vAlignCss(a.vAlign);
+    body.style.textAlign = hAlignCss(a.textAlign);
+    const bodyInner = document.createElement('div');
+    bodyInner.className = 'an-body-inner';
+    bodyInner.textContent = a.text || '';
+    body.appendChild(bodyInner);
     el.appendChild(body);
 
     // Hover action bar
@@ -3195,25 +3238,33 @@ function buildAnnotEl(a) {
     const txtBox = a.box !== false;
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;Color:${txtC};` +
       `font-size:${a.fontSize || 13}px;opacity:${(a.opacity ?? 100) / 100};` +
+      `display:flex;flex-direction:column;justify-content:${vAlignCss(a.vAlign)};` +
       (txtBox ? `border:1.5px solid ${txtC};border-radius:3px;background:rgba(255,255,255,.85)` : 'border:none;background:none') +
       (a.w !== undefined ? `;width:${a.w}%` : '') +
       (a.h !== undefined ? `;min-height:${a.h}%` : '');
+    // Inner wrapper carries the horizontal alignment so it applies to the
+    // wrapped text run (badge + text + tag) without disturbing the outer
+    // flex column used for vertical alignment above.
+    const txtInner = document.createElement('div');
+    txtInner.className = 'atxt-inner';
+    txtInner.style.textAlign = hAlignCss(a.textAlign);
     if (!a.emmaExclude) {
       const idx = getEmmaIndex(a.id);
       if (idx > 0) {
         const badge = document.createElement('span');
         badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#7c3aed;Color:#fff;border-radius:50%;font-size:8px;font-weight:700;font-family:var(--mono);margin-right:3px;vertical-align:middle;flex-shrink:0';
         badge.textContent = idx;
-        el.appendChild(badge);
+        txtInner.appendChild(badge);
       }
     }
-    el.appendChild(document.createTextNode(a.text));
+    txtInner.appendChild(document.createTextNode(a.text));
     if (a.emmaExclude) {
       const tag = document.createElement('span');
       tag.style.cssText = 'display:inline-block;font-size:8px;background:rgba(0,0,0,0.08);Color:#888;border-radius:2px;padding:0 3px;margin-left:4px;vertical-align:middle;font-family:var(--mono)';
       tag.textContent = '⊘';
-      el.appendChild(tag);
+      txtInner.appendChild(tag);
     }
+    el.appendChild(txtInner);
   } else if (a.type === 'pen' || a.type === 'texthighlight') {
     el = buildPenAnnotEl(a);
   } else if (a.type === 'arrow') {
@@ -3806,6 +3857,67 @@ function editAnnotById(id) {
     syncAnnots(); updateAnnotPanel(); updateEmmaRegister();
     toast('Annotation updated');
   }, a.text, emmaData);
+}
+
+// ── In-place editing for note/text annotations ──
+// A textarea is overlaid directly on the annotation (matching its font,
+// colour and alignment) instead of opening the separate popover box —
+// click, type, click away or press Escape/Tab to finish, like editing
+// text directly in a PDF viewer.
+function startInlineEdit(a, el, ov) {
+  if (!el || !['note', 'text'].includes(a.type)) return;
+  if (el.querySelector('.ann-inline-editor')) return; // already editing
+
+  const container = a.type === 'note' ? el.querySelector('.an-body') : el;
+  const textHost  = a.type === 'note'
+    ? container?.querySelector('.an-body-inner')
+    : el.querySelector('.atxt-inner');
+  if (!container) return;
+
+  const hadPosition = !!container.style.position;
+  if (!hadPosition) container.style.position = 'relative';
+  if (textHost) textHost.style.visibility = 'hidden';
+
+  const cs = getComputedStyle(container);
+  const ta = document.createElement('textarea');
+  ta.className = 'ann-inline-editor';
+  ta.value = a.text || '';
+  ta.spellcheck = false;
+  ta.style.cssText =
+    'position:absolute;inset:0;z-index:25;resize:none;border:none;outline:none;' +
+    'box-sizing:border-box;background:rgba(255,255,255,.92);white-space:pre-wrap;overflow:auto;' +
+    'font-family:inherit;font-size:' + cs.fontSize + ';color:' + cs.color + ';' +
+    'text-align:' + cs.textAlign + ';line-height:' + cs.lineHeight + ';padding:' + cs.padding + ';';
+  container.appendChild(ta);
+  ta.focus();
+  ta.select();
+
+  let finished = false;
+  const finish = commit => {
+    if (finished) return;
+    finished = true;
+    ta.removeEventListener('blur', onBlur);
+    ta.removeEventListener('keydown', onKeydown);
+    const newText = ta.value;
+    ta.remove();
+    if (commit && newText !== (a.text || '')) {
+      a.text = newText;
+      syncAnnots(); updateAnnotPanel(); updateEmmaRegister(); pushHistory();
+      return; // syncAnnots rebuilds the element — nothing left to restore
+    }
+    if (textHost) textHost.style.visibility = '';
+    if (!hadPosition) container.style.position = '';
+  };
+
+  const onBlur = () => finish(true);
+  const onKeydown = ev => {
+    ev.stopPropagation();
+    if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
+  };
+  ta.addEventListener('blur', onBlur);
+  ta.addEventListener('keydown', onKeydown);
+  ta.addEventListener('mousedown', ev => ev.stopPropagation());
+  ta.addEventListener('click', ev => ev.stopPropagation());
 }
 
 /* ═══════════════════════════════════════════════
@@ -7091,6 +7203,7 @@ const SP_STROKE_TYPES  = ['rect','circle','line','arrow','cloud','pen','measure'
 const SP_FONT_TYPES    = ['note','text','textbox','callout'];
 const SP_OPACITY_TYPES = ['highlight','rectfill','note','text','textbox','callout'];
 const SP_BOX_TYPES     = ['text'];
+const SP_ALIGN_TYPES   = ['note','text'];
 
 function renderStylePopover() {
   const body = document.getElementById('sp-body');
@@ -7104,11 +7217,14 @@ function renderStylePopover() {
   const curFont  = target ? (target.fontSize || 12)  : fontSize;
   const curOpac  = target ? (target.opacity || 80)   : annotOpacity;
   const curBox   = target ? (target.box !== false)   : textBoxDefault;
+  const curHAlign = target ? (target.textAlign || 'center') : textAlignDefault;
+  const curVAlign = target ? (target.vAlign || 'center')    : vAlignDefault;
 
   const showStroke  = !target || SP_STROKE_TYPES.includes(target.type);
   const showFont    = !target || SP_FONT_TYPES.includes(target.type);
   const showOpacity = !target || SP_OPACITY_TYPES.includes(target.type);
   const showBox     = !target || SP_BOX_TYPES.includes(target.type);
+  const showAlign   = !target || SP_ALIGN_TYPES.includes(target.type);
 
   body.innerHTML =
     (target ? '<div class="sp-label" style="opacity:.6;margin-bottom:6px">Editing ' +
@@ -7149,6 +7265,20 @@ function renderStylePopover() {
     ).join('') + '</div>' +
     '<div class="sp-row"><input type="number" id="sp-font-input" min="6" max="96" value="' + curFont + '">' +
     '<span style="font-size:10px;color:var(--gray-500)">pt</span></div>' : '') +
+
+    (showAlign ?
+    '<div class="sp-label" style="margin-top:10px">Horizontal align</div>' +
+    '<div class="sp-presets" id="sp-halign">' +
+      '<button class="sp-preset-btn' + (curHAlign==='left'?' active':'')   + '" data-v="left"   onclick="setTextAlign(\'left\')">Left</button>' +
+      '<button class="sp-preset-btn' + (curHAlign==='center'?' active':'') + '" data-v="center" onclick="setTextAlign(\'center\')">Center</button>' +
+      '<button class="sp-preset-btn' + (curHAlign==='right'?' active':'')  + '" data-v="right"  onclick="setTextAlign(\'right\')">Right</button>' +
+    '</div>' +
+    '<div class="sp-label" style="margin-top:8px">Vertical align</div>' +
+    '<div class="sp-presets" id="sp-valign">' +
+      '<button class="sp-preset-btn' + (curVAlign==='top'?' active':'')    + '" data-v="top"    onclick="setVAlign(\'top\')">Top</button>' +
+      '<button class="sp-preset-btn' + (curVAlign==='center'?' active':'') + '" data-v="center" onclick="setVAlign(\'center\')">Middle</button>' +
+      '<button class="sp-preset-btn' + (curVAlign==='bottom'?' active':'') + '" data-v="bottom"  onclick="setVAlign(\'bottom\')">Bottom</button>' +
+    '</div>' : '') +
 
     (showBox ?
     '<div class="sp-label" style="margin-top:10px">Text box</div>' +

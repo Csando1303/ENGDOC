@@ -3701,6 +3701,7 @@ function startInlineEdit(a, el, ov) {
     finished = true;
     ta.removeEventListener('blur', onBlur);
     ta.removeEventListener('keydown', onKeydown);
+    document.removeEventListener('mousedown', onOutsideMousedown, true);
     const newText = ta.value;
     ta.remove();
     if (commit && newText !== (a.text || '')) {
@@ -3717,8 +3718,17 @@ function startInlineEdit(a, el, ov) {
     ev.stopPropagation();
     if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
   };
+  // Elsewhere in the app, resize handles / move overlays / edge-arrow
+  // buttons all call preventDefault() on their own mousedown — which stops
+  // the browser from shifting focus away, so blur never fires on click
+  // elsewhere. Explicitly commit on any outside mousedown (capture phase,
+  // so it fires before any of those handlers can stopPropagation it away).
+  const onOutsideMousedown = ev => {
+    if (!ta.contains(ev.target)) finish(true);
+  };
   ta.addEventListener('blur', onBlur);
   ta.addEventListener('keydown', onKeydown);
+  document.addEventListener('mousedown', onOutsideMousedown, true);
   ta.addEventListener('mousedown', ev => ev.stopPropagation());
   ta.addEventListener('click', ev => ev.stopPropagation());
 }

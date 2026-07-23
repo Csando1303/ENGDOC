@@ -129,6 +129,7 @@ let measureLiveSvg = null; // persistent SVG on overlay during 2-click flow
 // PDF text content cache — { pageNum: [{str, x, y, w, h, fontSize}] }
 const pdfTextContent  = {};  // { pageNum: string } — for standards checker
 const _pageTextItems  = {};  // { pageNum: [{str,x,y,w,h,angle}] } — for select tool
+const _pageVectorGeom = {};  // { pageNum: {points:[{x,y}], segments:[{x1,y1,x2,y2}], grid:Map, cell} } — for snap-to-drawing
 
 function nextId() { return ++annotIdSeq; }
 
@@ -1148,6 +1149,178 @@ async function getCachedPage(num) {
   return _pageCache[num];
 }
 
+// ═══════════════════════════════════════════════
+//  VECTOR GEOMETRY EXTRACTION (for snap-to-drawing)
+//  Records every path vertex pdf.js actually draws, by intercepting the
+//  canvas path methods and reading ctx.getTransform() at call time — this
+//  is the real CTM pdf.js uses to render (incl. nested Form XObject / clip
+//  transforms), so it's exact without us re-implementing PDF matrix math.
+//  Only endpoints are kept (curve control points are dropped); a uniform
+//  grid then indexes points+segments for fast nearest-neighbour lookup.
+// ═══════════════════════════════════════════════
+const VEC_GRID_CELL = 24; // px — a little larger than SNAP_RADIUS
+
+function beginVectorGeomRecording(ctx, dpr) {
+  const points = [];
+  const segments = [];
+  let curX = 0, curY = 0, startX = 0, startY = 0;
+  let active = true;
+
+  const orig = {
+    moveTo: ctx.moveTo, lineTo: ctx.lineTo, rect: ctx.rect,
+    bezierCurveTo: ctx.bezierCurveTo, quadraticCurveTo: ctx.quadraticCurveTo,
+    closePath: ctx.closePath,
+  };
+
+  const toPx = (x, y) => {
+    const m = ctx.getTransform();
+    return { x: (m.a * x + m.c * y + m.e) / dpr, y: (m.b * x + m.d * y + m.f) / dpr };
+  };
+
+  ctx.moveTo = function (x, y) {
+    if (active) { points.push(toPx(x, y)); curX = x; curY = y; startX = x; startY = y; }
+    return orig.moveTo.call(this, x, y);
+  };
+  ctx.lineTo = function (x, y) {
+    if (active) {
+      const p0 = toPx(curX, curY), p1 = toPx(x, y);
+      points.push(p1);
+      segments.push({ x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y });
+      curX = x; curY = y;
+    }
+    return orig.lineTo.call(this, x, y);
+  };
+  ctx.rect = function (x, y, w, h) {
+    if (active) {
+      const c1 = toPx(x, y), c2 = toPx(x + w, y), c3 = toPx(x + w, y + h), c4 = toPx(x, y + h);
+      points.push(c1, c2, c3, c4);
+      segments.push({ x1: c1.x, y1: c1.y, x2: c2.x, y2: c2.y }, { x1: c2.x, y1: c2.y, x2: c3.x, y2: c3.y },
+                     { x1: c3.x, y1: c3.y, x2: c4.x, y2: c4.y }, { x1: c4.x, y1: c4.y, x2: c1.x, y2: c1.y });
+      curX = x; curY = y; startX = x; startY = y;
+    }
+    return orig.rect.call(this, x, y, w, h);
+  };
+  ctx.bezierCurveTo = function (c1x, c1y, c2x, c2y, x, y) {
+    if (active) { points.push(toPx(x, y)); curX = x; curY = y; }
+    return orig.bezierCurveTo.call(this, c1x, c1y, c2x, c2y, x, y);
+  };
+  ctx.quadraticCurveTo = function (cx, cy, x, y) {
+    if (active) { points.push(toPx(x, y)); curX = x; curY = y; }
+    return orig.quadraticCurveTo.call(this, cx, cy, x, y);
+  };
+  ctx.closePath = function () {
+    if (active && (curX !== startX || curY !== startY)) {
+      const p0 = toPx(curX, curY), p1 = toPx(startX, startY);
+      segments.push({ x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y });
+    }
+    if (active) { curX = startX; curY = startY; }
+    return orig.closePath.call(this);
+  };
+
+  const restore = () => {
+    if (!active) return;
+    active = false;
+    ctx.moveTo = orig.moveTo; ctx.lineTo = orig.lineTo; ctx.rect = orig.rect;
+    ctx.bezierCurveTo = orig.bezierCurveTo; ctx.quadraticCurveTo = orig.quadraticCurveTo;
+    ctx.closePath = orig.closePath;
+  };
+
+  return {
+    restore,
+    finish() {
+      restore();
+      return buildVectorGeomIndex(points, segments);
+    },
+  };
+}
+
+function buildVectorGeomIndex(rawPoints, segments) {
+  // Dedupe near-identical vertices (overlapping strokes/hatching draw the same
+  // corner many times) so the grid stays small and lookups stay fast.
+  const seen = new Map();
+  const points = [];
+  for (const p of rawPoints) {
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+    const key = Math.round(p.x * 4) + ',' + Math.round(p.y * 4); // 0.25px buckets
+    if (seen.has(key)) continue;
+    seen.set(key, true);
+    points.push(p);
+  }
+
+  const grid = new Map();
+  const cellKey = (cx, cy) => cx + ',' + cy;
+  const addToGrid = (cx, cy, kind, idx) => {
+    const k = cellKey(cx, cy);
+    let bucket = grid.get(k);
+    if (!bucket) { bucket = { pt: [], seg: [] }; grid.set(k, bucket); }
+    bucket[kind].push(idx);
+  };
+
+  points.forEach((p, i) => {
+    addToGrid(Math.floor(p.x / VEC_GRID_CELL), Math.floor(p.y / VEC_GRID_CELL), 'pt', i);
+  });
+  segments.forEach((s, i) => {
+    const x0 = Math.min(s.x1, s.x2), x1 = Math.max(s.x1, s.x2);
+    const y0 = Math.min(s.y1, s.y2), y1 = Math.max(s.y1, s.y2);
+    const cx0 = Math.floor(x0 / VEC_GRID_CELL), cx1 = Math.floor(x1 / VEC_GRID_CELL);
+    const cy0 = Math.floor(y0 / VEC_GRID_CELL), cy1 = Math.floor(y1 / VEC_GRID_CELL);
+    // Bound the cell span so a very long segment can't blow up index size
+    for (let cx = cx0; cx <= cx1 && cx <= cx0 + 200; cx++) {
+      for (let cy = cy0; cy <= cy1 && cy <= cy0 + 200; cy++) addToGrid(cx, cy, 'seg', i);
+    }
+  });
+
+  return { points, segments, grid };
+}
+
+// Nearest drawn vertex within `radius` px of (mx,my), or null.
+function findNearestVectorPoint(geom, mx, my, radius) {
+  if (!geom) return null;
+  const cx = Math.floor(mx / VEC_GRID_CELL), cy = Math.floor(my / VEC_GRID_CELL);
+  let best = null, bestDist = radius;
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const bucket = geom.grid.get((cx + dx) + ',' + (cy + dy));
+      if (!bucket) continue;
+      for (const i of bucket.pt) {
+        const p = geom.points[i];
+        const d = Math.hypot(mx - p.x, my - p.y);
+        if (d < bestDist) { bestDist = d; best = p; }
+      }
+    }
+  }
+  return best;
+}
+
+// Nearest point ON a drawn line segment (perpendicular projection, clamped)
+// within `radius` px of (mx,my), or null. Lets you snap onto an edge, not
+// just its endpoints.
+function findNearestVectorEdgePoint(geom, mx, my, radius) {
+  if (!geom) return null;
+  const cx = Math.floor(mx / VEC_GRID_CELL), cy = Math.floor(my / VEC_GRID_CELL);
+  let best = null, bestDist = radius;
+  const seen = new Set();
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const bucket = geom.grid.get((cx + dx) + ',' + (cy + dy));
+      if (!bucket) continue;
+      for (const i of bucket.seg) {
+        if (seen.has(i)) continue;
+        seen.add(i);
+        const s = geom.segments[i];
+        const dxs = s.x2 - s.x1, dys = s.y2 - s.y1;
+        const len2 = dxs * dxs + dys * dys;
+        let t = len2 > 0 ? ((mx - s.x1) * dxs + (my - s.y1) * dys) / len2 : 0;
+        t = Math.max(0, Math.min(1, t));
+        const px = s.x1 + t * dxs, py = s.y1 + t * dys;
+        const d = Math.hypot(mx - px, my - py);
+        if (d < bestDist) { bestDist = d; best = { x: px, y: py }; }
+      }
+    }
+  }
+  return best;
+}
+
 async function renderPageContent(pageNum) {
   const wrap = document.getElementById('pw-' + pageNum);
   if (!wrap || renderedPages.has(pageNum)) return;
@@ -1194,6 +1367,12 @@ async function renderPageContent(pageNum) {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, vp.width, vp.height);
 
+  // Record every path vertex/segment pdf.js actually draws (via ctx.getTransform(),
+  // which reflects the exact CTM pdf.js applies incl. nested Form XObject transforms)
+  // so real drawing geometry (lines, rect corners, polylines) can be used as snap
+  // targets. Cheap relative to the render itself; only runs once per page render.
+  const _vecRecorder = beginVectorGeomRecording(ctx, dpr);
+
   // Render canvas — use 'display' intent for speed; swap to 'print' for export
   const renderTask = page.render({
     canvasContext: ctx,
@@ -1207,6 +1386,9 @@ async function renderPageContent(pageNum) {
   if (!window._pageRawText) window._pageRawText = {};
   await Promise.all([renderTask.promise, Promise.resolve()]);
   if (myGen !== docGen) return;
+
+  try { _pageVectorGeom[pageNum] = _vecRecorder.finish(); }
+  catch (e) { _vecRecorder.restore(); console.warn('[ENGDOC] vector geom extraction page', pageNum, 'failed:', e); }
 
   if (!window._pageRawText[pageNum]) {
     try {
@@ -1842,7 +2024,11 @@ function attachEvents(ov, pageNum, _vpInitial) {
     if (tool === 'erase') return;
 
     const r = ov.getBoundingClientRect();
-    const ox = e.clientX - r.left, oy = e.clientY - r.top;
+    // A capturing mousedown listener (see SNAP TO EXISTING ANNOTATION / DRAWING
+    // GEOMETRY below) computes a snapped point for arrow/note/text/measure/line
+    // and stashes it here, since e.clientX/Y themselves are read-only.
+    const ox = e._snapX !== undefined ? e._snapX - r.left : e.clientX - r.left;
+    const oy = e._snapY !== undefined ? e._snapY - r.top  : e.clientY - r.top;
 
     // ── NOTE: two clicks — first places the arrow tip, second places the note
     // box (anchored back to that tip), then the text popover opens ──
@@ -2113,11 +2299,16 @@ function attachEvents(ov, pageNum, _vpInitial) {
 
     // Measure rubber-band — runs regardless of 'drawing' flag (measure uses clicks not drag)
     if (tool === 'measure' && measureLiveSvg && measureState === 'firstSet') {
-      // Shift = snap to nearest orthogonal (H or V)
+      // Shift = snap to nearest orthogonal (H or V); otherwise snap to the
+      // nearest annotation anchor / drawn vertex / drawn edge, if any is close.
       let snapX = mx, snapY = my;
       if (e.shiftKey && measureP1) {
         const dx = Math.abs(mx - measureP1.x), dy = Math.abs(my - measureP1.y);
         if (dx > dy) { snapY = measureP1.y; } else { snapX = measureP1.x; }
+      } else {
+        const snap = findSnapPoint(mx, my, pageNum, vp);
+        if (snap) { snapX = snap.sx; snapY = snap.sy; updateSnapRing(e.clientX, e.clientY, true, snap.type); }
+        else { updateSnapRing(0, 0, false); }
       }
       const ml2 = measureLiveSvg.querySelector('line');
       if (ml2) { ml2.setAttribute('x2', snapX); ml2.setAttribute('y2', snapY); }
@@ -2138,13 +2329,17 @@ function attachEvents(ov, pageNum, _vpInitial) {
 
     if (!drawing) return;
 
-    // Arrow: update live preview line
+    // Arrow: update live preview line (snaps to annotation anchors / drawn geometry)
     if (tool === 'arrow' && liveSvg && drawing) {
+      let ex = mx, ey = my;
+      const snap = findSnapPoint(mx, my, pageNum, vp);
+      if (snap) { ex = snap.sx; ey = snap.sy; updateSnapRing(e.clientX, e.clientY, true, snap.type); }
+      else updateSnapRing(0, 0, false);
       const line = liveSvg.querySelector('line');
-      if (line) { line.setAttribute('x2', mx); line.setAttribute('y2', my); }
+      if (line) { line.setAttribute('x2', ex); line.setAttribute('y2', ey); }
       return;
     }
-    // Line: update live preview (shift to constrain)
+    // Line: update live preview (shift to constrain to axis; otherwise snap)
     if (tool === 'line' && liveSvg && drawing) {
       let ex = mx, ey = my;
       if (e.shiftKey) {
@@ -2152,6 +2347,10 @@ function attachEvents(ov, pageNum, _vpInitial) {
         if (dx > dy * 2) ey = origin.y;
         else if (dy > dx * 2) ex = origin.x;
         else { const d = Math.min(dx, dy); ex = origin.x + (mx > origin.x ? d : -d); ey = origin.y + (my > origin.y ? d : -d); }
+      } else {
+        const snap = findSnapPoint(mx, my, pageNum, vp);
+        if (snap) { ex = snap.sx; ey = snap.sy; updateSnapRing(e.clientX, e.clientY, true, snap.type); }
+        else updateSnapRing(0, 0, false);
       }
       const ln = liveSvg.querySelector('line');
       if (ln) { ln.setAttribute('x2', ex); ln.setAttribute('y2', ey); }
@@ -2207,9 +2406,12 @@ function attachEvents(ov, pageNum, _vpInitial) {
     // Arrow: commit on mouseup
     if (tool === 'arrow' && liveSvg) {
       liveSvg.remove(); liveSvg = null;
-      if (Math.abs(mx - origin.x) < 3 && Math.abs(my - origin.y) < 3) return;
+      let ex = mx, ey = my;
+      const snap = findSnapPoint(mx, my, pageNum, vp);
+      if (snap) { ex = snap.sx; ey = snap.sy; }
+      if (Math.abs(ex - origin.x) < 3 && Math.abs(ey - origin.y) < 3) return;
       const x1 = origin.x / vp.width * 100, y1 = origin.y / vp.height * 100;
-      const x2 = mx / vp.width * 100, y2 = my / vp.height * 100;
+      const x2 = ex / vp.width * 100, y2 = ey / vp.height * 100;
       pushAnnot({ id: nextId(), pageNum, type: 'arrow', x1, y1, x2, y2, Color, sw: strokeW(), lineStyle });
       return;
     }
@@ -2236,6 +2438,9 @@ function attachEvents(ov, pageNum, _vpInitial) {
         if (adx > ady * 2) ey = origin.y;
         else if (ady > adx * 2) ex = origin.x;
         else { const d = Math.min(adx, ady); ex = origin.x + (mx > origin.x ? d : -d); ey = origin.y + (my > origin.y ? d : -d); }
+      } else {
+        const snap = findSnapPoint(mx, my, pageNum, vp);
+        if (snap) { ex = snap.sx; ey = snap.sy; }
       }
       if (Math.hypot(ex - origin.x, ey - origin.y) < 3) return;
       const lx1 = origin.x / vp.width * 100, ly1 = origin.y / vp.height * 100;
@@ -5239,7 +5444,12 @@ function attachAreaEvents(ov, pageNum, vp) {
     if (tool !== 'area') return;
     e.stopPropagation();
     const r = ov.getBoundingClientRect();
-    const ox = e.clientX - r.left, oy = e.clientY - r.top;
+    // 'click' fires as its own event object (after the mousedown that set
+    // e._snapX/_snapY on a different event), so re-run the snap lookup here
+    // rather than relying on the generic mousedown-stash mechanism.
+    const rawX = e.clientX - r.left, rawY = e.clientY - r.top;
+    const snap = findSnapPoint(rawX, rawY, pageNum, vp);
+    const ox = snap ? snap.sx : rawX, oy = snap ? snap.sy : rawY;
     const now = Date.now();
     if (now - lastClick < 350) {
       // Double-click — commit
@@ -6285,9 +6495,11 @@ function insertTemplate(text) {
 }
 
 // ═══════════════════════════════════════════════
-//  SNAP TO EXISTING ANNOTATION
-//  When placing arrow/note endpoints, snap cursor
-//  to nearest annotation anchor within 20px
+//  SNAP TO EXISTING ANNOTATION / DRAWING GEOMETRY
+//  When placing arrow/note/text/measure points, snap cursor to (in priority
+//  order, nearest wins within each): another annotation's anchor, a vertex
+//  drawn in the PDF itself (line/rect corners), or the nearest point on a
+//  drawn line (edge snap) — see beginVectorGeomRecording()/_pageVectorGeom.
 // ═══════════════════════════════════════════════
 const SNAP_RADIUS = 20; // px screen distance to trigger snap
 
@@ -6311,22 +6523,32 @@ function getAnnotAnchors(pageNum, vp) {
 }
 
 function findSnapPoint(mx, my, pageNum, vp) {
-  const anchors = getAnnotAnchors(pageNum, vp);
-  let best = null, bestDist = SNAP_RADIUS;
-  anchors.forEach(a => {
+  let best = null, bestDist = SNAP_RADIUS, bestType = null;
+
+  getAnnotAnchors(pageNum, vp).forEach(a => {
     const d = Math.hypot(mx - a.sx, my - a.sy);
-    if (d < bestDist) { bestDist = d; best = a; }
+    if (d < bestDist) { bestDist = d; best = { sx: a.sx, sy: a.sy }; bestType = 'annot'; }
   });
-  return best; // null if nothing within snap radius
+
+  const geom = _pageVectorGeom[pageNum];
+  if (geom) {
+    const vpt = findNearestVectorPoint(geom, mx, my, bestDist);
+    if (vpt) { bestDist = Math.hypot(mx - vpt.x, my - vpt.y); best = { sx: vpt.x, sy: vpt.y }; bestType = 'vertex'; }
+    const ept = findNearestVectorEdgePoint(geom, mx, my, bestDist);
+    if (ept) { bestDist = Math.hypot(mx - ept.x, my - ept.y); best = { sx: ept.x, sy: ept.y }; bestType = 'edge'; }
+  }
+
+  return best ? { ...best, type: bestType } : null; // null if nothing within snap radius
 }
 
-function updateSnapRing(screenX, screenY, visible) {
+function updateSnapRing(screenX, screenY, visible, type) {
   const ring = document.getElementById('snap-ring');
   if (!ring) return;
   if (visible) {
     ring.style.display = 'block';
     ring.style.left = screenX + 'px';
     ring.style.top = screenY + 'px';
+    ring.classList.toggle('vector', type === 'vertex' || type === 'edge');
   } else {
     ring.style.display = 'none';
   }
@@ -6340,14 +6562,14 @@ attachEvents = function(ov, pageNum, vp) {
   // Snap ring: skip entirely during pan (zero work during drag)
   ov.addEventListener('mousemove', e => {
     if (tool === 'pan') return;
-    if (!['arrow', 'note', 'text', 'measure'].includes(tool)) {
+    if (!['arrow', 'note', 'text', 'measure', 'line', 'area'].includes(tool)) {
       updateSnapRing(0, 0, false); return;
     }
     const r = ov.getBoundingClientRect();
     const mx = e.clientX - r.left, my = e.clientY - r.top;
     const snap = findSnapPoint(mx, my, pageNum, vp);
     if (snap) {
-      updateSnapRing(e.clientX, e.clientY, true);
+      updateSnapRing(e.clientX, e.clientY, true, snap.type);
     } else {
       updateSnapRing(0, 0, false);
     }
@@ -6360,7 +6582,7 @@ attachEvents = function(ov, pageNum, vp) {
 // We intercept by hooking the overlay's existing mousedown before it fires
 // via a capturing listener added here
 document.addEventListener('mousedown', e => {
-  if (!['arrow', 'note', 'text', 'measure'].includes(tool)) return;
+  if (!['arrow', 'note', 'text', 'measure', 'line'].includes(tool)) return;
   const ov = e.target.closest('.aoverlay');
   if (!ov) return;
   const pageNum = parseInt(ov.dataset.page);
@@ -6370,8 +6592,9 @@ document.addEventListener('mousedown', e => {
   const mx = e.clientX - r.left, my = e.clientY - r.top;
   const snap = findSnapPoint(mx, my, pageNum, vp);
   if (snap) {
-    // Override clientX/Y on the event — not possible, but we store the snapped coord
-    // The actual tool handlers use e.clientX - r.left, so we signal via a property
+    // Tool mousedown handlers read e.clientX/e.clientY (or ox/oy derived from
+    // them) — clientX/Y itself is read-only, so we signal the snapped coord
+    // via these extra properties and each handler applies them explicitly.
     e._snapX = snap.sx + r.left;
     e._snapY = snap.sy + r.top;
     updateSnapRing(0, 0, false);

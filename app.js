@@ -18,6 +18,7 @@ let tool = 'pan', Color = 'yellow';
 let fontSize = 12;
 let annotOpacity = 80;
 let lineStyle = 'solid'; // 'solid' | 'dashed' | 'dotted' — applies to line/arrow/rect/circle
+let textBoxDefault = true; // whether new text annotations get a border/background box
 let _openBubbleId  = null;
 let _spTargetAnnotId = null; // set while the style popover is editing one specific annotation (right-click → Style), vs the global "next annotation" style
 let _notePendingLeader = null; // { x, y, pageNum } — arrow tip placed, waiting for the note-box click
@@ -2103,6 +2104,12 @@ function setOpacity(v) {
   if (a) { a.opacity = n; syncAnnots(); } else { annotOpacity = n; }
 }
 
+function setTextBox(on) {
+  const a = _spTarget();
+  if (a) { a.box = on; syncAnnots(); } else { textBoxDefault = on; }
+  _spCommit();
+}
+
 /* ═══════════════════════════════════════════════
    DRAWING EVENTS
 ═══════════════════════════════════════════════ */
@@ -2172,7 +2179,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
       const px = ox / vp.width * 100, py = oy / vp.height * 100;
       showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
         pushAnnot({ id: nextId(), pageNum, type: tool, x: px, y: py,
-          text: txt, Color, fontSize, ...emmaFields });
+          text: txt, Color, fontSize, box: textBoxDefault, ...emmaFields });
       });
       return;
     }
@@ -3184,8 +3191,11 @@ function buildAnnotEl(a) {
 
   } else if (a.type === 'text') {
     el = document.createElement('div'); el.className = 'atxt';
-    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;Color:${colorHex(a.Color)};` +
-      `font-size:${a.fontSize || 13}px;opacity:${(a.opacity ?? 100) / 100}` +
+    const txtC = colorHex(a.Color);
+    const txtBox = a.box !== false;
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;Color:${txtC};` +
+      `font-size:${a.fontSize || 13}px;opacity:${(a.opacity ?? 100) / 100};` +
+      (txtBox ? `border:1.5px solid ${txtC};border-radius:3px;background:rgba(255,255,255,.85)` : 'border:none;background:none') +
       (a.w !== undefined ? `;width:${a.w}%` : '') +
       (a.h !== undefined ? `;min-height:${a.h}%` : '');
     if (!a.emmaExclude) {
@@ -7080,6 +7090,7 @@ document.addEventListener('mousedown', e => {
 const SP_STROKE_TYPES  = ['rect','circle','line','arrow','cloud','pen','measure','area'];
 const SP_FONT_TYPES    = ['note','text','textbox','callout'];
 const SP_OPACITY_TYPES = ['highlight','rectfill','note','text','textbox','callout'];
+const SP_BOX_TYPES     = ['text'];
 
 function renderStylePopover() {
   const body = document.getElementById('sp-body');
@@ -7092,10 +7103,12 @@ function renderStylePopover() {
   const curLine  = target ? (target.lineStyle || 'solid') : lineStyle;
   const curFont  = target ? (target.fontSize || 12)  : fontSize;
   const curOpac  = target ? (target.opacity || 80)   : annotOpacity;
+  const curBox   = target ? (target.box !== false)   : textBoxDefault;
 
   const showStroke  = !target || SP_STROKE_TYPES.includes(target.type);
   const showFont    = !target || SP_FONT_TYPES.includes(target.type);
   const showOpacity = !target || SP_OPACITY_TYPES.includes(target.type);
+  const showBox     = !target || SP_BOX_TYPES.includes(target.type);
 
   body.innerHTML =
     (target ? '<div class="sp-label" style="opacity:.6;margin-bottom:6px">Editing ' +
@@ -7137,6 +7150,13 @@ function renderStylePopover() {
     '<div class="sp-row"><input type="number" id="sp-font-input" min="6" max="96" value="' + curFont + '">' +
     '<span style="font-size:10px;color:var(--gray-500)">pt</span></div>' : '') +
 
+    (showBox ?
+    '<div class="sp-label" style="margin-top:10px">Text box</div>' +
+    '<label class="sp-row" style="align-items:center;gap:6px;cursor:pointer">' +
+      '<input type="checkbox" id="sp-textbox"' + (curBox ? ' checked' : '') + '>' +
+      '<span style="font-size:11px">Show border around text</span>' +
+    '</label>' : '') +
+
     (showOpacity ?
     '<div class="sp-label" style="margin-top:10px">Opacity</div>' +
     '<input type="range" id="sp-opacity" min="20" max="100" value="' + curOpac + '" step="10">' : '');
@@ -7152,6 +7172,10 @@ function renderStylePopover() {
     const fi = document.getElementById('sp-font-input');
     fi.addEventListener('keydown', e => { if (e.key === 'Enter') applyCustomFont(); });
     fi.addEventListener('blur', applyCustomFont);
+  }
+  if (showBox) {
+    const cb = document.getElementById('sp-textbox');
+    cb.addEventListener('change', () => setTextBox(cb.checked));
   }
 }
 

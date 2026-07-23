@@ -3116,6 +3116,8 @@ function buildAnnotEl(a) {
     el.className = 'an';
     const c = colorHex(a.Color);
     el.style.cssText = 'position:absolute;left:' + a.x + '%;top:' + a.y + '%;' +
+      (a.w !== undefined ? 'width:' + a.w + '%;min-width:0;max-width:none;' : '') +
+      (a.h !== undefined ? 'min-height:' + a.h + '%;' : '') +
       'opacity:' + ((a.opacity ?? 100) / 100);
 
     // Colored header bar
@@ -3183,7 +3185,9 @@ function buildAnnotEl(a) {
   } else if (a.type === 'text') {
     el = document.createElement('div'); el.className = 'atxt';
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;Color:${colorHex(a.Color)};` +
-      `font-size:${a.fontSize || 13}px;opacity:${(a.opacity ?? 100) / 100}`;
+      `font-size:${a.fontSize || 13}px;opacity:${(a.opacity ?? 100) / 100}` +
+      (a.w !== undefined ? `;width:${a.w}%` : '') +
+      (a.h !== undefined ? `;min-height:${a.h}%` : '');
     if (!a.emmaExclude) {
       const idx = getEmmaIndex(a.id);
       if (idx > 0) {
@@ -7560,13 +7564,15 @@ function pushHistory() {
 //  RESIZE HANDLES
 //  For annotations that have x/y/w/h (box types):
 //  highlight, rect, rectfill, strike, cloud,
-//  textbox, callout, note (when sized)
+//  textbox, callout, image, note, text
 //  Shows 8-point handles in pan mode when clicked.
+//  note/text also scale fontSize as the box is resized (see onMove below).
 // ═══════════════════════════════════════════════
 let _selectedAnnotId = null;
-let _resizing = null; // { id, handle, startX, startY, orig{x,y,w,h}, ovW, ovH }
+let _resizing = null; // { id, handle, startX, startY, orig{x,y,w,h,fontSize}, ovW, ovH }
 
-const RESIZABLE = ['highlight','rect','rectfill','strike','cloud','textbox','callout','image'];
+const RESIZABLE = ['highlight','rect','rectfill','strike','cloud','textbox','callout','image','note','text'];
+const FONT_SCALABLE = ['note','text'];
 
 function showResizeHandles(el, a, ov) {
   // Line-like types have two endpoints rather than a bounding box — use endpoint handles
@@ -7574,6 +7580,15 @@ function showResizeHandles(el, a, ov) {
     showEndpointHandles(a, ov);
     return;
   }
+  // note/text boxes size to their content until first resized — backfill
+  // w/h from the rendered element so handles have a box to grab
+  if ((a.w === undefined || a.h === undefined) && FONT_SCALABLE.includes(a.type)) {
+    const ovRect = ov.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    if (a.w === undefined) a.w = elRect.width  / ovRect.width  * 100;
+    if (a.h === undefined) a.h = elRect.height / ovRect.height * 100;
+  }
+
   removeResizeHandles();
   _selectedAnnotId = a.id;
   el.classList.add('ann-selected');
@@ -7607,6 +7622,7 @@ function showResizeHandles(el, a, ov) {
         id: a.id, handle: cls,
         startX: ev.clientX, startY: ev.clientY,
         origX: a.x, origY: a.y, origW: a.w, origH: a.h,
+        origFontSize: FONT_SCALABLE.includes(a.type) ? (a.fontSize || (a.type === 'note' ? 11.5 : 13)) : null,
         ovW: ovRect.width, ovH: ovRect.height,
       };
 
@@ -7617,7 +7633,7 @@ function showResizeHandles(el, a, ov) {
         const ann = annots.find(x => x.id === _resizing.id);
         if (!ann) return;
 
-        const { handle: hd, origX: ox, origY: oy, origW: ow, origH: oh } = _resizing;
+        const { handle: hd, origX: ox, origY: oy, origW: ow, origH: oh, origFontSize } = _resizing;
 
         // Apply delta based on which handle
         if (hd.includes('e'))  ann.w = Math.max(1, ow + dx);
@@ -7631,6 +7647,16 @@ function showResizeHandles(el, a, ov) {
           ann.ly = ann.y + ann.h + 5;
         }
 
+        // note/text: scale font size with the box so the content grows/shrinks
+        // with the handle drag — corner handles scale both axes (averaged),
+        // single-edge handles scale by that edge alone.
+        if (origFontSize != null) {
+          const wRatio = ann.w / ow, hRatio = ann.h / oh;
+          const scale = hd.length === 2 ? (wRatio + hRatio) / 2
+            : (hd === 'e' || hd === 'w') ? wRatio : hRatio;
+          ann.fontSize = Math.max(6, Math.min(200, origFontSize * scale));
+        }
+
         // Live DOM update — just reposition the ann element directly
         const domEl = ov.querySelector('[data-aid="' + _resizing.id + '"]');
         if (domEl) {
@@ -7638,6 +7664,10 @@ function showResizeHandles(el, a, ov) {
           domEl.style.top    = ann.y + '%';
           if (domEl.style.width  !== undefined) domEl.style.width  = ann.w + '%';
           if (domEl.style.height !== undefined) domEl.style.height = ann.h + '%';
+          if (origFontSize != null) {
+            const fontTarget = ann.type === 'note' ? domEl.querySelector('.an-body') : domEl;
+            if (fontTarget) fontTarget.style.fontSize = ann.fontSize + 'px';
+          }
         }
         // Reposition handles live
         showResizeHandles(domEl || el, ann, ov);

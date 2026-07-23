@@ -155,10 +155,21 @@ body.dark select, body.dark input { Color-scheme: dark; }
 .author-dot { display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle;flex-shrink:0; }
 /* Comparison overlay */
 #compare-overlay { position:absolute;inset:0;pointer-events:none;z-index:15;border-radius:2px; }
-/* Snap indicator */
-.snap-ring { position:fixed;width:14px;height:14px;border:2px solid #7c3aed;border-radius:50%;
-  pointer-events:none;z-index:500;transform:translate(-50%,-50%);display:none; }
-.snap-ring.vector { border-color:#059669; } /* drawing-geometry snap (vs. annotation-anchor snap) */
+/* Snap indicator — CAD-style osnap marker; shape shown depends on which
+   snap type matched (see #snap-marker svg [data-snaptype] in index.html) */
+.snap-marker { position:fixed;pointer-events:none;z-index:500;transform:translate(-50%,-50%);display:none; }
+/* Snap settings popover (OSNAP-style toggle panel) */
+.snap-panel { position:fixed;display:none;z-index:600;background:var(--white);
+  border:1px solid var(--gray-200);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.18);
+  padding:10px 12px;min-width:190px;font-size:13px; }
+.snap-panel-title { font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;
+  letter-spacing:.03em;margin-bottom:6px; }
+.snap-panel-sep { height:1px;background:var(--gray-100);margin:6px 0; }
+.snap-opt { display:flex;align-items:center;gap:7px;padding:4px 2px;cursor:pointer;user-select:none;color:var(--gray-800); }
+.snap-opt svg { flex-shrink:0; }
+.snap-opt-radius { display:flex;flex-direction:column;align-items:stretch;gap:4px;cursor:default; }
+.snap-opt-radius span { display:flex;justify-content:space-between;font-size:12px;color:var(--gray-600); }
+.snap-opt-radius input[type=range] { width:100%; }
 /* Drawing set list */
 .set-item { display:flex;align-items:center;gap:10px;padding:9px 16px;
   border-bottom:1px solid var(--gray-100);cursor:pointer;transition:background .1s; }

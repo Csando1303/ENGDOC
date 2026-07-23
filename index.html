@@ -601,6 +601,7 @@
   <div id="sb-measure"></div>
   <div class="sbi" id="sb-hint" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Click and drag to scroll &middot; drag any annotation to move it &middot; Space to temporarily pan</div>
   <div class="sbi" id="sb-scale" style="cursor:pointer;Color:var(--blue-500)" onclick="openM('mscale')" title="Set drawing scale">⚖ Scale: unset</div>
+  <div class="sbi" id="sb-snap" style="cursor:pointer" onclick="toggleSnapPanel(event)" title="Snap settings">⌖ Snap</div>
   <div class="sbi" id="sb-count">0 annotations</div>
   <div class="sbi" id="sb-pos">—</div>
 </div>
@@ -1242,7 +1243,41 @@
 </div>
 
 <div id="toast"></div>
-<div class="snap-ring" id="snap-ring"></div>
+
+<!-- Snap indicator — shape communicates the osnap type (CAD convention),
+     color distinguishes annotation-anchor (purple) vs drawing-geometry (teal) -->
+<div id="snap-marker" class="snap-marker">
+  <svg viewBox="-10 -10 20 20" width="20" height="20">
+    <circle data-snaptype="annot" cx="0" cy="0" r="3.5" fill="#7c3aed" stroke="#fff" stroke-width="1"/>
+    <rect   data-snaptype="endpoint" x="-5" y="-5" width="10" height="10" fill="none" stroke="#059669" stroke-width="2"/>
+    <polygon data-snaptype="midpoint" points="0,-6 6,5 -6,5" fill="none" stroke="#059669" stroke-width="2"/>
+    <circle data-snaptype="center" cx="0" cy="0" r="6" fill="none" stroke="#059669" stroke-width="2"/>
+    <path   data-snaptype="intersection" d="M-5,-5 L5,5 M5,-5 L-5,5" fill="none" stroke="#059669" stroke-width="2"/>
+    <polygon data-snaptype="edge" points="0,-6 6,0 0,6 -6,0" fill="none" stroke="#059669" stroke-width="2"/>
+  </svg>
+</div>
+
+<!-- Snap settings popover (OSNAP-style toggles) -->
+<div id="snap-panel" class="snap-panel" onmousedown="event.stopPropagation()">
+  <div class="snap-panel-title">Snap To</div>
+  <label class="snap-opt"><input type="checkbox" id="snap-opt-annot" onchange="updateSnapSettings()">
+    <svg viewBox="-10 -10 20 20" width="14" height="14"><circle cx="0" cy="0" r="3.5" fill="#7c3aed"/></svg> Annotation anchor</label>
+  <label class="snap-opt"><input type="checkbox" id="snap-opt-endpoint" onchange="updateSnapSettings()">
+    <svg viewBox="-10 -10 20 20" width="14" height="14"><rect x="-5" y="-5" width="10" height="10" fill="none" stroke="#059669" stroke-width="2"/></svg> Endpoint</label>
+  <label class="snap-opt"><input type="checkbox" id="snap-opt-midpoint" onchange="updateSnapSettings()">
+    <svg viewBox="-10 -10 20 20" width="14" height="14"><polygon points="0,-6 6,5 -6,5" fill="none" stroke="#059669" stroke-width="2"/></svg> Midpoint</label>
+  <label class="snap-opt"><input type="checkbox" id="snap-opt-center" onchange="updateSnapSettings()">
+    <svg viewBox="-10 -10 20 20" width="14" height="14"><circle cx="0" cy="0" r="6" fill="none" stroke="#059669" stroke-width="2"/></svg> Center</label>
+  <label class="snap-opt"><input type="checkbox" id="snap-opt-intersection" onchange="updateSnapSettings()">
+    <svg viewBox="-10 -10 20 20" width="14" height="14"><path d="M-5,-5 L5,5 M5,-5 L-5,5" fill="none" stroke="#059669" stroke-width="2"/></svg> Intersection</label>
+  <label class="snap-opt"><input type="checkbox" id="snap-opt-edge" onchange="updateSnapSettings()">
+    <svg viewBox="-10 -10 20 20" width="14" height="14"><polygon points="0,-6 6,0 0,6 -6,0" fill="none" stroke="#059669" stroke-width="2"/></svg> Nearest (edge)</label>
+  <div class="snap-panel-sep"></div>
+  <label class="snap-opt snap-opt-radius">
+    <span>Radius <span id="snap-radius-val">12px</span></span>
+    <input type="range" id="snap-opt-radius" min="4" max="24" step="1" oninput="updateSnapSettings()">
+  </label>
+</div>
 
 <footer> Developed by Connor Sanderson </footer>
 

@@ -1155,15 +1155,25 @@ async function getCachedPage(num) {
 //  canvas path methods and reading ctx.getTransform() at call time — this
 //  is the real CTM pdf.js uses to render (incl. nested Form XObject / clip
 //  transforms), so it's exact without us re-implementing PDF matrix math.
-//  Only endpoints are kept (curve control points are dropped); a uniform
-//  grid then indexes points+segments for fast nearest-neighbour lookup.
+//  Curve control points are dropped, but each closed all-curve subpath is
+//  checked against its own bounding box to see if it's (approximately) a
+//  circle/ellipse — standard circle-drawing code emits 4 bezier curves
+//  whose endpoints sit exactly at the top/right/bottom/left of the circle,
+//  so the endpoint bbox already gives the true center, no curve math needed.
+//  A uniform grid then indexes points/midpoints/centers/segments for fast
+//  nearest-neighbour lookup (see findNearestInLayer / findNearestVectorEdgePoint
+//  / findNearestVectorIntersection).
 // ═══════════════════════════════════════════════
-const VEC_GRID_CELL = 24; // px — a little larger than SNAP_RADIUS
+const VEC_GRID_CELL = 32; // px — comfortably larger than the max selectable snap radius
 
 function beginVectorGeomRecording(ctx, dpr) {
   const points = [];
   const segments = [];
+  const centers = [];
   let curX = 0, curY = 0, startX = 0, startY = 0;
+  let subLineCount = 0, subCurveCount = 0;
+  let subMinX = Infinity, subMinY = Infinity, subMaxX = -Infinity, subMaxY = -Infinity;
+  let subFirstPx = null, subLastPx = null;
   let active = true;
 
   const orig = {
@@ -1177,43 +1187,94 @@ function beginVectorGeomRecording(ctx, dpr) {
     return { x: (m.a * x + m.c * y + m.e) / dpr, y: (m.b * x + m.d * y + m.f) / dpr };
   };
 
+  const touchBBox = p => {
+    if (p.x < subMinX) subMinX = p.x; if (p.x > subMaxX) subMaxX = p.x;
+    if (p.y < subMinY) subMinY = p.y; if (p.y > subMaxY) subMaxY = p.y;
+  };
+
+  // A subpath is a circle/ellipse candidate iff it's built entirely from
+  // curves (no straight edges), has enough segments to plausibly close a
+  // loop, ends back near where it started (whether or not an explicit
+  // closePath() was issued — many PDF producers just let the last curve
+  // land on the start point), and its bbox is roughly square (true circles;
+  // mild ellipses still pass a loose ratio check).
+  const finalizeSub = () => {
+    const autoClosed = subFirstPx && subLastPx && Math.hypot(subFirstPx.x - subLastPx.x, subFirstPx.y - subLastPx.y) < 1.5;
+    if (subCurveCount >= 3 && subLineCount === 0 && autoClosed &&
+        Number.isFinite(subMinX) && subMaxX > subMinX && subMaxY > subMinY) {
+      const w = subMaxX - subMinX, h = subMaxY - subMinY;
+      const ratio = w > h ? w / h : h / w;
+      if (ratio < 1.35) {
+        centers.push({ x: (subMinX + subMaxX) / 2, y: (subMinY + subMaxY) / 2, r: (w + h) / 4 });
+      }
+    }
+    subLineCount = 0; subCurveCount = 0;
+    subMinX = Infinity; subMinY = Infinity; subMaxX = -Infinity; subMaxY = -Infinity;
+    subFirstPx = null; subLastPx = null;
+  };
+
   ctx.moveTo = function (x, y) {
-    if (active) { points.push(toPx(x, y)); curX = x; curY = y; startX = x; startY = y; }
+    if (active) {
+      finalizeSub();
+      const p = toPx(x, y);
+      points.push(p); touchBBox(p);
+      subFirstPx = p; subLastPx = p;
+      curX = x; curY = y; startX = x; startY = y;
+    }
     return orig.moveTo.call(this, x, y);
   };
   ctx.lineTo = function (x, y) {
     if (active) {
       const p0 = toPx(curX, curY), p1 = toPx(x, y);
-      points.push(p1);
+      points.push(p1); touchBBox(p1);
       segments.push({ x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y });
+      subLineCount++;
+      subLastPx = p1;
       curX = x; curY = y;
     }
     return orig.lineTo.call(this, x, y);
   };
   ctx.rect = function (x, y, w, h) {
     if (active) {
+      finalizeSub();
       const c1 = toPx(x, y), c2 = toPx(x + w, y), c3 = toPx(x + w, y + h), c4 = toPx(x, y + h);
       points.push(c1, c2, c3, c4);
       segments.push({ x1: c1.x, y1: c1.y, x2: c2.x, y2: c2.y }, { x1: c2.x, y1: c2.y, x2: c3.x, y2: c3.y },
                      { x1: c3.x, y1: c3.y, x2: c4.x, y2: c4.y }, { x1: c4.x, y1: c4.y, x2: c1.x, y2: c1.y });
       curX = x; curY = y; startX = x; startY = y;
+      finalizeSub(); // rect is its own closed subpath, but never a circle candidate
     }
     return orig.rect.call(this, x, y, w, h);
   };
   ctx.bezierCurveTo = function (c1x, c1y, c2x, c2y, x, y) {
-    if (active) { points.push(toPx(x, y)); curX = x; curY = y; }
+    if (active) {
+      const p = toPx(x, y);
+      points.push(p); touchBBox(p);
+      subCurveCount++;
+      subLastPx = p;
+      curX = x; curY = y;
+    }
     return orig.bezierCurveTo.call(this, c1x, c1y, c2x, c2y, x, y);
   };
   ctx.quadraticCurveTo = function (cx, cy, x, y) {
-    if (active) { points.push(toPx(x, y)); curX = x; curY = y; }
+    if (active) {
+      const p = toPx(x, y);
+      points.push(p); touchBBox(p);
+      subCurveCount++;
+      subLastPx = p;
+      curX = x; curY = y;
+    }
     return orig.quadraticCurveTo.call(this, cx, cy, x, y);
   };
   ctx.closePath = function () {
-    if (active && (curX !== startX || curY !== startY)) {
-      const p0 = toPx(curX, curY), p1 = toPx(startX, startY);
-      segments.push({ x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y });
+    if (active) {
+      if (curX !== startX || curY !== startY) {
+        const p0 = toPx(curX, curY), p1 = toPx(startX, startY);
+        segments.push({ x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y });
+      }
+      finalizeSub();
+      curX = startX; curY = startY;
     }
-    if (active) { curX = startX; curY = startY; }
     return orig.closePath.call(this);
   };
 
@@ -1229,36 +1290,44 @@ function beginVectorGeomRecording(ctx, dpr) {
     restore,
     finish() {
       restore();
-      return buildVectorGeomIndex(points, segments);
+      finalizeSub(); // flush the final subpath so it's included if it qualifies
+      return buildVectorGeomIndex(points, segments, centers);
     },
   };
 }
 
-function buildVectorGeomIndex(rawPoints, segments) {
+function buildVectorGeomIndex(rawPoints, segments, rawCenters) {
   // Dedupe near-identical vertices (overlapping strokes/hatching draw the same
   // corner many times) so the grid stays small and lookups stay fast.
-  const seen = new Map();
-  const points = [];
-  for (const p of rawPoints) {
-    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
-    const key = Math.round(p.x * 4) + ',' + Math.round(p.y * 4); // 0.25px buckets
-    if (seen.has(key)) continue;
-    seen.set(key, true);
-    points.push(p);
-  }
+  const dedupe = (list) => {
+    const seen = new Set();
+    const out = [];
+    for (const p of list) {
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+      const key = Math.round(p.x * 4) + ',' + Math.round(p.y * 4); // 0.25px buckets
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(p);
+    }
+    return out;
+  };
+  const points = dedupe(rawPoints);
+  const centers = dedupe(rawCenters);
+  const midpoints = segments.map(s => ({ x: (s.x1 + s.x2) / 2, y: (s.y1 + s.y2) / 2 }));
 
   const grid = new Map();
-  const cellKey = (cx, cy) => cx + ',' + cy;
   const addToGrid = (cx, cy, kind, idx) => {
-    const k = cellKey(cx, cy);
+    const k = cx + ',' + cy;
     let bucket = grid.get(k);
-    if (!bucket) { bucket = { pt: [], seg: [] }; grid.set(k, bucket); }
+    if (!bucket) { bucket = { pt: [], mid: [], ctr: [], seg: [] }; grid.set(k, bucket); }
     bucket[kind].push(idx);
   };
+  const addPointLayer = (list, kind) => list.forEach((p, i) =>
+    addToGrid(Math.floor(p.x / VEC_GRID_CELL), Math.floor(p.y / VEC_GRID_CELL), kind, i));
 
-  points.forEach((p, i) => {
-    addToGrid(Math.floor(p.x / VEC_GRID_CELL), Math.floor(p.y / VEC_GRID_CELL), 'pt', i);
-  });
+  addPointLayer(points, 'pt');
+  addPointLayer(midpoints, 'mid');
+  addPointLayer(centers, 'ctr');
   segments.forEach((s, i) => {
     const x0 = Math.min(s.x1, s.x2), x1 = Math.max(s.x1, s.x2);
     const y0 = Math.min(s.y1, s.y2), y1 = Math.max(s.y1, s.y2);
@@ -1270,20 +1339,22 @@ function buildVectorGeomIndex(rawPoints, segments) {
     }
   });
 
-  return { points, segments, grid };
+  return { points, midpoints, centers, segments, grid };
 }
 
-// Nearest drawn vertex within `radius` px of (mx,my), or null.
-function findNearestVectorPoint(geom, mx, my, radius) {
+// Nearest point in a given layer ('pt' | 'mid' | 'ctr') within `radius` px
+// of (mx,my), or null.
+function findNearestInLayer(geom, layerName, bucketKind, mx, my, radius) {
   if (!geom) return null;
+  const layer = geom[layerName];
   const cx = Math.floor(mx / VEC_GRID_CELL), cy = Math.floor(my / VEC_GRID_CELL);
   let best = null, bestDist = radius;
   for (let dx = -1; dx <= 1; dx++) {
     for (let dy = -1; dy <= 1; dy++) {
       const bucket = geom.grid.get((cx + dx) + ',' + (cy + dy));
       if (!bucket) continue;
-      for (const i of bucket.pt) {
-        const p = geom.points[i];
+      for (const i of bucket[bucketKind]) {
+        const p = layer[i];
         const d = Math.hypot(mx - p.x, my - p.y);
         if (d < bestDist) { bestDist = d; best = p; }
       }
@@ -1316,6 +1387,46 @@ function findNearestVectorEdgePoint(geom, mx, my, radius) {
         const d = Math.hypot(mx - px, my - py);
         if (d < bestDist) { bestDist = d; best = { x: px, y: py }; }
       }
+    }
+  }
+  return best;
+}
+
+// Nearest intersection of two drawn (non-parallel) segments within `radius`
+// px of (mx,my), or null. Only checks segments near the cursor — comparing
+// every pair on the page would be O(n²) over thousands of paths, but the
+// local neighbourhood is always small.
+function findNearestVectorIntersection(geom, mx, my, radius) {
+  if (!geom) return null;
+  const cx = Math.floor(mx / VEC_GRID_CELL), cy = Math.floor(my / VEC_GRID_CELL);
+  const seen = new Set();
+  const nearby = [];
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const bucket = geom.grid.get((cx + dx) + ',' + (cy + dy));
+      if (!bucket) continue;
+      for (const i of bucket.seg) {
+        if (seen.has(i)) continue;
+        seen.add(i);
+        nearby.push(geom.segments[i]);
+        if (nearby.length >= 120) break; // safety cap on very dense hatching
+      }
+    }
+  }
+  let best = null, bestDist = radius;
+  for (let i = 0; i < nearby.length; i++) {
+    for (let j = i + 1; j < nearby.length; j++) {
+      const a = nearby[i], b = nearby[j];
+      const dax = a.x2 - a.x1, day = a.y2 - a.y1;
+      const dbx = b.x2 - b.x1, dby = b.y2 - b.y1;
+      const denom = dax * dby - day * dbx;
+      if (Math.abs(denom) < 1e-9) continue; // parallel
+      const t = ((b.x1 - a.x1) * dby - (b.y1 - a.y1) * dbx) / denom;
+      const u = ((b.x1 - a.x1) * day - (b.y1 - a.y1) * dax) / denom;
+      if (t < -0.01 || t > 1.01 || u < -0.01 || u > 1.01) continue; // crossing must lie on both segments
+      const px = a.x1 + t * dax, py = a.y1 + t * day;
+      const d = Math.hypot(mx - px, my - py);
+      if (d < bestDist) { bestDist = d; best = { x: px, y: py }; }
     }
   }
   return best;
@@ -2307,8 +2418,8 @@ function attachEvents(ov, pageNum, _vpInitial) {
         if (dx > dy) { snapY = measureP1.y; } else { snapX = measureP1.x; }
       } else {
         const snap = findSnapPoint(mx, my, pageNum, vp);
-        if (snap) { snapX = snap.sx; snapY = snap.sy; updateSnapRing(e.clientX, e.clientY, true, snap.type); }
-        else { updateSnapRing(0, 0, false); }
+        if (snap) { snapX = snap.sx; snapY = snap.sy; updateSnapMarker(e.clientX, e.clientY, true, snap.type); }
+        else { updateSnapMarker(0, 0, false); }
       }
       const ml2 = measureLiveSvg.querySelector('line');
       if (ml2) { ml2.setAttribute('x2', snapX); ml2.setAttribute('y2', snapY); }
@@ -2333,8 +2444,8 @@ function attachEvents(ov, pageNum, _vpInitial) {
     if (tool === 'arrow' && liveSvg && drawing) {
       let ex = mx, ey = my;
       const snap = findSnapPoint(mx, my, pageNum, vp);
-      if (snap) { ex = snap.sx; ey = snap.sy; updateSnapRing(e.clientX, e.clientY, true, snap.type); }
-      else updateSnapRing(0, 0, false);
+      if (snap) { ex = snap.sx; ey = snap.sy; updateSnapMarker(e.clientX, e.clientY, true, snap.type); }
+      else updateSnapMarker(0, 0, false);
       const line = liveSvg.querySelector('line');
       if (line) { line.setAttribute('x2', ex); line.setAttribute('y2', ey); }
       return;
@@ -2349,8 +2460,8 @@ function attachEvents(ov, pageNum, _vpInitial) {
         else { const d = Math.min(dx, dy); ex = origin.x + (mx > origin.x ? d : -d); ey = origin.y + (my > origin.y ? d : -d); }
       } else {
         const snap = findSnapPoint(mx, my, pageNum, vp);
-        if (snap) { ex = snap.sx; ey = snap.sy; updateSnapRing(e.clientX, e.clientY, true, snap.type); }
-        else updateSnapRing(0, 0, false);
+        if (snap) { ex = snap.sx; ey = snap.sy; updateSnapMarker(e.clientX, e.clientY, true, snap.type); }
+        else updateSnapMarker(0, 0, false);
       }
       const ln = liveSvg.querySelector('line');
       if (ln) { ln.setAttribute('x2', ex); ln.setAttribute('y2', ey); }
@@ -6496,12 +6607,28 @@ function insertTemplate(text) {
 
 // ═══════════════════════════════════════════════
 //  SNAP TO EXISTING ANNOTATION / DRAWING GEOMETRY
-//  When placing arrow/note/text/measure points, snap cursor to (in priority
-//  order, nearest wins within each): another annotation's anchor, a vertex
-//  drawn in the PDF itself (line/rect corners), or the nearest point on a
-//  drawn line (edge snap) — see beginVectorGeomRecording()/_pageVectorGeom.
+//  CAD-style object snap (OSNAP). When placing arrow/note/text/measure/line/
+//  area points, snap cursor to the *nearest* active candidate among:
+//   - annot        another annotation's anchor point
+//   - endpoint     a vertex actually drawn in the PDF (line/rect corners)
+//   - midpoint     the midpoint of a drawn line
+//   - center       the center of a drawn circle/arc
+//   - intersection where two drawn lines cross
+//   - edge         the nearest point on a drawn line (perpendicular projection)
+//  Toggled per-type + radius via the Snap panel (#snap-panel); persisted to
+//  localStorage. See beginVectorGeomRecording()/_pageVectorGeom for how the
+//  drawing geometry itself is extracted.
 // ═══════════════════════════════════════════════
-const SNAP_RADIUS = 20; // px screen distance to trigger snap
+let snapSettings = { annot: true, endpoint: true, midpoint: true, center: true, intersection: true, edge: true, radius: 12 };
+(function loadSnapSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('engdoc_snap_settings') || 'null');
+    if (saved) snapSettings = { ...snapSettings, ...saved };
+  } catch (e) { /* ignore corrupt saved settings */ }
+})();
+function saveSnapSettings() {
+  localStorage.setItem('engdoc_snap_settings', JSON.stringify(snapSettings));
+}
 
 function getAnnotAnchors(pageNum, vp) {
   // Returns [{screenX, screenY, annotId}] for all annotations on this page
@@ -6523,35 +6650,45 @@ function getAnnotAnchors(pageNum, vp) {
 }
 
 function findSnapPoint(mx, my, pageNum, vp) {
-  let best = null, bestDist = SNAP_RADIUS, bestType = null;
+  let best = null, bestDist = snapSettings.radius, bestType = null;
+  const consider = (p, type) => {
+    if (!p) return;
+    const d = Math.hypot(mx - p.x, my - p.y);
+    if (d < bestDist) { bestDist = d; best = { sx: p.x, sy: p.y }; bestType = type; }
+  };
 
-  getAnnotAnchors(pageNum, vp).forEach(a => {
-    const d = Math.hypot(mx - a.sx, my - a.sy);
-    if (d < bestDist) { bestDist = d; best = { sx: a.sx, sy: a.sy }; bestType = 'annot'; }
-  });
+  if (snapSettings.annot) {
+    getAnnotAnchors(pageNum, vp).forEach(a => consider({ x: a.sx, y: a.sy }, 'annot'));
+  }
 
   const geom = _pageVectorGeom[pageNum];
   if (geom) {
-    const vpt = findNearestVectorPoint(geom, mx, my, bestDist);
-    if (vpt) { bestDist = Math.hypot(mx - vpt.x, my - vpt.y); best = { sx: vpt.x, sy: vpt.y }; bestType = 'vertex'; }
-    const ept = findNearestVectorEdgePoint(geom, mx, my, bestDist);
-    if (ept) { bestDist = Math.hypot(mx - ept.x, my - ept.y); best = { sx: ept.x, sy: ept.y }; bestType = 'edge'; }
+    // Order doesn't set priority — each consider() only overrides on a
+    // strictly closer hit, so the overall nearest active type always wins,
+    // same as CAD's "closest osnap" behaviour.
+    if (snapSettings.endpoint)     consider(findNearestInLayer(geom, 'points', 'pt', mx, my, bestDist), 'endpoint');
+    if (snapSettings.midpoint)     consider(findNearestInLayer(geom, 'midpoints', 'mid', mx, my, bestDist), 'midpoint');
+    if (snapSettings.center)       consider(findNearestInLayer(geom, 'centers', 'ctr', mx, my, bestDist), 'center');
+    if (snapSettings.intersection) consider(findNearestVectorIntersection(geom, mx, my, bestDist), 'intersection');
+    if (snapSettings.edge)         consider(findNearestVectorEdgePoint(geom, mx, my, bestDist), 'edge');
   }
 
   return best ? { ...best, type: bestType } : null; // null if nothing within snap radius
 }
 
-function updateSnapRing(screenX, screenY, visible, type) {
-  const ring = document.getElementById('snap-ring');
-  if (!ring) return;
-  if (visible) {
-    ring.style.display = 'block';
-    ring.style.left = screenX + 'px';
-    ring.style.top = screenY + 'px';
-    ring.classList.toggle('vector', type === 'vertex' || type === 'edge');
-  } else {
-    ring.style.display = 'none';
-  }
+// Marker shapes mirror common CAD osnap conventions so the type is readable
+// at a glance, not just by color: square=endpoint, triangle=midpoint,
+// circle=center, X=intersection, diamond=edge/nearest, dot=annotation anchor.
+function updateSnapMarker(screenX, screenY, visible, type) {
+  const marker = document.getElementById('snap-marker');
+  if (!marker) return;
+  if (!visible) { marker.style.display = 'none'; return; }
+  marker.style.display = 'block';
+  marker.style.left = screenX + 'px';
+  marker.style.top = screenY + 'px';
+  marker.querySelectorAll('[data-snaptype]').forEach(el => {
+    el.style.display = el.dataset.snaptype === type ? '' : 'none';
+  });
 }
 
 // Patch attachEvents to add snap behaviour on arrow/note mousemove and mousedown
@@ -6559,23 +6696,23 @@ const _origAttachEvents = attachEvents;
 attachEvents = function(ov, pageNum, vp) {
   _origAttachEvents(ov, pageNum, vp);
 
-  // Snap ring: skip entirely during pan (zero work during drag)
+  // Snap marker: skip entirely during pan (zero work during drag)
   ov.addEventListener('mousemove', e => {
     if (tool === 'pan') return;
     if (!['arrow', 'note', 'text', 'measure', 'line', 'area'].includes(tool)) {
-      updateSnapRing(0, 0, false); return;
+      updateSnapMarker(0, 0, false); return;
     }
     const r = ov.getBoundingClientRect();
     const mx = e.clientX - r.left, my = e.clientY - r.top;
     const snap = findSnapPoint(mx, my, pageNum, vp);
     if (snap) {
-      updateSnapRing(e.clientX, e.clientY, true, snap.type);
+      updateSnapMarker(e.clientX, e.clientY, true, snap.type);
     } else {
-      updateSnapRing(0, 0, false);
+      updateSnapMarker(0, 0, false);
     }
   });
 
-  ov.addEventListener('mouseleave', () => updateSnapRing(0, 0, false));
+  ov.addEventListener('mouseleave', () => updateSnapMarker(0, 0, false));
 };
 
 // Patch mousedown in attachEvents to snap coordinates
@@ -6597,9 +6734,49 @@ document.addEventListener('mousedown', e => {
     // via these extra properties and each handler applies them explicitly.
     e._snapX = snap.sx + r.left;
     e._snapY = snap.sy + r.top;
-    updateSnapRing(0, 0, false);
+    updateSnapMarker(0, 0, false);
   }
 }, true); // capturing — fires before the overlay's mousedown
+
+// ── Snap settings panel (OSNAP-style toggle popover) ──
+function toggleSnapPanel(e) {
+  e.stopPropagation();
+  const panel = document.getElementById('snap-panel');
+  if (!panel) return;
+  if (panel.style.display === 'block') { panel.style.display = 'none'; return; }
+  Object.keys(snapSettings).forEach(k => {
+    const el = document.getElementById('snap-opt-' + k);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = !!snapSettings[k];
+    else el.value = snapSettings[k];
+  });
+  const radiusLabel = document.getElementById('snap-radius-val');
+  if (radiusLabel) radiusLabel.textContent = snapSettings.radius + 'px';
+  const btn = document.getElementById('sb-snap');
+  const r = btn.getBoundingClientRect();
+  panel.style.left = Math.round(r.left) + 'px';
+  panel.style.bottom = (window.innerHeight - r.top + 6) + 'px';
+  panel.style.display = 'block';
+}
+function updateSnapSettings() {
+  ['annot', 'endpoint', 'midpoint', 'center', 'intersection', 'edge'].forEach(k => {
+    const el = document.getElementById('snap-opt-' + k);
+    if (el) snapSettings[k] = el.checked;
+  });
+  const radiusEl = document.getElementById('snap-opt-radius');
+  if (radiusEl) {
+    snapSettings.radius = parseInt(radiusEl.value, 10);
+    const radiusLabel = document.getElementById('snap-radius-val');
+    if (radiusLabel) radiusLabel.textContent = snapSettings.radius + 'px';
+  }
+  saveSnapSettings();
+}
+document.addEventListener('mousedown', e => {
+  const panel = document.getElementById('snap-panel');
+  if (!panel || panel.style.display !== 'block') return;
+  if (e.target.closest('#snap-panel') || e.target.closest('#sb-snap')) return;
+  panel.style.display = 'none';
+});
 
 // ═══════════════════════════════════════════════
 //  ZOOM-AWARE MEASUREMENT LABEL RECALCULATION

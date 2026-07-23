@@ -21,10 +21,7 @@ let lineStyle = 'solid'; // 'solid' | 'dashed' | 'dotted' — applies to line/ar
 let textBoxDefault = true; // whether new text annotations get a border/background box
 let textAlignDefault = 'center'; // 'left' | 'center' | 'right' — horizontal justification for new note/text annots
 let vAlignDefault = 'center';    // 'top' | 'center' | 'bottom' — vertical justification for new note/text annots
-let _openBubbleId  = null;
 let _spTargetAnnotId = null; // set while the style popover is editing one specific annotation (right-click → Style), vs the global "next annotation" style
-let _notePendingLeader = null; // { x, y, pageNum } — arrow tip placed, waiting for the note-box click
-let _notePendingMarker = null; // DOM cue shown at the pending leader tip
 let annots = [];
 let mergeFiles = [];
 let annotIdSeq = 0;
@@ -114,7 +111,7 @@ function dashArrayFor(style, sw) {
   return pat.map(v => (v * s).toFixed(1)).join(',');
 }
 const typeLabels = { highlight:'Highlight', rect:'Rectangle', strike:'Strikethrough',
-  pen:'Freehand', arrow:'Arrow', note:'Note', text:'Text Label',
+  pen:'Freehand', arrow:'Arrow', text:'Text Label',
   texthighlight:'Text Highlight', cloud:'Cloud', measure:'Measure', area:'Area',
   line:'Line', rectfill:'Fill Box', callout:'Callout', textbox:'Text Box',
   pan:'Pan', select:'Select Text', zoombox:'Zoom', erase:'Erase' };
@@ -234,11 +231,6 @@ function openM(id)  { document.getElementById(id).classList.add('open'); }
 function closeM(id) { document.getElementById(id).classList.remove('open'); }
 function hideCtx()  { document.getElementById('ctx-menu').classList.remove('open'); }
 function hideQuickToolbar() { document.getElementById('ctx-quickbar').classList.remove('open'); }
-function cancelPendingNoteLeader() {
-  _notePendingLeader = null;
-  _notePendingMarker?.remove();
-  _notePendingMarker = null;
-}
 
 /* ═══════════════════════════════════════════════
    FILE OPEN
@@ -1989,7 +1981,6 @@ function setTool(t) {
       o.className = 'aoverlay active';
       if (['highlight','rect','rectfill','strike','pen','arrow','line',
            'measure','texthighlight','cloud','area','tableextract'].includes(t)) o.classList.add('cur-cross');
-      else if (t === 'note')    o.classList.add('cur-cell');
       else if (t === 'text')    o.classList.add('cur-text');
       else if (t === 'erase')   o.classList.add('cur-erase');
       else if (t === 'zoombox') o.classList.add('cur-zoombox');
@@ -2003,8 +1994,6 @@ function setTool(t) {
 
   // Clear any active selection when switching away from select
   if (tool === 'select' && t !== 'select') clearTextSelection();
-  // Cancel an in-progress note placement (arrow tip set, box not yet clicked)
-  if (t !== 'note' && _notePendingLeader) cancelPendingNoteLeader();
 
   refreshAnnotPointerEvents();
 }
@@ -2170,33 +2159,6 @@ function attachEvents(ov, pageNum, _vpInitial) {
     // and stashes it here, since e.clientX/Y themselves are read-only.
     const ox = e._snapX !== undefined ? e._snapX - r.left : e.clientX - r.left;
     const oy = e._snapY !== undefined ? e._snapY - r.top  : e.clientY - r.top;
-
-    // ── NOTE: two clicks — first places the arrow tip, second places the note
-    // box (anchored back to that tip), then the text popover opens ──
-    if (tool === 'note') {
-      const px = ox / vp.width * 100, py = oy / vp.height * 100;
-      if (!_notePendingLeader || _notePendingLeader.pageNum !== pageNum) {
-        _notePendingMarker?.remove();
-        _notePendingLeader = { x: px, y: py, pageNum };
-        const dot = document.createElement('div');
-        dot.className = 'note-leader-pending';
-        dot.style.cssText = 'left:' + px + '%;top:' + py + '%';
-        ov.appendChild(dot);
-        _notePendingMarker = dot;
-        toast('Click again to place the note · Esc to cancel', 3000);
-        return;
-      }
-      const leader = _notePendingLeader;
-      _notePendingLeader = null;
-      _notePendingMarker?.remove(); _notePendingMarker = null;
-      showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
-        pushAnnot({ id: nextId(), pageNum, type: 'note', x: px, y: py,
-          leaderX: leader.x, leaderY: leader.y,
-          text: txt, Color, fontSize,
-          textAlign: textAlignDefault, vAlign: vAlignDefault, ...emmaFields });
-      });
-      return;
-    }
 
     // ── TEXT: always click-only — show popover immediately ──
     if (tool === 'text') {
@@ -2662,6 +2624,28 @@ function updateUndoRedoButtons() {
   if (redoBtn) redoBtn.style.opacity = historyIdx < history.length - 1 ? '1' : '0.4';
 }
 
+// Legacy 'note' annotations (sticky note with fixed leader arrow + reply
+// thread) are folded into 'text' (plain box with a drag-anywhere edge arrow).
+// Converts in place on load so no 'note'-typed annotation survives into a
+// running session — reply threads are dropped (feature removed), the fixed
+// leaderX/leaderY tip is kept and bucketed onto the nearest box edge.
+function migrateLegacyNoteAnnot(a) {
+  if (a.type !== 'note') return a;
+  const out = { ...a, type: 'text' };
+  delete out.replies;
+  if (out.leaderX !== undefined && out.leaderY !== undefined) {
+    const dx = out.leaderX - out.x, dy = out.leaderY - out.y;
+    out.leaderEdge = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'bottom' : 'top');
+  }
+  if (out.textAlign === undefined) out.textAlign = 'center';
+  if (out.vAlign === undefined) out.vAlign = 'center';
+  if (out.box === undefined) out.box = true;
+  return out;
+}
+function migrateLegacyAnnots(list) {
+  return (list || []).map(migrateLegacyNoteAnnot);
+}
+
 function pushAnnot(a) {
   if (!a.author) a.author = currentAuthor || 'Unknown';
   if (!a.ts) a.ts = new Date().toISOString();
@@ -2725,7 +2709,6 @@ document.addEventListener('keydown', e => {
 
   if (e.key === 'Escape') {
     hideCtx(); hideQuickToolbar(); txtPopCancel(); closeStylePopover();
-    if (_notePendingLeader) { cancelPendingNoteLeader(); toast('Note placement cancelled'); }
     if (measureState !== 'idle') {
       if (measureLiveSvg) { measureLiveSvg.remove(); measureLiveSvg = null; }
       measureState = 'idle'; measureP1 = null; measureP2 = null; measurePageNum = null;
@@ -2766,7 +2749,7 @@ document.addEventListener('keydown', e => {
   // Tool letter shortcuts (not when typing)
   if (!inInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const toolKeys = { h:'highlight', m:'texthighlight', r:'rect', p:'pen',
-      a:'arrow', c:'cloud', g:'area', d:'measure', n:'note', t:'text',
+      a:'arrow', c:'cloud', g:'area', d:'measure', t:'text',
       e:'erase', v:'pan', z:'zoombox', l:'line', f:'rectfill', s:'select', o:'circle' };
     if (toolKeys[e.key.toLowerCase()]) { setTool(toolKeys[e.key.toLowerCase()]); return; }
     if (e.key === '[') { toggleSidebar(); return; }
@@ -2808,48 +2791,55 @@ document.addEventListener('mouseup', () => {
 
 // Sync annotations only on a specific overlay (used after lazy render)
 /* ═══════════════════════════════════════════════
-   STICKY NOTE — BUBBLE + LEADER SYSTEM
-   Adobe-style: pin icon on drawing, click to
-   expand bubble with text + Edit/Delete/Leader
-   actions. Optional leader line to any point.
+   TEXT LEADER ARROW
+   A text box can optionally have one leader arrow
+   running from the midpoint of any edge (top/right/
+   bottom/left) out to a free point — started by
+   dragging one of the "+" edge buttons (see
+   showResizeHandles), repositioned by dragging its
+   tip, removed by dragging the tip back onto the box.
 ═══════════════════════════════════════════════ */
 
-function buildNoteLeaderSvg(a, ov) {
+// How close (px) the tip must be dragged back to the box to detach the arrow
+const LEADER_DETACH_PX = 14;
+
+function textLeaderFromPoint(a, boxW, boxH, anchorPxX, anchorPxY) {
+  switch (a.leaderEdge) {
+    case 'top':    return { x: anchorPxX + boxW / 2, y: anchorPxY };
+    case 'bottom': return { x: anchorPxX + boxW / 2, y: anchorPxY + boxH };
+    case 'left':   return { x: anchorPxX, y: anchorPxY + boxH / 2 };
+    case 'right':  return { x: anchorPxX + boxW, y: anchorPxY + boxH / 2 };
+    default:       return null;
+  }
+}
+
+function buildTextLeaderSvg(a, ov) {
   ov.querySelector('[data-leader="' + a.id + '"]')?.remove();
-  if (a.leaderX === undefined || a.leaderY === undefined) return;
+  if (!a.leaderEdge || a.leaderX === undefined || a.leaderY === undefined) return;
 
   const vp = pageViewports[a.pageNum];
   if (!vp) return;
 
   const c = colorHex(a.Color);
-
-  // Get the rendered pin element to find its actual pixel position
   const pin = ov.querySelector('[data-aid="' + a.id + '"]');
 
-  // Top-left corner of the note box in CSS px — a.x, a.y are percentages of the overlay
   const anchorPxX = a.x / 100 * vp.width;
   const anchorPxY = a.y / 100 * vp.height;
+  const boxW = pin ? pin.offsetWidth  : 80;
+  const boxH = pin ? pin.offsetHeight : 24;
 
-  // Actual box size — use pin's rendered size if available, else estimate
-  const boxW = pin ? pin.offsetWidth  : 140;
-  const boxH = pin ? pin.offsetHeight : 60;
+  const from = textLeaderFromPoint(a, boxW, boxH, anchorPxX, anchorPxY);
+  if (!from) return;
 
-  // Leader tip in px
   const tipPxX = a.leaderX / 100 * vp.width;
   const tipPxY = a.leaderY / 100 * vp.height;
 
-  // Anchor at the note box's centre, regardless of which side the tip is on
-  const fromX = anchorPxX + boxW / 2;
-  const fromY = anchorPxY + boxH / 2;
-
-  // Build SVG in pixel space — fills the overlay exactly
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.className = 'an-leader';
+  svg.setAttribute('class', 'an-leader'); // svg.className is an SVGAnimatedString, not a plain setter
   svg.setAttribute('width',  vp.width);
   svg.setAttribute('height', vp.height);
   svg.dataset.leader = a.id;
 
-  // Arrow marker
   const markerId = 'nl-arr-' + a.id;
   const defs   = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
   const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
@@ -2863,9 +2853,8 @@ function buildNoteLeaderSvg(a, ov) {
   arrowPath.setAttribute('fill', c);
   marker.appendChild(arrowPath); defs.appendChild(marker); svg.appendChild(defs);
 
-  // Line
   const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  line.setAttribute('x1', fromX.toFixed(1)); line.setAttribute('y1', fromY.toFixed(1));
+  line.setAttribute('x1', from.x.toFixed(1)); line.setAttribute('y1', from.y.toFixed(1));
   line.setAttribute('x2', tipPxX.toFixed(1)); line.setAttribute('y2', tipPxY.toFixed(1));
   line.setAttribute('stroke', c);
   line.setAttribute('stroke-width', '1.5');
@@ -2873,8 +2862,8 @@ function buildNoteLeaderSvg(a, ov) {
   line.setAttribute('marker-end', 'url(#' + markerId + ')');
   svg.appendChild(line);
 
-  // Draggable tip handle — visible circle at arrow tip
-  // Drag it in pan mode to reposition the arrow
+  // Draggable tip handle — drag in pan mode to reposition; drag back onto
+  // the box to detach and remove the arrow entirely.
   const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
   handle.setAttribute('cx', tipPxX.toFixed(1));
   handle.setAttribute('cy', tipPxY.toFixed(1));
@@ -2886,7 +2875,6 @@ function buildNoteLeaderSvg(a, ov) {
   handle.style.pointerEvents = tool === 'pan' ? 'all' : 'none';
   handle.dataset.leaderHandle = a.id;
 
-  // Drag handler for the tip
   handle.addEventListener('mousedown', ev => {
     if (tool !== 'pan') return;
     ev.stopPropagation();
@@ -2899,14 +2887,23 @@ function buildNoteLeaderSvg(a, ov) {
       const r = ov.getBoundingClientRect();
       ann.leaderX = (mv.clientX - r.left) / ov.offsetWidth  * 100;
       ann.leaderY = (mv.clientY - r.top)  / ov.offsetHeight * 100;
-      // Live-update leader SVG without full re-render
       ov.querySelector('[data-leader="' + a.id + '"]')?.remove();
-      buildNoteLeaderSvg(ann, ov);
+      buildTextLeaderSvg(ann, ov);
     };
 
-    const onUp = () => {
+    const onUp = mv => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup',   onUp);
+      // Dropped back onto the box — detach the arrow
+      const curPin = ov.querySelector('[data-aid="' + ann.id + '"]');
+      if (curPin) {
+        const pr = curPin.getBoundingClientRect();
+        const pad = LEADER_DETACH_PX;
+        if (mv.clientX >= pr.left - pad && mv.clientX <= pr.right + pad &&
+            mv.clientY >= pr.top  - pad && mv.clientY <= pr.bottom + pad) {
+          delete ann.leaderEdge; delete ann.leaderX; delete ann.leaderY;
+        }
+      }
       syncAnnots();
       pushHistory();
     };
@@ -2917,16 +2914,9 @@ function buildNoteLeaderSvg(a, ov) {
 
   svg.appendChild(handle);
 
-  // Insert behind the pin
   if (pin) ov.insertBefore(svg, pin);
   else ov.appendChild(svg);
 }
-
-// Note is now always expanded (text always visible in box).
-// These stubs keep compatibility with any remaining call sites.
-function openNoteBubble() {}
-function _bubbleOutsideHandler() {}
-function closeNoteBubble() { _openBubbleId = null; }
 
 // ── Overlay-level right-click handler — works in ALL tool modes ──
 // Attached once per overlay. Uses capture phase so pointer-events:none is irrelevant.
@@ -3001,8 +2991,8 @@ function syncAnnotsOnOverlay(ov, pn) {
     el.dataset.aid = a.id;
     attachAnnotListeners(el, a, ov);
     ov.appendChild(el);
-    // Render leader SVG for notes that have one
-    if (a.type === 'note') buildNoteLeaderSvg(a, ov);
+    // Render leader arrow SVG for text boxes that have one
+    if (a.type === 'text') buildTextLeaderSvg(a, ov);
   });
   refreshAnnotPointerEvents();
 }
@@ -3022,7 +3012,7 @@ function syncAnnots() {
       el.dataset.aid = a.id;
       attachAnnotListeners(el, a, ov);
       ov.appendChild(el);
-      if (a.type === 'note') buildNoteLeaderSvg(a, ov);
+      if (a.type === 'text') buildTextLeaderSvg(a, ov);
     });
   });
   refreshAnnotPointerEvents();
@@ -3042,15 +3032,14 @@ function attachAnnotListeners(el, a, ov) {
       if (tool !== 'erase') return;
       ev.stopPropagation();
       ev.preventDefault();
-      if (a.type === 'note') closeNoteBubble();
       deleteAnnotById(a.id);
       toast('Annotation removed');
     });
   });
 
-  // Pan/select tool: click on note/text to edit directly in place;
+  // Pan/select tool: click on text to edit directly in place;
   // callout/textbox still use the popover (no in-place editor for those yet)
-  if (a.type === 'note' || a.type === 'text') {
+  if (a.type === 'text') {
     el.addEventListener('click', ev => {
       if (tool !== 'pan') return;
       ev.stopPropagation();
@@ -3132,7 +3121,7 @@ function wireSvgBoundingOverlay(ann, ov) {
    or 0 if the annotation is excluded or not in the register. */
 function getEmmaIndex(id) {
   const emmaAnnots = annots.filter(a =>
-    (a.type === 'note' || a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
+    (a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
   );
   const idx = emmaAnnots.findIndex(a => a.id === id);
   return idx >= 0 ? idx + 1 : 0;
@@ -3154,84 +3143,6 @@ function buildAnnotEl(a) {
     const sc = colorHex(a.Color, 'rose');
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;` +
       `background:linear-gradient(transparent calc(50% - 1.5px),${sc} calc(50% - 1.5px),${sc} calc(50% + 1.5px),transparent calc(50% + 1.5px))`;
-  } else if (a.type === 'note') {
-    el = document.createElement('div');
-    el.className = 'an';
-    const c = colorHex(a.Color);
-    el.style.cssText = 'position:absolute;left:' + a.x + '%;top:' + a.y + '%;' +
-      (a.w !== undefined ? 'width:' + a.w + '%;min-width:0;max-width:none;' : '') +
-      (a.h !== undefined ? 'min-height:' + a.h + '%;' : '') +
-      'opacity:' + ((a.opacity ?? 100) / 100);
-
-    // Colored header bar
-    const header = document.createElement('div');
-    header.className = 'an-header';
-    header.style.background = c;
-
-    // Icon + EMMA index or priority
-    const icon = document.createElement('span');
-    icon.className = 'an-header-icon';
-    icon.textContent = '✎';
-    header.appendChild(icon);
-
-    const emmaIdx = !a.emmaExclude ? getEmmaIndex(a.id) : 0;
-    if (emmaIdx > 0) {
-      const badge = document.createElement('span');
-      badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;' +
-        'width:15px;height:15px;background:rgba(0,0,0,.25);Color:#fff;border-radius:50%;' +
-        'font-size:9px;font-weight:700;font-family:var(--mono);flex-shrink:0';
-      badge.textContent = emmaIdx;
-      header.appendChild(badge);
-    }
-
-    if (a.priority) {
-      const pri = document.createElement('span');
-      pri.style.cssText = 'font-size:9px;opacity:.8;margin-left:auto';
-      pri.textContent = { Critical:'🔴', Major:'🟠', Minor:'🟡', Info:'🔵' }[a.priority] || '';
-      header.appendChild(pri);
-    } else {
-      const authorEl = document.createElement('span');
-      authorEl.className = 'an-author';
-      authorEl.textContent = a.author || '';
-      header.appendChild(authorEl);
-    }
-
-    el.appendChild(header);
-
-    // Text body — always visible
-    const body = document.createElement('div');
-    body.className = 'an-body';
-    body.style.fontSize = (a.fontSize || 11.5) + 'px';
-    body.style.color = c;
-    body.style.display = 'flex';
-    body.style.flexDirection = 'column';
-    body.style.justifyContent = vAlignCss(a.vAlign);
-    body.style.textAlign = hAlignCss(a.textAlign);
-    const bodyInner = document.createElement('div');
-    bodyInner.className = 'an-body-inner';
-    bodyInner.textContent = a.text || '';
-    body.appendChild(bodyInner);
-    el.appendChild(body);
-
-    // Hover action bar
-    const actions = document.createElement('div');
-    actions.className = 'an-actions';
-
-    const editBtn = document.createElement('button');
-    editBtn.className = 'an-act-btn primary';
-    editBtn.textContent = 'Edit';
-    editBtn.onclick = ev => { ev.stopPropagation(); editAnnotById(a.id); };
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'an-act-btn danger';
-    delBtn.textContent = '✕';
-    delBtn.title = 'Delete note';
-    delBtn.onclick = ev => { ev.stopPropagation(); deleteAnnotById(a.id); };
-
-    actions.appendChild(editBtn);
-    actions.appendChild(delBtn);
-    el.appendChild(actions);
-
   } else if (a.type === 'text') {
     el = document.createElement('div'); el.className = 'atxt';
     const txtC = colorHex(a.Color);
@@ -3304,21 +3215,6 @@ function buildAnnotEl(a) {
     if (a.mergedFrom && a.author) {
       const ac = getAuthorColor ? getAuthorColor(a.author) : null;
       if (ac && el.style) { el.style.outline = '2px solid ' + ac; el.style.outlineOffset = '1px'; }
-    }
-    // Status badge on notes (only when status is not default 'open')
-    if (a.type === 'note' && a.status && a.status !== 'open' && el.classList.contains('an')) {
-      const badge = document.createElement('div');
-      badge.className = 'ann-status ' + a.status;
-      badge.textContent = (typeof STATUS_LABEL !== 'undefined' ? STATUS_LABEL[a.status] : null) || a.status;
-      badge.style.cssText = 'position:absolute;top:-9px;right:4px;z-index:8;cursor:pointer;pointer-events:all';
-      badge.onclick = ev => { if (typeof cycleAnnotStatus !== 'undefined') cycleAnnotStatus(a.id, ev); };
-      badge.title = 'Click to cycle status';
-      el.appendChild(badge);
-    }
-    // Reply thread on notes (appended to .an box — do NOT re-add on re-render if already present)
-    if (a.type === 'note' && el.classList.contains('an')) {
-      if (typeof buildNoteReplies    !== 'undefined') buildNoteReplies(a, el);
-      if (typeof buildNoteReplyInput !== 'undefined') buildNoteReplyInput(a, el);
     }
   }
 
@@ -3725,7 +3621,7 @@ function updateAnnotPanel() {
     else                             preview = typeLabels[a.type] || a.type;
 
     const tsStr = a.ts ? new Date(a.ts).toLocaleString(undefined, {dateStyle:'short',timeStyle:'short'}) : '';
-    const canEdit   = ['note','text','callout','textbox'].includes(a.type);
+    const canEdit   = ['text','callout','textbox'].includes(a.type);
     // Status available on all annotation types (useful for any comment workflow)
     const hasStatus = true;
 
@@ -3835,7 +3731,7 @@ function scrollToAnnotation(a) {
 
 function editAnnotById(id) {
   const a = annots.find(x => x.id === id);
-  const editableTypes = ['note','text','callout','textbox'];
+  const editableTypes = ['text','callout','textbox'];
   if (!a || !editableTypes.includes(a.type)) return;
   const el = document.querySelector('[data-aid="' + id + '"]');
   let sx = window.innerWidth / 2, sy = window.innerHeight / 2;
@@ -3859,19 +3755,17 @@ function editAnnotById(id) {
   }, a.text, emmaData);
 }
 
-// ── In-place editing for note/text annotations ──
+// ── In-place editing for text annotations ──
 // A textarea is overlaid directly on the annotation (matching its font,
 // colour and alignment) instead of opening the separate popover box —
 // click, type, click away or press Escape/Tab to finish, like editing
 // text directly in a PDF viewer.
 function startInlineEdit(a, el, ov) {
-  if (!el || !['note', 'text'].includes(a.type)) return;
+  if (!el || a.type !== 'text') return;
   if (el.querySelector('.ann-inline-editor')) return; // already editing
 
-  const container = a.type === 'note' ? el.querySelector('.an-body') : el;
-  const textHost  = a.type === 'note'
-    ? container?.querySelector('.an-body-inner')
-    : el.querySelector('.atxt-inner');
+  const container = el;
+  const textHost  = el.querySelector('.atxt-inner');
   if (!container) return;
 
   const hadPosition = !!container.style.position;
@@ -3929,8 +3823,8 @@ function openCtxMenu(annotId, cx, cy) {
   const menu = document.getElementById('ctx-menu');
 
   // Show/hide items based on annotation type
-  const isTextable = a && ['note','text','callout','textbox'].includes(a.type);
-  const hasStatus  = a && ['note','text','callout','textbox'].includes(a.type);
+  const isTextable = a && ['text','callout','textbox'].includes(a.type);
+  const hasStatus  = a && ['text','callout','textbox'].includes(a.type);
   const isImage    = a && a.type === 'image';
   document.getElementById('ctx-edit').style.display   = isTextable ? 'flex' : 'none';
   document.getElementById('ctx-resize').style.display = isImage    ? 'flex' : 'none';
@@ -4301,7 +4195,7 @@ async function loadSession(e) {
       _loadedEngdocName = file.name;
     }
 
-    annots = data.annots;
+    annots = migrateLegacyAnnots(data.annots);
     emmaRows = data.emmaRows || {};
     annotIdSeq = data.annotIdSeq || annots.reduce((m, a) => Math.max(m, a.id || 0), 0);
     if (data.measureScale) {
@@ -4583,7 +4477,7 @@ async function exportAnnotatedPdf() {
             }
           }
 
-          else if (a.type === 'note' || a.type === 'text') {
+          else if (a.type === 'text') {
             const px = a.x / 100 * W;
             const py = H - a.y / 100 * H - 10;
             const text = a.text || '';
@@ -4606,6 +4500,21 @@ async function exportAnnotatedPdf() {
             if (emmaIdx > 0 && !a.emmaExclude) {
               page.drawCircle({ x: px - 4, y: py + 8, size: 6, color: rgb(0.49, 0.23, 0.93), opacity: 0.9 });
               _drawPdfLabel(page, String(emmaIdx), px - 7, py + 4, rgb(1, 1, 1), 6);
+            }
+            // Leader arrow from the chosen box edge to its free point
+            if (a.leaderEdge && a.leaderX !== undefined && a.leaderY !== undefined) {
+              let fx = px, fy = py;
+              if      (a.leaderEdge === 'top')    { fx = px + badge_w / 2; fy = py + badge_h; }
+              else if (a.leaderEdge === 'bottom') { fx = px + badge_w / 2; fy = py; }
+              else if (a.leaderEdge === 'left')   { fx = px; fy = py + badge_h / 2; }
+              else if (a.leaderEdge === 'right')  { fx = px + badge_w; fy = py + badge_h / 2; }
+              const tx = a.leaderX / 100 * W, ty = H - a.leaderY / 100 * H;
+              page.drawLine({ start: { x: fx, y: fy }, end: { x: tx, y: ty }, color: rgb(r, g, b), thickness: 1.2, opacity: 0.9 });
+              const ang = Math.atan2(ty - fy, tx - fx);
+              const hs = 5;
+              const ha1 = ang + Math.PI * 0.8, ha2 = ang - Math.PI * 0.8;
+              page.drawLine({ start: { x: tx, y: ty }, end: { x: tx + Math.cos(ha1) * hs, y: ty + Math.sin(ha1) * hs }, color: rgb(r, g, b), thickness: 1.2, opacity: 0.9 });
+              page.drawLine({ start: { x: tx, y: ty }, end: { x: tx + Math.cos(ha2) * hs, y: ty + Math.sin(ha2) * hs }, color: rgb(r, g, b), thickness: 1.2, opacity: 0.9 });
             }
           }
 
@@ -5035,7 +4944,7 @@ function updateEmmaRegister() {
   const empty    = document.getElementById('emma-empty');
   // Only note/text/measure annotations that aren't excluded go into EMMA
   const emmaAnnots = annots.filter(a =>
-    (a.type === 'note' || a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
+    (a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
   );
 
   // Remove existing rows (not the empty message)
@@ -5094,7 +5003,7 @@ function saveEmmaRow() {
 
   // Update comment text
   const newText = document.getElementById('er-comment').value.trim();
-  if (newText && (a.type === 'note' || a.type === 'text')) { a.text = newText; syncAnnots(); updateAnnotPanel(); }
+  if (newText && a.type === 'text') { a.text = newText; syncAnnots(); updateAnnotPanel(); }
 
   // Save EMMA fields
   emmaRows[emmaEditId] = {
@@ -5158,7 +5067,7 @@ async function loadEmmaTemplate(e) {
 /* ── Export into real .xlsm template ── */
 async function exportEmma() {
   const emmaAnnots = annots.filter(a =>
-    (a.type === 'note' || a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
+    (a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
   );
   if (!emmaAnnots.length) { toast('No EMMA comments to export'); return; }
   if (!emmaTemplateBuf)   { toast('⚠ No template loaded — load your Checksheet.xlsm via the EMMA panel first', 6000); return; }
@@ -5353,7 +5262,7 @@ async function loadJSZip() {
 
 function openEmmaExport() {
   const emmaAnnots = annots.filter(a =>
-    (a.type === 'note' || a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
+    (a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
   );
   if (!emmaAnnots.length) {
     toast('No EMMA comments to export — add Notes or Text annotations (with EMMA checked) first'); return;
@@ -6222,12 +6131,13 @@ function _addFindingAnnot(f) {
   const y = 2 + (hash % 12) * 3;
   const catMap = { fail: '1', warn: '3', info: '' };
   const a = {
-    id: nextId(), pageNum: 1, type: 'note',
+    id: nextId(), pageNum: 1, type: 'text',
     x, y, text: `[Standards Check] ${f.title}: ${f.desc.slice(0, 120)}`,
     Color: f.status === 'fail' ? 'red' : f.status === 'warn' ? 'yellow' : 'green',
     author: currentAuthor || 'Standards Checker',
     timestamp: new Date().toISOString(),
-    emmaExclude: false
+    emmaExclude: false,
+    textAlign: 'center', vAlign: 'center', box: true,
   };
   pushAnnot(a);
   // Pre-set EMMa row with category and reference
@@ -6266,7 +6176,7 @@ function addPointerSupport(ov) {
 // ═══════════════════════════════════════════════
 function updateEmmaDash() {
   const emmaAnnots = annots.filter(a =>
-    (a.type === 'note' || a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
+    (a.type === 'text' || a.type === 'callout' || a.type === 'textbox' || a.type === 'measure') && !a.emmaExclude
   );
   const total = emmaAnnots.length;
   const closed = emmaAnnots.filter(a => emmaRows[a.id]?.closedOut === 'Yes').length;
@@ -6429,7 +6339,7 @@ async function mergeSession(e) {
       if (existingIds.has(a.id)) { skipped++; return; }
       // Assign a new local id to avoid conflicts
       const newId = nextId();
-      const merged = { ...a, id: newId, mergedFrom: a.author || 'Unknown' };
+      const merged = migrateLegacyNoteAnnot({ ...a, id: newId, mergedFrom: a.author || 'Unknown' });
       annots.push(merged);
       // Carry EMMA row data if present
       if (data.emmaRows && data.emmaRows[a.id]) {
@@ -6825,7 +6735,7 @@ attachEvents = function(ov, pageNum, vp) {
   // Snap marker: skip entirely during pan (zero work during drag)
   ov.addEventListener('mousemove', e => {
     if (tool === 'pan') return;
-    if (!['arrow', 'note', 'text', 'measure', 'line', 'area'].includes(tool)) {
+    if (!['arrow', 'text', 'measure', 'line', 'area'].includes(tool)) {
       updateSnapMarker(0, 0, false); return;
     }
     const r = ov.getBoundingClientRect();
@@ -6845,7 +6755,7 @@ attachEvents = function(ov, pageNum, vp) {
 // We intercept by hooking the overlay's existing mousedown before it fires
 // via a capturing listener added here
 document.addEventListener('mousedown', e => {
-  if (!['arrow', 'note', 'text', 'measure', 'line'].includes(tool)) return;
+  if (!['arrow', 'text', 'measure', 'line'].includes(tool)) return;
   const ov = e.target.closest('.aoverlay');
   if (!ov) return;
   const pageNum = parseInt(ov.dataset.page);
@@ -7051,8 +6961,7 @@ const TOOL_HINTS = {
   line:         'Drag to draw a straight line · Shift = constrain to horizontal / vertical / 45°',
   callout:      'Drag to place the callout box · then click to set the leader point · type text',
   textbox:      'Drag to set the text box size · then type your text · font size in Style group',
-  note:         'Click to place the arrow tip, click again to place the note · drag the ● tip handle to reposition the arrow',
-  text:         'Click to place a text label · click label to edit',
+  text:         'Click to place a text label · click label to edit · drag a + on its edge to add a leader arrow',
   pen:          'Click and drag to draw freehand · release to commit',
   arrow:        'Drag to draw an arrow with arrowhead · snap to annotations nearby',
   measure:      'Click 1 → set start · Click 2 → set end · Click 3 → commit · Shift = orthogonal snap',
@@ -7064,7 +6973,7 @@ const TOOL_TABS = {
   pan:'markup', select:'markup', erase:'markup', zoombox:'markup',
   highlight:'markup', texthighlight:'markup', rect:'markup', rectfill:'markup', circle:'markup',
   strike:'markup', line:'markup', callout:'markup', textbox:'markup',
-  note:'markup', text:'markup',
+  text:'markup',
   pen:'markup', arrow:'markup', cloud:'markup',
   measure:'markup', area:'markup',
 };
@@ -7096,8 +7005,6 @@ function setStrokeW(val) {
 // Patch setTool to update ribbon active states and hint strip
 const _ribbonSetTool = setTool;
 setTool = function(t) {
-  // Close any open note bubble when switching tools
-  if (typeof closeNoteBubble === 'function') closeNoteBubble();
   // Clear text selection when leaving select tool
   if (tool === 'select' && t !== 'select') clearTextSelection();
 
@@ -7200,10 +7107,10 @@ document.addEventListener('mousedown', e => {
 });
 
 const SP_STROKE_TYPES  = ['rect','circle','line','arrow','cloud','pen','measure','area'];
-const SP_FONT_TYPES    = ['note','text','textbox','callout'];
-const SP_OPACITY_TYPES = ['highlight','rectfill','note','text','textbox','callout'];
+const SP_FONT_TYPES    = ['text','textbox','callout'];
+const SP_OPACITY_TYPES = ['highlight','rectfill','text','textbox','callout'];
 const SP_BOX_TYPES     = ['text'];
-const SP_ALIGN_TYPES   = ['note','text'];
+const SP_ALIGN_TYPES   = ['text'];
 
 function renderStylePopover() {
   const body = document.getElementById('sp-body');
@@ -7538,7 +7445,7 @@ function makeDraggable(el, a, ov) {
   // injected by refreshAnnotMoveHandles() on tool change
 }
 
-const MOVE_TYPES = new Set(['highlight','rect','rectfill','strike','circle','note','text','textbox',
+const MOVE_TYPES = new Set(['highlight','rect','rectfill','strike','circle','text','textbox',
                              'callout','cloud','pen','texthighlight','arrow','line','measure',
                              'area','stamp','image']);
 
@@ -7614,8 +7521,8 @@ function wireMoveOverlay(el, ann, ov) {
       }
       if (orig.points) ann.points = orig.points.map(p => ({ x: p.x + dx/100, y: p.y + dy/100 }));
       if (orig.lx !== undefined) { ann.lx = orig.lx + dx; ann.ly = orig.ly + dy; }
-      // Note leader arrow tip is NOT translated with the note box — it stays
-      // pointing at the same fixed spot on the drawing while the box moves.
+      // A text box's leader arrow tip is NOT translated with the box — it
+      // stays pointing at the same fixed spot on the drawing while the box moves.
 
       // Move ghost live
       if (ghost) {
@@ -7718,15 +7625,15 @@ function pushHistory() {
 //  RESIZE HANDLES
 //  For annotations that have x/y/w/h (box types):
 //  highlight, rect, rectfill, strike, cloud,
-//  textbox, callout, image, note, text
+//  textbox, callout, image, text
 //  Shows 8-point handles in pan mode when clicked.
-//  note/text also scale fontSize as the box is resized (see onMove below).
+//  text also scales fontSize as the box is resized (see onMove below).
 // ═══════════════════════════════════════════════
 let _selectedAnnotId = null;
 let _resizing = null; // { id, handle, startX, startY, orig{x,y,w,h,fontSize}, ovW, ovH }
 
-const RESIZABLE = ['highlight','rect','rectfill','strike','cloud','textbox','callout','image','note','text'];
-const FONT_SCALABLE = ['note','text'];
+const RESIZABLE = ['highlight','rect','rectfill','strike','cloud','textbox','callout','image','text'];
+const FONT_SCALABLE = ['text'];
 
 function showResizeHandles(el, a, ov) {
   // Line-like types have two endpoints rather than a bounding box — use endpoint handles
@@ -7734,8 +7641,8 @@ function showResizeHandles(el, a, ov) {
     showEndpointHandles(a, ov);
     return;
   }
-  // note/text boxes size to their content until first resized — backfill
-  // w/h from the rendered element so handles have a box to grab
+  // text boxes size to their content until first resized — backfill w/h
+  // from the rendered element so handles (and edge-arrow buttons) have a box to grab
   if ((a.w === undefined || a.h === undefined) && FONT_SCALABLE.includes(a.type)) {
     const ovRect = ov.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
@@ -7746,6 +7653,8 @@ function showResizeHandles(el, a, ov) {
   removeResizeHandles();
   _selectedAnnotId = a.id;
   el.classList.add('ann-selected');
+
+  if (a.type === 'text') showEdgeArrowButtons(a, ov);
 
   const handles = [
     { cls:'nw', lx:'0%',   ly:'0%'   },
@@ -7776,7 +7685,7 @@ function showResizeHandles(el, a, ov) {
         id: a.id, handle: cls,
         startX: ev.clientX, startY: ev.clientY,
         origX: a.x, origY: a.y, origW: a.w, origH: a.h,
-        origFontSize: FONT_SCALABLE.includes(a.type) ? (a.fontSize || (a.type === 'note' ? 11.5 : 13)) : null,
+        origFontSize: FONT_SCALABLE.includes(a.type) ? (a.fontSize || 13) : null,
         ovW: ovRect.width, ovH: ovRect.height,
       };
 
@@ -7801,7 +7710,7 @@ function showResizeHandles(el, a, ov) {
           ann.ly = ann.y + ann.h + 5;
         }
 
-        // note/text: scale font size with the box so the content grows/shrinks
+        // text: scale font size with the box so the content grows/shrinks
         // with the handle drag — corner handles scale both axes (averaged),
         // single-edge handles scale by that edge alone.
         if (origFontSize != null) {
@@ -7818,11 +7727,10 @@ function showResizeHandles(el, a, ov) {
           domEl.style.top    = ann.y + '%';
           if (domEl.style.width  !== undefined) domEl.style.width  = ann.w + '%';
           if (domEl.style.height !== undefined) domEl.style.height = ann.h + '%';
-          if (origFontSize != null) {
-            const fontTarget = ann.type === 'note' ? domEl.querySelector('.an-body') : domEl;
-            if (fontTarget) fontTarget.style.fontSize = ann.fontSize + 'px';
-          }
+          if (origFontSize != null) domEl.style.fontSize = ann.fontSize + 'px';
         }
+        // Keep any leader arrow anchored to the box edge while it resizes
+        if (ann.type === 'text' && ann.leaderEdge) buildTextLeaderSvg(ann, ov);
         // Reposition handles live
         showResizeHandles(domEl || el, ann, ov);
       };
@@ -7913,8 +7821,83 @@ function showEndpointHandles(ann, ov) {
 
 function removeResizeHandles() {
   document.querySelectorAll('.resize-handle').forEach(h => h.remove());
+  document.querySelectorAll('.edge-arrow-btn').forEach(h => h.remove());
   document.querySelectorAll('.ann-selected').forEach(el => el.classList.remove('ann-selected'));
   _selectedAnnotId = null;
+}
+
+// ── "+" edge buttons on a selected text box — drag from any edge to add
+// a leader arrow pointing out from that edge (replaces the old note tool's
+// two-click arrow-then-box flow). One button per edge; dragging the tip
+// while it's already active lets you reposition or (dragged back onto the
+// box) remove the arrow — see buildTextLeaderSvg.
+function showEdgeArrowButtons(a, ov) {
+  const edges = [
+    { edge: 'top',    lx: '50%', ly: '0%'   },
+    { edge: 'right',  lx: '100%',ly: '50%'  },
+    { edge: 'bottom', lx: '50%', ly: '100%' },
+    { edge: 'left',   lx: '0%',  ly: '50%'  },
+  ];
+
+  edges.forEach(({ edge, lx, ly }) => {
+    const btn = document.createElement('div');
+    btn.className = 'edge-arrow-btn';
+    btn.textContent = '+';
+    btn.title = 'Drag to add a leader arrow';
+    btn.style.left = (a.x + (parseFloat(lx) / 100) * a.w) + '%';
+    btn.style.top  = (a.y + (parseFloat(ly) / 100) * a.h) + '%';
+    btn.dataset.edge = edge;
+    btn.dataset.annotId = a.id;
+
+    btn.addEventListener('mousedown', ev => {
+      ev.stopPropagation();
+      ev.preventDefault();
+      const ann = annots.find(x => x.id === a.id);
+      if (!ann) return;
+      const ovRect = ov.getBoundingClientRect();
+
+      // Give the arrow an initial tip a short distance out from the edge,
+      // in case the user releases without moving the mouse at all.
+      ann.leaderEdge = edge;
+      ann.leaderX = (ev.clientX - ovRect.left) / ovRect.width  * 100;
+      ann.leaderY = (ev.clientY - ovRect.top)  / ovRect.height * 100;
+      buildTextLeaderSvg(ann, ov);
+
+      const onMove = mv => {
+        ann.leaderX = (mv.clientX - ovRect.left) / ovRect.width  * 100;
+        ann.leaderY = (mv.clientY - ovRect.top)  / ovRect.height * 100;
+        buildTextLeaderSvg(ann, ov);
+      };
+
+      const onUp = mv => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup',   onUp);
+        // Released right on the box (essentially a click, not a drag) —
+        // detach immediately rather than leaving a zero-length arrow
+        const pin = ov.querySelector('[data-aid="' + ann.id + '"]');
+        if (pin) {
+          const pr = pin.getBoundingClientRect();
+          const pad = LEADER_DETACH_PX;
+          if (mv.clientX >= pr.left - pad && mv.clientX <= pr.right + pad &&
+              mv.clientY >= pr.top  - pad && mv.clientY <= pr.bottom + pad) {
+            delete ann.leaderEdge; delete ann.leaderX; delete ann.leaderY;
+          }
+        }
+        syncAnnots();
+        pushHistory();
+        setTimeout(() => {
+          const newEl = ov.querySelector('[data-aid="' + ann.id + '"]');
+          const freshAnn = annots.find(x => x.id === ann.id);
+          if (newEl && freshAnn) showResizeHandles(newEl, freshAnn, ov);
+        }, 50);
+      };
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup',   onUp);
+    });
+
+    ov.appendChild(btn);
+  });
 }
 
 // Attach resize-handle trigger to annotation elements in pan mode
@@ -8337,20 +8320,6 @@ async function mobileZoom(factor) {
   await rerenderAll();
 }
 
-// On mobile: tap a note to show its action bar (since hover isn't available)
-document.addEventListener('click', ev => {
-  if (!('ontouchstart' in window)) return; // desktop only uses hover
-  const note = ev.target.closest('.an[data-aid]');
-  if (note) {
-    // Toggle mob-tapped class for CSS hover simulation
-    const wasOpen = note.classList.contains('mob-tapped');
-    document.querySelectorAll('.an.mob-tapped').forEach(n => n.classList.remove('mob-tapped'));
-    if (!wasOpen) note.classList.add('mob-tapped');
-  } else {
-    document.querySelectorAll('.an.mob-tapped').forEach(n => n.classList.remove('mob-tapped'));
-  }
-});
-
 // Close drawer when switching tool via keyboard
 // mob zoom label now synced in _ribbonSetTool patch below
 
@@ -8722,10 +8691,11 @@ function addSpellSuggestion(idx) {
   const s = _spellSuggestions[idx];
   if (!s || s.added) return;
   pushAnnot({
-    id: nextId(), pageNum: s.pageNum, type: 'note',
+    id: nextId(), pageNum: s.pageNum, type: 'text',
     x: s.x, y: s.y, Color: 'red',
     text: '[' + (s.type.charAt(0).toUpperCase() + s.type.slice(1)) + '] ' +
-          '"' + s.original + '" → "' + s.corrected + '"\n' + s.reason
+          '"' + s.original + '" → "' + s.corrected + '"\n' + s.reason,
+    textAlign: 'center', vAlign: 'center', box: true,
   });
   s.added = true;
   // Update button and row
@@ -9151,7 +9121,7 @@ async function batchExportEmma() {
   const allRows = [];
   drawingSet.forEach(drawing => {
     const drawingAnnots = (drawing.annots || []).filter(a =>
-      ['note','text','callout','textbox','measure'].includes(a.type) && !a.emmaExclude
+      ['text','callout','textbox','measure'].includes(a.type) && !a.emmaExclude
     );
     drawingAnnots.forEach(a => {
       allRows.push({
@@ -9168,7 +9138,7 @@ async function batchExportEmma() {
 
   // Also include current open drawing
   const curAnnots = annots.filter(a =>
-    ['note','text','callout','textbox','measure'].includes(a.type) && !a.emmaExclude
+    ['text','callout','textbox','measure'].includes(a.type) && !a.emmaExclude
   );
   curAnnots.forEach(a => {
     allRows.push({
@@ -9255,61 +9225,6 @@ async function batchExportEmma() {
     toast('Batch export failed: ' + e.message);
   }
 }
-
-// ═══════════════════════════════════════════════
-//  REPLY THREADS ON NOTES
-//  Replies stored on annotation: a.replies = [{author, text, ts}]
-// ═══════════════════════════════════════════════
-function addNoteReply(annotId, text) {
-  if (!text.trim()) return;
-  const a = annots.find(x => x.id === annotId);
-  if (!a) return;
-  if (!a.replies) a.replies = [];
-  a.replies.push({ author: currentAuthor || 'Unknown', text: text.trim(), ts: Date.now() });
-  syncAnnots(); updateAnnotPanel(); pushHistory();
-}
-
-function buildNoteReplies(a, el) {
-  if (!a.replies || !a.replies.length) return;
-  const wrap = document.createElement('div');
-  wrap.className = 'an-replies';
-  a.replies.forEach(r => {
-    const div = document.createElement('div');
-    div.className = 'an-reply';
-    const auth = document.createElement('div');
-    auth.className = 'an-reply-author';
-    auth.textContent = r.author + ' · ' + new Date(r.ts).toLocaleDateString('en-GB');
-    const txt = document.createElement('div');
-    txt.textContent = r.text;
-    div.appendChild(auth); div.appendChild(txt);
-    wrap.appendChild(div);
-  });
-  el.appendChild(wrap);
-}
-
-function buildNoteReplyInput(a, el) {
-  const wrap = document.createElement('div');
-  wrap.className = 'an-reply-input-wrap';
-  const inp = document.createElement('textarea');
-  inp.className = 'an-reply-input';
-  inp.placeholder = 'Reply…';
-  inp.rows = 1;
-  inp.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter' && !ev.shiftKey) {
-      ev.preventDefault();
-      addNoteReply(a.id, inp.value);
-    }
-  });
-  const btn = document.createElement('button');
-  btn.className = 'an-reply-send';
-  btn.textContent = '↵';
-  btn.title = 'Send reply (Enter)';
-  btn.onclick = ev => { ev.stopPropagation(); addNoteReply(a.id, inp.value); };
-  wrap.appendChild(inp); wrap.appendChild(btn);
-  el.appendChild(wrap);
-}
-
-// Reply threads are now rendered directly in buildAnnotEl
 
 // ═══════════════════════════════════════════════
 //  SEARCH — persist highlights across navigation

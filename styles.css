@@ -112,6 +112,15 @@ body.dark select, body.dark input { Color-scheme: dark; }
 .resize-handle.w  { cursor:w-resize; }
 /* Endpoint handles for line / arrow / measure — circular variant of resize-handle */
 .ep-handle { border-radius:50% !important; cursor:crosshair !important; width:12px !important; height:12px !important; }
+/* "+" edge buttons on a selected text box — drag out to add a leader arrow */
+.edge-arrow-btn {
+  position:absolute; width:16px; height:16px; margin:-8px 0 0 -8px;
+  background:#fff; border:2px solid #16a34a; border-radius:50%;
+  color:#16a34a; font-size:13px; font-weight:700; line-height:12px;
+  text-align:center; z-index:21; cursor:crosshair; pointer-events:all;
+  box-shadow:0 1px 3px rgba(0,0,0,.25); user-select:none;
+}
+.edge-arrow-btn:hover { background:#16a34a; color:#fff; }
 .ep-handle:hover { background:#eff6ff; border-Color:#1d4ed8; }
 /* Selected annotation highlight */
 [data-aid].ann-selected {
@@ -671,120 +680,13 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
 /* annotation elements */
 .ah{position:absolute;mix-blend-mode:multiply;border-radius:1px}
 .ar{position:absolute;border:2px solid #2563eb;background:rgba(37,99,235,.07);border-radius:1px}
-/* ── STICKY NOTE — Adobe-style comment box ────────────
-   Always shows text. Leader arrow points from anchor
-   corner to any point on the drawing.
-───────────────────────────────────────────────────── */
-.an {
-  position: absolute;
-  min-width: 140px;
-  max-width: 220px;
-  background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.08);
-  cursor: pointer;
-  z-index: 5;
-  font-family: var(--font);
-  transition: box-shadow .12s;
-  /* overflow visible so action bar can extend without clipping */
-}
-.an:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,.22), 0 0 0 1.5px rgba(0,0,0,.15);
-  z-index: 6;
-}
-/* Colored header bar */
-.an-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-  font-size: 10px;
-  font-weight: 700;
-  font-family: var(--mono);
-  Color: rgba(0,0,0,.65);
-  letter-spacing: .3px;
-  border-radius: 4px 4px 0 0;
-}
-.an-header-icon {
-  font-size: 11px;
-  opacity: .7;
-}
-.an-author {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  opacity: .7;
-}
-/* Text body */
-.an-body {
-  padding: 5px 8px 7px;
-  font-size: 11.5px;
-  line-height: 1.45;
-  Color: var(--gray-800);
-  white-space: pre-wrap;
-  word-break: break-word;
-  border-top: 1px solid rgba(0,0,0,.07);
-  min-height: 24px;
-  background: #fff;
-  border-radius: 0 0 4px 4px;
-}
-.an:hover .an-body {
-  border-radius: 0;
-}
-.an-body-inner:empty::before {
+.atxt-inner:empty::before {
   content: 'Click to edit…';
   Color: var(--gray-400);
   font-style: italic;
 }
-/* Action bar — shown on hover */
-.an-actions {
-  display: none;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-top: 1px solid rgba(0,0,0,.06);
-  background: var(--gray-50);
-  border-radius: 0 0 4px 4px;
-}
-.an:hover .an-actions { display: flex; }
-.an-act-btn {
-  font-size: 10px;
-  padding: 1px 7px;
-  border-radius: 3px;
-  border: 1px solid var(--gray-300);
-  background: var(--white);
-  Color: var(--gray-600);
-  cursor: pointer;
-  font-family: var(--font);
-  white-space: nowrap;
-}
-.an-act-btn:hover { background: var(--gray-100); }
-.an-act-btn.primary { background: var(--blue-500); Color: #fff; border-Color: var(--blue-500); }
-.an-act-btn.primary:hover { background: var(--blue-600); }
-.an-act-btn.danger { Color: var(--red-500); }
-.an-act-btn.danger:hover { background: var(--red-50); border-Color: #fca5a5; }
 
-/* Marker shown at the arrow-tip click while placing a note (before the
-   second click sets where the note box itself goes) */
-.note-leader-pending {
-  position: absolute;
-  width: 10px; height: 10px;
-  margin: -5px 0 0 -5px;
-  border-radius: 50%;
-  background: var(--blue-500, #3b82f6);
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px var(--blue-500, #3b82f6), 0 1px 4px rgba(0,0,0,.35);
-  pointer-events: none;
-  z-index: 6;
-  animation: note-leader-pulse 1s ease-in-out infinite;
-}
-@keyframes note-leader-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.4); opacity: .6; }
-}
-
-/* Leader SVG — sits behind the note box */
+/* Leader SVG — sits behind the text box it's attached to */
 .an-leader {
   position: absolute;
   inset: 0;
@@ -797,7 +699,8 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
 .asvg-wrap{position:absolute;inset:0;overflow:visible;pointer-events:none}
 .asvg-wrap svg{position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .atxt{position:absolute;font-family:var(--font);font-size:13px;font-weight:500;
-  line-height:1.3;cursor:pointer;white-space:pre-wrap;padding:2px 4px;border-radius:2px}
+  line-height:1.3;cursor:pointer;white-space:pre-wrap;word-break:break-word;
+  padding:2px 4px;border-radius:2px;max-width:280px}
 .astrike{position:absolute}
 
 /* ── IMAGE ANNOTATIONS ──────────────────────── */
@@ -869,46 +772,6 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
   z-index: 18;
   mix-blend-mode: multiply;
 }
-
-/* ── REPLY THREADS ─────────────────────────────── */
-.an-replies {
-  border-top: 1px solid rgba(0,0,0,.07);
-  background: var(--gray-50);
-  max-height: 160px;
-  overflow-y: auto;
-}
-.an-reply {
-  padding: 5px 8px;
-  border-bottom: 1px solid rgba(0,0,0,.05);
-  font-size: 10.5px;
-  line-height: 1.4;
-  Color: var(--gray-700);
-}
-.an-reply:last-child { border-bottom: none; }
-.an-reply-author {
-  font-weight: 700; Color: var(--gray-500);
-  font-size: 9px; font-family: var(--mono);
-  margin-bottom: 2px;
-}
-.an-reply-input-wrap {
-  display: flex; gap: 4px; padding: 4px 6px;
-  border-top: 1px solid rgba(0,0,0,.07);
-  background: var(--white);
-  border-radius: 0 0 4px 4px;
-}
-.an-reply-input {
-  flex: 1; font-size: 11px; font-family: var(--font);
-  border: 1px solid var(--gray-300); border-radius: 3px;
-  padding: 3px 6px; outline: none; resize: none;
-  height: 28px; line-height: 1.4;
-}
-.an-reply-input:focus { border-Color: var(--blue-500); }
-.an-reply-send {
-  font-size: 11px; padding: 3px 8px;
-  background: var(--blue-500); Color: #fff;
-  border: none; border-radius: 3px; cursor: pointer;
-}
-.an-reply-send:hover { background: var(--blue-600); }
 
 /* ── MEASUREMENT TABLE PANEL ──────────────────── */
 .meas-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
@@ -1386,10 +1249,6 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
   /* Bigger touch targets on annotations */
   [data-aid] { min-width: 44px; min-height: 44px; }
 
-  /* Larger note boxes on mobile */
-  .an { min-width: 160px; }
-  .an-act-btn { padding: 4px 10px; font-size: 11px; }
-
   /* Txt pop fills more screen */
   #txt-pop { width: calc(100vw - 24px); left: 12px !important; right: 12px; }
 
@@ -1412,8 +1271,6 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
 
 /* Touch — remove hover states that don't apply */
 @media (hover: none) {
-  .an:hover .an-actions { display: none; }
-  .an.mob-tapped .an-actions { display: flex; }
   [data-aid].moveable:hover { outline: none; }
   .tbtn:hover { background: transparent; }
 }

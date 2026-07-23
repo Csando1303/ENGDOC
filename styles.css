@@ -122,6 +122,15 @@ body.dark select, body.dark input { Color-scheme: dark; }
 }
 .edge-arrow-btn:hover { background:#16a34a; color:#fff; }
 .ep-handle:hover { background:#eff6ff; border-Color:#1d4ed8; }
+/* Draggable tip of a text box's leader arrow — percent-positioned, fixed
+   pixel size so it stays a small crisp dot regardless of zoom */
+.leader-tip-handle {
+  position:absolute; width:10px; height:10px;
+  border-radius:50%; border:1.5px solid #fff;
+  box-shadow:0 0 0 1px rgba(0,0,0,.25), 0 1px 3px rgba(0,0,0,.3);
+  transform:translate(-50%,-50%);
+  cursor:move; z-index:6;
+}
 /* Selected annotation highlight */
 [data-aid].ann-selected {
   outline: 2px solid #2563eb !important;
@@ -686,10 +695,16 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
   font-style: italic;
 }
 
-/* Leader SVG — sits behind the text box it's attached to */
+/* Leader SVG — sits behind the text box it's attached to.
+   width/height:100% is required alongside inset:0 — SVG is a replaced
+   element, so an absolutely-positioned SVG with no explicit size sizes
+   itself from its intrinsic 300x150 default (per CSS replaced-element
+   rules) rather than stretching to fill, even with inset:0 set. */
 .an-leader {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   overflow: visible;
   z-index: 4;
@@ -1065,16 +1080,6 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
 .aline{position:absolute;pointer-events:none;overflow:visible}
 /* Filled rectangle */
 .arectfill{position:absolute;pointer-events:none;border-radius:1px}
-/* Callout box with leader */
-.acallout{position:absolute;pointer-events:all;cursor:pointer}
-.acallout-box{position:absolute;border:2px solid;border-radius:3px;background:rgba(255,255,255,.92);
-  padding:5px 8px;font-size:12px;line-height:1.4;min-width:60px;min-height:28px;
-  word-break:break-word;box-shadow:0 2px 8px rgba(0,0,0,.1)}
-/* Text box */
-.atextbox{position:absolute;border:1.5px solid;border-radius:2px;
-  background:rgba(255,255,255,.9);padding:4px 7px;font-size:12px;
-  line-height:1.5;word-break:break-word;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-
 /* keyboard shortcuts modal */
 #mkeys .modal{width:480px}
 .krow{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid var(--gray-100)}

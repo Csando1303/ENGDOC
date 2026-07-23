@@ -3685,7 +3685,12 @@ function startInlineEdit(a, el, ov) {
     'position:absolute;inset:0;z-index:25;resize:none;border:none;outline:none;' +
     'box-sizing:border-box;background:rgba(255,255,255,.92);white-space:pre-wrap;overflow:auto;' +
     'font-family:inherit;font-size:' + cs.fontSize + ';color:' + cs.color + ';' +
-    'text-align:' + cs.textAlign + ';line-height:' + cs.lineHeight + ';padding:' + cs.padding + ';';
+    'text-align:' + cs.textAlign + ';line-height:' + cs.lineHeight + ';padding:' + cs.padding + ';' +
+    // pointer-events is inherited — the container gets set to 'none' in pan
+    // mode so the move-overlay sibling can handle dragging, which would
+    // otherwise make this textarea click-through too and swallow every
+    // click meant to place the caret. Must override explicitly.
+    'pointer-events:auto;';
   container.appendChild(ta);
   ta.focus();
   ta.select();

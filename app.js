@@ -3039,8 +3039,6 @@ function attachOverlayCtxMenu(ov) {
 // it's ready before the user starts replacing anything.
 let _msScan = null;          // { texts: [{eid,text,x,y}], range } or null
 let _msTextCounts = null;    // normalized WHOLE text -> count, for duplicate-label detection
-let _msLineCounts = null;    // normalized single LINE (within a multi-line element's text) -> count of
-                              // elements containing it, for duplicate detection on line-snippet matches
 let _msCalibration = null;   // { k_re, k_im, origin_p_x, origin_p_y, origin_d_x, origin_d_y } or null
 
 function _normText(s) {
@@ -3260,20 +3258,10 @@ function _msCalibrate() {
 
   const msByText = {};
   _msTextCounts = {};
-  _msLineCounts = {};
   _msScan.texts.forEach(t => {
     const k = _normText(t.text);
     (msByText[k] = msByText[k] || []).push(t);
     _msTextCounts[k] = (_msTextCounts[k] || 0) + 1;
-
-    const lines = t.text.split('\n');
-    if (lines.length > 1) {
-      const seenLines = new Set(); // count each element once per distinct line, even if it repeats a line
-      lines.forEach(l => {
-        const lk = _normText(l);
-        if (lk && !seenLines.has(lk)) { seenLines.add(lk); _msLineCounts[lk] = (_msLineCounts[lk] || 0) + 1; }
-      });
-    }
   });
 
   // If the scan carries the model's overall range — the sheet border,
@@ -3414,21 +3402,34 @@ function _msFindCandidates(origText, xPct, yPct, limit, pageNum) {
   // "B43/D04/064" inside "MAST REFERENCE\nB43/D04/064\nMASS 851kg\n...")
   // can never exact-match the scan's whole joined string above — the scan
   // stores one entry per element, not per line, so origText here is only
-  // ever a fragment of it. Duplicate detection uses _msLineCounts (how many
-  // elements contain this LINE) rather than _msTextCounts (which counts
-  // whole-text matches, meaningless here since every candidate's whole
-  // text differs). confirmReplaceText() only ever rewrites the one
+  // ever a fragment of it. confirmReplaceText() only ever rewrites the one
   // matching line on the bound element, not the whole block — see
   // apply_replacements() on the Atlas CAD side.
   const wholeTextEids = new Set(wholeTextMatches.map(t => t.eid));
-  const lineMatches = key
-    ? _msScan.texts
-        .filter(t => !wholeTextEids.has(t.eid) && (() => {
-          const lines = t.text.split('\n');
-          return lines.length > 1 && lines.some(l => _normText(l) === key);
-        })())
-        .map(t => ({ ...withDist(t), duplicate: (_msLineCounts[key] || 0) > 1, lineSnippet: true }))
+  const exactLineMatches = key
+    ? _msScan.texts.filter(t => !wholeTextEids.has(t.eid) && (() => {
+        const lines = t.text.split('\n');
+        return lines.length > 1 && lines.some(l => _normText(l) === key);
+      })())
     : [];
+  // A numbered/bulleted list item (e.g. "1. Do not scale from drawing.")
+  // routinely comes back from pdf.js as its number and its text as
+  // SEPARATE items — a click landing only on the text portion produces an
+  // origText ("Do not scale from drawing.") that can never exactly equal
+  // the DGN's actual line ("1. Do not scale from drawing."). Only tried
+  // when no exact line match exists anywhere, so it never shadows a
+  // stronger exact match.
+  const lineMatchSource = exactLineMatches.length ? exactLineMatches : (key
+    ? _msScan.texts.filter(t => !wholeTextEids.has(t.eid) && (() => {
+        const lines = t.text.split('\n');
+        return lines.length > 1 && lines.some(l => {
+          const lk = _normText(l);
+          return lk && (lk.includes(key) || key.includes(lk));
+        });
+      })())
+    : []);
+  const lineMatches = lineMatchSource.map(t =>
+    ({ ...withDist(t), duplicate: lineMatchSource.length > 1, lineSnippet: true }));
 
   // Both kinds of match go into ONE pool sorted purely by distance, rather
   // than whole-text always winning regardless of how far away it is — a

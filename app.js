@@ -3406,30 +3406,38 @@ function _msFindCandidates(origText, xPct, yPct, limit, pageNum) {
                             duplicate: (_msTextCounts[_normText(t.text)] || 0) > 1 });
 
   const key = _normText(origText);
-  let textMatches = key
-    ? _msScan.texts.filter(t => _normText(t.text) === key).map(withDist).sort((a, b) => a.dist - b.dist)
+  const wholeTextMatches = key
+    ? _msScan.texts.filter(t => _normText(t.text) === key).map(withDist)
     : [];
 
   // A right-click on ONE LINE of a multi-line MicroStation text node (e.g.
   // "B43/D04/064" inside "MAST REFERENCE\nB43/D04/064\nMASS 851kg\n...")
   // can never exact-match the scan's whole joined string above — the scan
   // stores one entry per element, not per line, so origText here is only
-  // ever a fragment of it. Only tried when there's no whole-text match, so
-  // it never shadows the (stronger) exact case. Duplicate detection uses
-  // _msLineCounts (how many elements contain this LINE) rather than
-  // _msTextCounts (which counts whole-text matches, meaningless here since
-  // every candidate's whole text differs). confirmReplaceText() only ever
-  // rewrites the one matching line on the bound element, not the whole
-  // block — see apply_replacements() on the Atlas CAD side.
-  if (!textMatches.length && key) {
-    textMatches = _msScan.texts
-      .filter(t => {
-        const lines = t.text.split('\n');
-        return lines.length > 1 && lines.some(l => _normText(l) === key);
-      })
-      .map(t => ({ ...withDist(t), duplicate: (_msLineCounts[key] || 0) > 1, lineSnippet: true }))
-      .sort((a, b) => a.dist - b.dist);
-  }
+  // ever a fragment of it. Duplicate detection uses _msLineCounts (how many
+  // elements contain this LINE) rather than _msTextCounts (which counts
+  // whole-text matches, meaningless here since every candidate's whole
+  // text differs). confirmReplaceText() only ever rewrites the one
+  // matching line on the bound element, not the whole block — see
+  // apply_replacements() on the Atlas CAD side.
+  const wholeTextEids = new Set(wholeTextMatches.map(t => t.eid));
+  const lineMatches = key
+    ? _msScan.texts
+        .filter(t => !wholeTextEids.has(t.eid) && (() => {
+          const lines = t.text.split('\n');
+          return lines.length > 1 && lines.some(l => _normText(l) === key);
+        })())
+        .map(t => ({ ...withDist(t), duplicate: (_msLineCounts[key] || 0) > 1, lineSnippet: true }))
+    : [];
+
+  // Both kinds of match go into ONE pool sorted purely by distance, rather
+  // than whole-text always winning regardless of how far away it is — a
+  // reference code used BOTH as its own standalone label elsewhere on the
+  // sheet AND as one line of a nearby multi-line cell would otherwise
+  // always auto-bind to the (wrong, distant) standalone one, since it used
+  // to be tried first unconditionally. The genuinely closest candidate,
+  // whichever kind it is, should win.
+  let textMatches = [...wholeTextMatches, ...lineMatches].sort((a, b) => a.dist - b.dist);
 
   // Duplicated label: see if exactly one candidate's cell-sibling context
   // is actually present near the click — if so, that's a content-based

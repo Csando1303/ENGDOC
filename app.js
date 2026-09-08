@@ -3038,7 +3038,9 @@ function attachOverlayCtxMenu(ov) {
 // PDF change) against the FULL page text, not just notes made so far, so
 // it's ready before the user starts replacing anything.
 let _msScan = null;          // { texts: [{eid,text,x,y}], range } or null
-let _msTextCounts = null;    // normalized text -> count, for duplicate-label detection
+let _msTextCounts = null;    // normalized WHOLE text -> count, for duplicate-label detection
+let _msLineCounts = null;    // normalized single LINE (within a multi-line element's text) -> count of
+                              // elements containing it, for duplicate detection on line-snippet matches
 let _msCalibration = null;   // { k_re, k_im, origin_p_x, origin_p_y, origin_d_x, origin_d_y } or null
 
 function _normText(s) {
@@ -3258,10 +3260,20 @@ function _msCalibrate() {
 
   const msByText = {};
   _msTextCounts = {};
+  _msLineCounts = {};
   _msScan.texts.forEach(t => {
     const k = _normText(t.text);
     (msByText[k] = msByText[k] || []).push(t);
     _msTextCounts[k] = (_msTextCounts[k] || 0) + 1;
+
+    const lines = t.text.split('\n');
+    if (lines.length > 1) {
+      const seenLines = new Set(); // count each element once per distinct line, even if it repeats a line
+      lines.forEach(l => {
+        const lk = _normText(l);
+        if (lk && !seenLines.has(lk)) { seenLines.add(lk); _msLineCounts[lk] = (_msLineCounts[lk] || 0) + 1; }
+      });
+    }
   });
 
   // If the scan carries the model's overall range — the sheet border,
@@ -3386,10 +3398,9 @@ function _msContextScore(candidate, pageNum, xPct, yPct) {
   return candidate.context.reduce((n, c) => n + (nearbySet.has(_normText(c)) ? 1 : 0), 0);
 }
 
-function _msFindCandidates(origText, xPct, yPct, limit, correction, pageNum) {
+function _msFindCandidates(origText, xPct, yPct, limit, pageNum) {
   if (!_msScan || !_msCalibration) return { textMatches: [], nearby: [] };
-  let [px, py] = _msProjectPoint(xPct, yPct, _msCalibration);
-  if (correction) { px += correction.dx; py += correction.dy; }
+  const [px, py] = _msProjectPoint(xPct, yPct, _msCalibration);
 
   const withDist = t => ({ ...t, dist: Math.hypot(t.x - px, t.y - py),
                             duplicate: (_msTextCounts[_normText(t.text)] || 0) > 1 });
@@ -3398,6 +3409,27 @@ function _msFindCandidates(origText, xPct, yPct, limit, correction, pageNum) {
   let textMatches = key
     ? _msScan.texts.filter(t => _normText(t.text) === key).map(withDist).sort((a, b) => a.dist - b.dist)
     : [];
+
+  // A right-click on ONE LINE of a multi-line MicroStation text node (e.g.
+  // "B43/D04/064" inside "MAST REFERENCE\nB43/D04/064\nMASS 851kg\n...")
+  // can never exact-match the scan's whole joined string above — the scan
+  // stores one entry per element, not per line, so origText here is only
+  // ever a fragment of it. Only tried when there's no whole-text match, so
+  // it never shadows the (stronger) exact case. Duplicate detection uses
+  // _msLineCounts (how many elements contain this LINE) rather than
+  // _msTextCounts (which counts whole-text matches, meaningless here since
+  // every candidate's whole text differs). confirmReplaceText() only ever
+  // rewrites the one matching line on the bound element, not the whole
+  // block — see apply_replacements() on the Atlas CAD side.
+  if (!textMatches.length && key) {
+    textMatches = _msScan.texts
+      .filter(t => {
+        const lines = t.text.split('\n');
+        return lines.length > 1 && lines.some(l => _normText(l) === key);
+      })
+      .map(t => ({ ...withDist(t), duplicate: (_msLineCounts[key] || 0) > 1, lineSnippet: true }))
+      .sort((a, b) => a.dist - b.dist);
+  }
 
   // Duplicated label: see if exactly one candidate's cell-sibling context
   // is actually present near the click — if so, that's a content-based
@@ -3426,39 +3458,6 @@ function _msFindCandidates(origText, xPct, yPct, limit, correction, pageNum) {
   return { textMatches, nearby };
 }
 
-// A table row's own label (e.g. "TAIL HT.") is far more likely to be
-// unique in the drawing than the bare value next to it ("6.000") — and in
-// a dense table, row-to-row spacing can be smaller than the whole-page
-// calibration's own precision, so several rows' values compete for
-// "nearest" even though the fit isn't really wrong, just not that precise
-// everywhere. If a unique-labelled neighbour sits on the same line, its
-// own predicted-vs-actual offset is a much tighter, purely local
-// correction for this one click than trusting the whole-page fit alone.
-function _msLocalCorrection(pageNum, xPct, yPct) {
-  if (!_msScan || !_msCalibration) return null;
-  const vp = pageViewports[pageNum];
-  const items = _pageTextItems[pageNum];
-  if (!vp || !items) return null;
-
-  const xPx = (xPct / 100) * vp.width, yPx = (yPct / 100) * vp.height;
-  let best = null;
-  items.forEach(it => {
-    if (Math.abs(it.x - xPx) < 1 && Math.abs(it.y - yPx) < 1) return; // the clicked item itself
-    const avgH = it.h || 12;
-    if (Math.abs(it.y - yPx) > avgH * 0.6) return; // not the same line
-    const key = _normText(it.str);
-    if (!key) return;
-    const cands = _msScan.texts.filter(t => _normText(t.text) === key);
-    if (cands.length !== 1) return; // only trust an unambiguous neighbour
-    const dist = Math.abs(it.x - xPx);
-    if (!best || dist < best.dist) best = { dist, item: it, ms: cands[0] };
-  });
-  if (!best) return null;
-
-  const itPctX = (best.item.x / vp.width) * 100, itPctY = (best.item.y / vp.height) * 100;
-  const [px, py] = _msProjectPoint(itPctX, itPctY, _msCalibration);
-  return { dx: best.ms.x - px, dy: best.ms.y - py, via: best.ms.text };
-}
 
 async function loadDrawingScan(e) {
   const f = e.target.files && e.target.files[0];
@@ -3513,16 +3512,12 @@ function _rtpCandRow(c, checked) {
       </label>`;
 }
 
-function _rtpRenderCandidates(found, correctionVia) {
+function _rtpRenderCandidates(found) {
   const box = document.getElementById('rtp-candidates');
   const textMatches = (found && found.textMatches) || [];
   const nearby = (found && found.nearby) || [];
   if (!textMatches.length && !nearby.length) { box.innerHTML = ''; box.hidden = true; return; }
   box.hidden = false;
-
-  const correctionNote = correctionVia
-    ? `<div class="rtp-correction-note">↳ position refined using nearby "${escHtml(correctionVia)}"</div>`
-    : '';
 
   // Nothing to confirm whenever there's at least one exact-text match:
   // one unambiguous match, a duplicated match resolved by cell-sibling
@@ -3538,23 +3533,28 @@ function _rtpRenderCandidates(found, correctionVia) {
   const winner = textMatches[0];
   if (winner) {
     const c = winner;
+    const lineNote = c.lineSnippet
+      ? ` — only this one line of "${escHtml(c.text.split('\n').map(l => l.trim()).join(' / '))}" will be changed`
+      : '';
     let why;
     if (c.contextConfirmed) {
       why = `identified by nearby "${c.contextMatched.map(escHtml).join('", "')}"`;
     } else if (textMatches.length > 1) {
-      why = `closest of ${textMatches.length} elements with this exact text, ${c.dist.toFixed(3)} away`;
+      why = `closest of ${textMatches.length} elements ${c.lineSnippet ? 'containing this line' : 'with this exact text'}, ${c.dist.toFixed(3)} away`;
+    } else if (c.lineSnippet) {
+      why = `matched as one line of a multi-line element, ${c.dist.toFixed(3)} away`;
     } else {
       why = `exact text match, ${c.dist.toFixed(3)} away`;
     }
-    box.innerHTML = correctionNote + `
+    box.innerHTML = `
       <div class="rtp-auto-bound">
-        ✓ Auto-bound to <span class="rtp-cand-eid">#${escHtml(c.eid)}</span> — ${why}
+        ✓ Auto-bound to <span class="rtp-cand-eid">#${escHtml(c.eid)}</span> — ${why}${lineNote}
         <input type="radio" name="rtp-target" value="${escHtml(c.eid)}" checked hidden>
       </div>`;
     return;
   }
 
-  let html = '<div class="sp-label" style="margin:8px 0 4px">Bind to drawing element</div>' + correctionNote +
+  let html = '<div class="sp-label" style="margin:8px 0 4px">Bind to drawing element</div>' +
     '<div class="rtp-group-label rtp-warn">⚠ No element with this exact text found anywhere in the scan — showing nearest by position only, verify carefully</div>';
   html += nearby.map((c, i) => _rtpCandRow(c, i === 0)).join('');
 
@@ -3566,11 +3566,11 @@ function _rtpSelectedTargetEid() {
   return checked ? checked.value : null;
 }
 
-function _rtpOpen(oldText, prefill, cx, cy, candidates, correctionVia) {
+function _rtpOpen(oldText, prefill, cx, cy, candidates) {
   document.getElementById('rtp-original').textContent = oldText || '(no original text on record)';
   const input = document.getElementById('rtp-input');
   input.value = prefill || '';
-  _rtpRenderCandidates(candidates, correctionVia);
+  _rtpRenderCandidates(candidates);
 
   const pop = document.getElementById('replace-text-pop');
   pop.style.left = '0'; pop.style.top = '0';
@@ -3611,21 +3611,19 @@ function openReplaceTextPopover(items, pageNum, ov, cx, cy) {
     origX, origY,
   };
 
-  const correction = _msLocalCorrection(pageNum, origX, origY);
-  const found = _msFindCandidates(oldText, origX, origY, 5, correction, pageNum);
-  _rtpOpen(oldText, '', cx, cy, found, correction && correction.via);
+  const found = _msFindCandidates(oldText, origX, origY, 5, pageNum);
+  _rtpOpen(oldText, '', cx, cy, found);
 }
 
 // "Replace text…" from the ctx-menu on an existing type:'text' note — lets
 // you correct/retype the replacement without deleting and re-creating it.
 function openReplaceTextPopoverForEdit(a, cx, cy) {
   _rtpState = { mode: 'edit', annotId: a.id };
-  let found = { textMatches: [], nearby: [] }, correction = null;
+  let found = { textMatches: [], nearby: [] };
   if (a.origX !== undefined) {
-    correction = _msLocalCorrection(a.pageNum, a.origX, a.origY);
-    found = _msFindCandidates(a.origText || '', a.origX, a.origY, 5, correction, a.pageNum);
+    found = _msFindCandidates(a.origText || '', a.origX, a.origY, 5, a.pageNum);
   }
-  _rtpOpen(a.origText || '', a.text || '', cx, cy, found, correction && correction.via);
+  _rtpOpen(a.origText || '', a.text || '', cx, cy, found);
 }
 
 function cancelReplaceText() {

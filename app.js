@@ -3402,34 +3402,24 @@ function _msFindCandidates(origText, xPct, yPct, limit, pageNum) {
   // "B43/D04/064" inside "MAST REFERENCE\nB43/D04/064\nMASS 851kg\n...")
   // can never exact-match the scan's whole joined string above — the scan
   // stores one entry per element, not per line, so origText here is only
-  // ever a fragment of it. confirmReplaceText() only ever rewrites the one
-  // matching line on the bound element, not the whole block — see
-  // apply_replacements() on the Atlas CAD side.
+  // ever a fragment of it. Matched here as a plain substring of the whole
+  // element's text, NOT restricted to a "\n"-delimited line — some
+  // multi-item blocks (e.g. a numbered notes list) don't come back from
+  // the scan as true separate lines at all, they read as one long run, so
+  // requiring a "\n" boundary was missing those entirely. A numbered/
+  // bulleted item ("1. Do not scale from drawing.") also often reaches
+  // here as just its text portion with the leading number split off
+  // separately by pdf.js, which can never equal the WHOLE scanned text
+  // either — substring match catches that case too. confirmReplaceText()
+  // only ever rewrites the matched portion on the bound element, not the
+  // whole block — see apply_replacements() on the Atlas CAD side.
   const wholeTextEids = new Set(wholeTextMatches.map(t => t.eid));
-  const exactLineMatches = key
-    ? _msScan.texts.filter(t => !wholeTextEids.has(t.eid) && (() => {
-        const lines = t.text.split('\n');
-        return lines.length > 1 && lines.some(l => _normText(l) === key);
-      })())
+  const substringMatchSource = key
+    ? _msScan.texts.filter(t => !wholeTextEids.has(t.eid) && t.text.length > key.length &&
+        _normText(t.text).includes(key))
     : [];
-  // A numbered/bulleted list item (e.g. "1. Do not scale from drawing.")
-  // routinely comes back from pdf.js as its number and its text as
-  // SEPARATE items — a click landing only on the text portion produces an
-  // origText ("Do not scale from drawing.") that can never exactly equal
-  // the DGN's actual line ("1. Do not scale from drawing."). Only tried
-  // when no exact line match exists anywhere, so it never shadows a
-  // stronger exact match.
-  const lineMatchSource = exactLineMatches.length ? exactLineMatches : (key
-    ? _msScan.texts.filter(t => !wholeTextEids.has(t.eid) && (() => {
-        const lines = t.text.split('\n');
-        return lines.length > 1 && lines.some(l => {
-          const lk = _normText(l);
-          return lk && (lk.includes(key) || key.includes(lk));
-        });
-      })())
-    : []);
-  const lineMatches = lineMatchSource.map(t =>
-    ({ ...withDist(t), duplicate: lineMatchSource.length > 1, lineSnippet: true }));
+  const lineMatches = substringMatchSource.map(t =>
+    ({ ...withDist(t), duplicate: substringMatchSource.length > 1, lineSnippet: true }));
 
   // Both kinds of match go into ONE pool sorted purely by distance, rather
   // than whole-text always winning regardless of how far away it is — a

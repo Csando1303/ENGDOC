@@ -3524,19 +3524,28 @@ function _rtpRenderCandidates(found, correctionVia) {
     ? `<div class="rtp-correction-note">↳ position refined using nearby "${escHtml(correctionVia)}"</div>`
     : '';
 
-  // Nothing to confirm when there's exactly one unambiguous exact-text
-  // match, OR a duplicated match that was resolved by cell-sibling context
-  // (see _msFindCandidates — e.g. "E.W.1" identified by which mast's
-  // OTHER labels are actually nearby) — auto-bind it and just show a
-  // transparent confirmation line instead of a picker. Real unresolved
-  // ambiguity (duplicated text with no distinguishing context found, or no
-  // text match at all) still stops here for review, same as before.
+  // Nothing to confirm whenever there's at least one exact-text match:
+  // one unambiguous match, a duplicated match resolved by cell-sibling
+  // context (see _msFindCandidates — e.g. "E.W.1" identified by which
+  // mast's OTHER labels are actually nearby), or — now that calibration has
+  // proven reliable in practice — a duplicated match with no distinguishing
+  // context, where the closest candidate (textMatches is already sorted by
+  // distance) has consistently been the right one. Auto-bind to it and
+  // show a transparent confirmation line instead of a picker. Only a
+  // genuine absence of any exact-text match (nothing in the scan carries
+  // this text at all) still stops here for manual review, since there's no
+  // text signal to trust there at all, just raw proximity.
   const winner = textMatches[0];
-  if (textMatches.length === 1 || (winner && winner.contextConfirmed)) {
+  if (winner) {
     const c = winner;
-    const why = c.contextConfirmed
-      ? `identified by nearby "${c.contextMatched.map(escHtml).join('", "')}"`
-      : `exact text match, ${c.dist.toFixed(3)} away`;
+    let why;
+    if (c.contextConfirmed) {
+      why = `identified by nearby "${c.contextMatched.map(escHtml).join('", "')}"`;
+    } else if (textMatches.length > 1) {
+      why = `closest of ${textMatches.length} elements with this exact text, ${c.dist.toFixed(3)} away`;
+    } else {
+      why = `exact text match, ${c.dist.toFixed(3)} away`;
+    }
     box.innerHTML = correctionNote + `
       <div class="rtp-auto-bound">
         ✓ Auto-bound to <span class="rtp-cand-eid">#${escHtml(c.eid)}</span> — ${why}
@@ -3545,19 +3554,9 @@ function _rtpRenderCandidates(found, correctionVia) {
     return;
   }
 
-  let html = '<div class="sp-label" style="margin:8px 0 4px">Bind to drawing element</div>' + correctionNote;
-
-  if (textMatches.length) {
-    html += `<div class="rtp-group-label">Exact text match${textMatches.length > 1 ? ` (${textMatches.length} — no distinguishing context found nearby, picked by position)` : ''}</div>`;
-    html += textMatches.map((c, i) => _rtpCandRow(c, i === 0)).join('');
-    if (nearby.length) {
-      html += '<div class="rtp-group-label rtp-group-muted">Other nearby (no text match)</div>';
-      html += nearby.map(c => _rtpCandRow(c, false)).join('');
-    }
-  } else {
-    html += '<div class="rtp-group-label rtp-warn">⚠ No element with this exact text found anywhere in the scan — showing nearest by position only, verify carefully</div>';
-    html += nearby.map((c, i) => _rtpCandRow(c, i === 0)).join('');
-  }
+  let html = '<div class="sp-label" style="margin:8px 0 4px">Bind to drawing element</div>' + correctionNote +
+    '<div class="rtp-group-label rtp-warn">⚠ No element with this exact text found anywhere in the scan — showing nearest by position only, verify carefully</div>';
+  html += nearby.map((c, i) => _rtpCandRow(c, i === 0)).join('');
 
   box.innerHTML = html;
 }

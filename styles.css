@@ -231,11 +231,16 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
 #doc-name{font-family:var(--mono);font-size:11.5px;Color:var(--gray-600);background:var(--gray-50);
   border:1px solid var(--gray-200);padding:4px 12px;border-radius:var(--radius-sm);
   max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#hdr-cmdk-btn{display:flex;align-items:center;gap:5px;margin-left:10px;padding:5px 9px;
-  background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);
-  Color:var(--gray-500);cursor:pointer;font-family:var(--font);font-size:10.5px;transition:all .12s}
-#hdr-cmdk-btn:hover{Color:var(--gray-800);border-Color:var(--gray-300);background:var(--gray-100)}
-#hdr-cmdk-btn svg{width:13px;height:13px;flex-shrink:0}
+#ribbon-search-btn{display:flex;align-items:center;gap:7px;margin:5px 8px 5px auto;padding:0 12px;
+  height:24px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:20px;
+  Color:var(--gray-500);cursor:pointer;font-family:var(--font);font-size:11.5px;transition:all .12s;
+  flex-shrink:0;align-self:center}
+#ribbon-search-btn:hover{Color:var(--gray-800);border-Color:var(--blue-300,#93c5fd);background:var(--blue-50)}
+#ribbon-search-btn svg{width:13px;height:13px;flex-shrink:0}
+#ribbon-search-btn span:first-of-type{white-space:nowrap}
+#ribbon-search-kbd{font-size:9.5px;font-family:var(--mono);Color:var(--gray-400);
+  border:1px solid var(--gray-300);border-radius:3px;padding:0 5px;line-height:15px;flex-shrink:0}
+#ribbon-search-btn:hover #ribbon-search-kbd{Color:var(--blue-500);border-Color:var(--blue-200)}
 
 /* ── COMMAND PALETTE ─────────────────────── */
 #cmdk-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);

@@ -278,6 +278,17 @@
 
       <div class="rgroup">
         <div class="rgroup-btns">
+          <button class="rbtn" id="t-count" data-tip="Count — click to tally items (bolts, columns, fixtures…); numbers per group, running total shown at bottom" onclick="setTool('count')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor" stroke="none" font-family="sans-serif">#</text></svg>
+            <span class="rbtn-label">Count</span>
+          </button>
+          <select class="rzoom" id="count-group-sel" onchange="onCountGroupSelectChange(this.value)" style="width:110px" title="Count group"></select>
+        </div>
+        <div class="rgroup-label">Count</div>
+      </div>
+
+      <div class="rgroup">
+        <div class="rgroup-btns">
           <button type="button" class="rbtn custom-trigger" id="style-trigger" onclick="toggleStylePopover(event)" title="Colour, line &amp; font style">
             <span id="style-trigger-swatch"></span>
             <span class="rbtn-label">Style</span>
@@ -459,8 +470,21 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8l-4-4-4 4M8 16l4 4 4-4M12 4v16"/></svg>
             <span class="rbtn-label">Split<br>PDF</span>
           </button>
+          <button class="rbtn lg" onclick="openCompressModal()" data-tip="Shrink a large scanned PDF by flattening pages to compressed images">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="8 13 12 17 16 13"/><line x1="12" y1="17" x2="12" y2="9"/></svg>
+            <span class="rbtn-label">Compress<br>PDF</span>
+          </button>
         </div>
         <div class="rgroup-label">PDF Tools</div>
+      </div>
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn lg" onclick="openM('mbatch')" data-tip="Apply watermark, protect, or compress to many PDF files at once — downloads a ZIP">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="9" height="9" rx="1"/><rect x="13" y="6" width="9" height="9" rx="1"/><rect x="2" y="17" width="9" height="4" rx="1"/><rect x="13" y="17" width="9" height="4" rx="1"/></svg>
+            <span class="rbtn-label">Batch<br>Process</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Batch</div>
       </div>
       <div class="rgroup">
         <div class="rgroup-btns">
@@ -610,6 +634,7 @@
   <div class="sbi"><div class="sbdot g"></div>Ready</div>
   <div class="sbi" id="sb-zoom"><div class="sbdot b"></div>100%</div>
   <div class="sbi" id="sb-tool">Highlight</div>
+  <div class="sbi" id="sb-count-group" style="display:none;Color:var(--blue-500);font-weight:600"></div>
   <div id="sb-measure"></div>
   <div class="sbi" id="sb-hint" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Click and drag to scroll &middot; drag any annotation to move it &middot; Space to temporarily pan</div>
   <div class="sbi" id="sb-scale" style="cursor:pointer;Color:var(--blue-500)" onclick="openM('mscale')" title="Set drawing scale">⚖ Scale: unset</div>
@@ -1253,6 +1278,94 @@
   </div>
 </div>
 
+<!-- COMPRESS PDF MODAL -->
+<div class="overlay" id="mcompress">
+  <div class="modal" style="width:420px">
+    <div class="mhead"><span class="mtitle">Compress PDF</span><button class="mclose" onclick="closeM('mcompress')">✕</button></div>
+    <div class="mbody">
+      <p style="font-size:12.5px;Color:var(--gray-600);margin-bottom:10px">
+        Flattens every page to a compressed image at the chosen resolution — shrinks large scanned
+        drawing sets dramatically. <strong>Any selectable text or crisp vector lines will no longer be
+        selectable</strong> in the output (run Make Searchable/OCR afterward if you need that back).
+        Best suited to scanned pages; skip this for drawings you need to keep fully vector.
+      </p>
+      <div id="compress-size-hint" style="font-size:12px;Color:var(--gray-500);margin-bottom:10px;font-family:var(--mono)"></div>
+      <label class="flabel">Resolution</label>
+      <select class="finput fselect" id="compress-dpi" style="padding:8px">
+        <option value="150" selected>150 DPI — good quality, moderate size</option>
+        <option value="110">110 DPI — smaller, still legible</option>
+        <option value="85">85 DPI — smallest, thumbnail-grade</option>
+      </select>
+      <label class="flabel">JPEG quality</label>
+      <select class="finput fselect" id="compress-quality" style="margin-bottom:0;padding:8px">
+        <option value="0.85" selected>High</option>
+        <option value="0.7">Medium</option>
+        <option value="0.5">Low (smallest)</option>
+      </select>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('mcompress')">Cancel</button>
+      <button class="hbtn primary" onclick="compressPdf()">Compress &amp; Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- BATCH PROCESS MODAL -->
+<div class="overlay" id="mbatch">
+  <div class="modal" style="width:480px">
+    <div class="mhead"><span class="mtitle">Batch Process</span><button class="mclose" onclick="closeM('mbatch')">✕</button></div>
+    <div class="mbody">
+      <label class="flabel">PDF files</label>
+      <div class="fdrop" onclick="document.getElementById('batch-file-input').click()">
+        <input type="file" id="batch-file-input" accept=".pdf" multiple style="display:none" onchange="onBatchFilesSelected(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="22" height="22" style="margin-bottom:6px;Color:var(--gray-400)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div id="batch-count">Click to select PDF files</div>
+      </div>
+      <div class="flist" id="batch-file-list"></div>
+
+      <label class="flabel" style="margin-top:6px">Action to apply to every file</label>
+      <select class="finput fselect" id="batch-action" onchange="onBatchActionChange()" style="padding:8px">
+        <option value="watermark">Watermark &amp; Numbering</option>
+        <option value="protect">Protect (Password)</option>
+        <option value="compress">Compress</option>
+      </select>
+
+      <div id="batch-fields-watermark" class="batch-action-fields">
+        <label class="flabel">Watermark text (diagonal, optional)</label>
+        <input class="finput" id="batch-wm-text" placeholder="e.g. DRAFT / CONFIDENTIAL">
+        <label class="flabel">Footer text (optional)</label>
+        <input class="finput" id="batch-wm-footer" placeholder="e.g. Page {page} of {pages}  ·  {n}">
+        <div class="hint">Tokens: <code>{page}</code> <code>{pages}</code> <code>{date}</code> <code>{filename}</code> <code>{n}</code> (Bates number, sequential per file in selection order).</div>
+      </div>
+
+      <div id="batch-fields-protect" class="batch-action-fields" style="display:none">
+        <label class="flabel">Password to open each file</label>
+        <input class="finput" id="batch-prot-pw" type="password" placeholder="Applied to every file in the batch" autocomplete="new-password">
+      </div>
+
+      <div id="batch-fields-compress" class="batch-action-fields" style="display:none">
+        <label class="flabel">Resolution</label>
+        <select class="finput fselect" id="batch-compress-dpi" style="padding:8px">
+          <option value="150" selected>150 DPI</option>
+          <option value="110">110 DPI</option>
+          <option value="85">85 DPI</option>
+        </select>
+      </div>
+
+      <div id="batch-progress-wrap" style="display:none;margin-top:12px">
+        <div style="height:8px;border-radius:4px;background:var(--gray-200);overflow:hidden">
+          <div id="batch-progress-bar" style="height:100%;width:0%;background:var(--blue-500);transition:width .2s"></div>
+        </div>
+        <div id="batch-progress-label" style="font-size:11px;Color:var(--gray-500);margin-top:6px;font-family:var(--mono)"></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" id="batch-cancel-btn" onclick="closeM('mbatch')">Cancel</button>
+      <button class="hbtn primary" id="batch-run-btn" onclick="runBatchProcess()">Run Batch &amp; Download ZIP</button>
+    </div>
+  </div>
+</div>
+
 <!-- AUTHOR NAME MODAL -->
 <div id="mau" class="overlay">
   <div class="modal">
@@ -1338,6 +1451,10 @@
       <button class="mclose" onclick="closeM('mstamp')">✕</button>
     </div>
     <div class="mbody">
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;Color:var(--gray-600);cursor:pointer;user-select:none;margin-bottom:10px">
+        <input type="checkbox" id="stamp-dynamic" style="width:14px;height:14px">
+        Include my name &amp; today's date on the stamp
+      </label>
       <div class="stamp-grid" id="stamp-grid"></div>
     </div>
     <div class="mfoot">

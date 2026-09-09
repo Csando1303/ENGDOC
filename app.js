@@ -24,6 +24,59 @@ let vAlignDefault = 'center';    // 'top' | 'center' | 'bottom' — vertical jus
 let _spTargetAnnotId = null; // set while the style popover is editing one specific annotation (right-click → Style), vs the global "next annotation" style
 let annots = [];
 let mergeFiles = [];
+
+// ── COUNT TOOL — tally markers grouped by label, numbered within their
+// group across the whole document. Groups are session-local (not
+// persisted independently — the group each marker belongs to lives on
+// the marker itself via groupLabel, so reloading a session just re-derives
+// the group list from whatever count annotations are already there).
+const COUNT_GROUP_COLORS = ['#dc2626','#2563eb','#16a34a','#d97706','#7c3aed','#0891b2','#db2777'];
+let countGroups = [{ label: 'Count 1', Color: COUNT_GROUP_COLORS[0] }];
+let activeCountGroupIdx = 0;
+
+function renderCountGroupSelect() {
+  const sel = document.getElementById('count-group-sel');
+  if (!sel) return;
+  sel.innerHTML = countGroups.map((g, i) =>
+    `<option value="${i}"${i === activeCountGroupIdx ? ' selected' : ''}>${escHtml(g.label)}</option>`
+  ).join('') + '<option value="new">+ New group…</option>';
+}
+function onCountGroupSelectChange(val) {
+  if (val === 'new') { addCountGroup(); return; }
+  activeCountGroupIdx = parseInt(val);
+  updateCountStatusBar();
+}
+function addCountGroup() {
+  const label = (prompt('New count group name (e.g. "Fire Extinguisher", "Column"):') || '').trim();
+  if (!label) { renderCountGroupSelect(); return; }
+  const Color = COUNT_GROUP_COLORS[countGroups.length % COUNT_GROUP_COLORS.length];
+  countGroups.push({ label, Color });
+  activeCountGroupIdx = countGroups.length - 1;
+  renderCountGroupSelect();
+  updateCountStatusBar();
+}
+// Re-derive the group list from whatever count annotations exist (e.g.
+// after loading a session) so group dropdown/colours stay consistent.
+function syncCountGroupsFromAnnots() {
+  const seen = new Map();
+  annots.filter(a => a.type === 'count').forEach(a => {
+    if (!seen.has(a.groupLabel)) seen.set(a.groupLabel, a.Color);
+  });
+  if (seen.size) {
+    countGroups = [...seen.entries()].map(([label, Color]) => ({ label, Color }));
+    activeCountGroupIdx = 0;
+  }
+  renderCountGroupSelect();
+}
+function updateCountStatusBar() {
+  const el = document.getElementById('sb-count-group');
+  if (!el) return;
+  if (tool !== 'count') { el.style.display = 'none'; return; }
+  const group = countGroups[activeCountGroupIdx];
+  const n = annots.filter(a => a.type === 'count' && a.groupLabel === group.label).length;
+  el.style.display = '';
+  el.textContent = `${group.label}: ${n}`;
+}
 let annotIdSeq = 0;
 
 // Status lifecycle — defined early, used in updateAnnotPanel and buildAnnotEl
@@ -355,6 +408,7 @@ async function parseAndRenderPdfBytes(bytes) {
   await buildThumbs();
   try { syncAnnots(); } catch (e) { console.error('[ENGDOC] syncAnnots failed:', e); }
   updateAnnotPanel();
+  syncCountGroupsFromAnnots();
   scheduleRender();
 
   // Extract text in background — don't block rendering
@@ -2219,6 +2273,7 @@ function setTool(t) {
   }
 
   document.getElementById('sb-tool').textContent = typeLabels[t] || t;
+  updateCountStatusBar();
 
   // In select mode the overlay is completely transparent so text spans get events.
   // We also set cursor:text on the page wrappers themselves so there's no
@@ -2240,7 +2295,7 @@ function setTool(t) {
       o.style.cursor = '';
       o.className = 'aoverlay active';
       if (['highlight','rect','rectfill','strike','pen','arrow','line',
-           'measure','texthighlight','cloud','area','tableextract','link','redact','formtext'].includes(t)) o.classList.add('cur-cross');
+           'measure','texthighlight','cloud','area','tableextract','link','redact','formtext','count'].includes(t)) o.classList.add('cur-cross');
       else if (t === 'text')    o.classList.add('cur-text');
       else if (t === 'erase')   o.classList.add('cur-erase');
       else if (t === 'zoombox') o.classList.add('cur-zoombox');
@@ -2419,6 +2474,17 @@ function attachEvents(ov, pageNum, _vpInitial) {
       const id = nextId();
       pushAnnot({ id, pageNum, type: 'formcheckbox',
         x: px, y: py, w: 3, h: 3, name: 'field_' + id, checked: false });
+      return;
+    }
+
+    // ── COUNT: click-only — tally marker, numbered within its group ──
+    if (tool === 'count') {
+      const px = ox / vp.width * 100, py = oy / vp.height * 100;
+      const group = countGroups[activeCountGroupIdx];
+      const number = annots.filter(a => a.type === 'count' && a.groupLabel === group.label).length + 1;
+      pushAnnot({ id: nextId(), pageNum, type: 'count', x: px, y: py,
+        Color: group.Color, groupLabel: group.label, number });
+      updateCountStatusBar();
       return;
     }
 
@@ -4142,8 +4208,7 @@ function buildAnnotEl(a) {
   } else if (a.type === 'formtext') {
     el = document.createElement('div');
     el.className = 'aformtext';
-    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;` +
-      `border:1.5px solid #16a34a;border-radius:2px;background:#f0fdf4`;
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%`;
     const inp = document.createElement('input');
     inp.type = 'text';
     inp.className = 'aformtext-input';
@@ -4166,6 +4231,13 @@ function buildAnnotEl(a) {
     cb.addEventListener('click', ev => ev.stopPropagation());
     cb.addEventListener('change', () => { a.checked = cb.checked; syncAnnots(); });
     el.appendChild(cb);
+  } else if (a.type === 'count') {
+    el = document.createElement('div');
+    el.className = 'acount';
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;transform:translate(-50%,-50%);` +
+      `background:${a.Color};Color:#fff;border:2px solid #fff`;
+    el.title = `${a.groupLabel} #${a.number}`;
+    el.textContent = a.number;
   } else if (a.type === 'redact') {
     el = document.createElement('div');
     el.className = 'aredact';
@@ -4533,6 +4605,7 @@ function updateAnnotPanel() {
     else if (a.x1 !== undefined)     preview = 'Pg ' + a.pageNum + '  (' + Math.round(a.x1) + ', ' + Math.round(a.y1) + ') → (' + Math.round(a.x2) + ', ' + Math.round(a.y2) + ')';
     else if (a.points?.length)       preview = a.points.length + ' points';      // pen/area
     else if (a.stampId)              preview = a.label || a.stampId;             // stamp
+    else if (a.type === 'count')     preview = `${a.groupLabel} #${a.number}`;
     else                             preview = typeLabels[a.type] || a.type;
 
     const tsStr = a.ts ? new Date(a.ts).toLocaleString(undefined, {dateStyle:'short',timeStyle:'short'}) : '';
@@ -5118,72 +5191,84 @@ function _wmSubstitute(str, tokens) {
     .replace(/\{n\}/g, tokens.n);
 }
 
+// Core: bytes in, watermarked bytes out — shared by the single-document
+// modal and Batch Process so the two never drift out of sync.
+async function _watermarkBytes(bytes, opts) {
+  await loadPdfLib();
+  const { PDFDocument, rgb, degrees, StandardFonts } = PDFLib;
+  const srcDoc = await PDFDocument.load(bytes.slice(0));
+  const pages  = srcDoc.getPages();
+  const font   = await srcDoc.embedFont(StandardFonts.Helvetica);
+  const today  = new Date().toLocaleDateString('en-GB');
+
+  const hexToRgbTuple = hex => ({
+    r: parseInt(hex.slice(1, 3), 16) / 255,
+    g: parseInt(hex.slice(3, 5), 16) / 255,
+    b: parseInt(hex.slice(5, 7), 16) / 255,
+  });
+  const wmC = hexToRgbTuple(opts.wmColor);
+
+  pages.forEach((page, idx) => {
+    const { width: W, height: H } = page.getSize();
+    const tokens = {
+      page: idx + 1, pages: pages.length, date: today, filename: opts.filenameNoExt,
+      n: opts.prefix + String(opts.start + idx).padStart(opts.digits, '0'),
+    };
+
+    if (opts.wmText) {
+      const fontSize = Math.max(24, Math.min(64, Math.min(W, H) / (opts.wmText.length * 0.55 + 3)));
+      const tw = font.widthOfTextAtSize(opts.wmText, fontSize);
+      const angle = Math.PI / 4;
+      const cx = W / 2, cy = H / 2;
+      const x = cx - (tw / 2) * Math.cos(angle) + (fontSize / 2) * Math.sin(angle);
+      const y = cy - (tw / 2) * Math.sin(angle) - (fontSize / 2) * Math.cos(angle);
+      page.drawText(opts.wmText, {
+        x, y, size: fontSize, font, color: rgb(wmC.r, wmC.g, wmC.b),
+        opacity: opts.opacity, rotate: degrees(45),
+      });
+    }
+
+    if (opts.header) {
+      const text = _wmSubstitute(opts.header, tokens);
+      const size = 9;
+      const tw = font.widthOfTextAtSize(text, size);
+      page.drawText(text, { x: W / 2 - tw / 2, y: H - 24, size, font, color: rgb(0.35, 0.35, 0.35) });
+    }
+    if (opts.footer) {
+      const text = _wmSubstitute(opts.footer, tokens);
+      const size = 9;
+      const tw = font.widthOfTextAtSize(text, size);
+      page.drawText(text, { x: W / 2 - tw / 2, y: 16, size, font, color: rgb(0.35, 0.35, 0.35) });
+    }
+  });
+
+  return srcDoc.save();
+}
+
+function _watermarkOptsFromForm(filenameNoExt) {
+  const wmText = document.getElementById('wm-text').value.trim();
+  const header = document.getElementById('wm-header').value.trim();
+  const footer = document.getElementById('wm-footer').value.trim();
+  return {
+    wmText, header, footer, filenameNoExt,
+    opacity: parseFloat(document.getElementById('wm-opacity').value),
+    wmColor: document.getElementById('wm-Color').value,
+    prefix:  document.getElementById('wm-bates-prefix').value,
+    start:   parseInt(document.getElementById('wm-bates-start').value) || 0,
+    digits:  parseInt(document.getElementById('wm-bates-digits').value) || 4,
+  };
+}
+
 async function applyWatermarkAndNumbering() {
   if (!pdfBytes) { toast('Open a PDF first'); return; }
-  const wmText   = document.getElementById('wm-text').value.trim();
-  const header   = document.getElementById('wm-header').value.trim();
-  const footer   = document.getElementById('wm-footer').value.trim();
-  if (!wmText && !header && !footer) { toast('Enter a watermark, header or footer first'); return; }
-
-  const opacity  = parseFloat(document.getElementById('wm-opacity').value);
-  const wmColor  = document.getElementById('wm-Color').value;
-  const prefix   = document.getElementById('wm-bates-prefix').value;
-  const start    = parseInt(document.getElementById('wm-bates-start').value) || 0;
-  const digits   = parseInt(document.getElementById('wm-bates-digits').value) || 4;
+  const filenameNoExt = (pdfName || 'document').replace(/\.pdf$/i, '');
+  const opts = _watermarkOptsFromForm(filenameNoExt);
+  if (!opts.wmText && !opts.header && !opts.footer) { toast('Enter a watermark, header or footer first'); return; }
 
   closeM('mwatermark');
   toast('Applying watermark / numbering…', 4000);
   try {
-    await loadPdfLib();
-    const { PDFDocument, rgb, degrees, StandardFonts } = PDFLib;
-    const srcDoc = await PDFDocument.load(pdfBytes.slice(0));
-    const pages  = srcDoc.getPages();
-    const font   = await srcDoc.embedFont(StandardFonts.Helvetica);
-    const today  = new Date().toLocaleDateString('en-GB');
-    const filenameNoExt = (pdfName || 'document').replace(/\.pdf$/i, '');
-
-    const hexToRgbTuple = hex => ({
-      r: parseInt(hex.slice(1, 3), 16) / 255,
-      g: parseInt(hex.slice(3, 5), 16) / 255,
-      b: parseInt(hex.slice(5, 7), 16) / 255,
-    });
-    const wmC = hexToRgbTuple(wmColor);
-
-    pages.forEach((page, idx) => {
-      const { width: W, height: H } = page.getSize();
-      const tokens = {
-        page: idx + 1, pages: pages.length, date: today, filename: filenameNoExt,
-        n: prefix + String(start + idx).padStart(digits, '0'),
-      };
-
-      if (wmText) {
-        const fontSize = Math.max(24, Math.min(64, Math.min(W, H) / (wmText.length * 0.55 + 3)));
-        const tw = font.widthOfTextAtSize(wmText, fontSize);
-        const angle = Math.PI / 4;
-        const cx = W / 2, cy = H / 2;
-        const x = cx - (tw / 2) * Math.cos(angle) + (fontSize / 2) * Math.sin(angle);
-        const y = cy - (tw / 2) * Math.sin(angle) - (fontSize / 2) * Math.cos(angle);
-        page.drawText(wmText, {
-          x, y, size: fontSize, font, color: rgb(wmC.r, wmC.g, wmC.b),
-          opacity, rotate: degrees(45),
-        });
-      }
-
-      if (header) {
-        const text = _wmSubstitute(header, tokens);
-        const size = 9;
-        const tw = font.widthOfTextAtSize(text, size);
-        page.drawText(text, { x: W / 2 - tw / 2, y: H - 24, size, font, color: rgb(0.35, 0.35, 0.35) });
-      }
-      if (footer) {
-        const text = _wmSubstitute(footer, tokens);
-        const size = 9;
-        const tw = font.widthOfTextAtSize(text, size);
-        page.drawText(text, { x: W / 2 - tw / 2, y: 16, size, font, color: rgb(0.35, 0.35, 0.35) });
-      }
-    });
-
-    const bytes = await srcDoc.save();
+    const bytes = await _watermarkBytes(pdfBytes, opts);
     dl(bytes, `${filenameNoExt}_stamped.pdf`);
     toast('✓ Watermark / numbering applied', 2500);
   } catch (e) {
@@ -5205,40 +5290,49 @@ function openProtectModal() {
   openM('mprotect');
 }
 
+// Core: bytes in, encrypted bytes out — shared by the single-document modal
+// and Batch Process.
+async function _protectBytes(bytes, opts) {
+  await loadPdfLib();
+  const { PDFDocument } = PDFLib;
+  const srcDoc = await PDFDocument.load(bytes.slice(0));
+  srcDoc.encrypt({
+    userPassword: opts.userPw || undefined,
+    ownerPassword: opts.ownerPw || opts.userPw || undefined,
+    permissions: {
+      printing: opts.allowPrint ? 'highResolution' : false,
+      copying: opts.allowCopy,
+      modifying: opts.allowModify,
+      annotating: opts.allowModify,
+      fillingForms: opts.allowModify,
+      documentAssembly: opts.allowModify,
+      contentAccessibility: true,
+    },
+    algorithm: opts.algorithm,
+  });
+  return srcDoc.save();
+}
+
+function _protectOptsFromForm() {
+  return {
+    userPw:   document.getElementById('prot-user-pw').value,
+    ownerPw:  document.getElementById('prot-owner-pw').value,
+    algorithm: document.getElementById('prot-algorithm').value,
+    allowPrint:  document.getElementById('prot-allow-print').checked,
+    allowCopy:   document.getElementById('prot-allow-copy').checked,
+    allowModify: document.getElementById('prot-allow-modify').checked,
+  };
+}
+
 async function applyProtection() {
   if (!pdfBytes) { toast('Open a PDF first'); return; }
-  const userPw   = document.getElementById('prot-user-pw').value;
-  const ownerPw  = document.getElementById('prot-owner-pw').value;
-  const algorithm = document.getElementById('prot-algorithm').value;
-  const allowPrint  = document.getElementById('prot-allow-print').checked;
-  const allowCopy   = document.getElementById('prot-allow-copy').checked;
-  const allowModify = document.getElementById('prot-allow-modify').checked;
-
-  if (!userPw && !ownerPw) { toast('Enter at least a password to open the file'); return; }
+  const opts = _protectOptsFromForm();
+  if (!opts.userPw && !opts.ownerPw) { toast('Enter at least a password to open the file'); return; }
 
   closeM('mprotect');
   toast('Encrypting PDF…', 4000);
   try {
-    await loadPdfLib();
-    const { PDFDocument } = PDFLib;
-    const srcDoc = await PDFDocument.load(pdfBytes.slice(0));
-
-    srcDoc.encrypt({
-      userPassword: userPw || undefined,
-      ownerPassword: ownerPw || userPw || undefined,
-      permissions: {
-        printing: allowPrint ? 'highResolution' : false,
-        copying: allowCopy,
-        modifying: allowModify,
-        annotating: allowModify,
-        fillingForms: allowModify,
-        documentAssembly: allowModify,
-        contentAccessibility: true,
-      },
-      algorithm,
-    });
-
-    const bytes = await srcDoc.save();
+    const bytes = await _protectBytes(pdfBytes, opts);
     const base = (pdfName || 'document').replace(/\.pdf$/i, '');
     dl(bytes, `${base}_protected.pdf`);
     toast('✓ PDF protected and downloaded');
@@ -5685,7 +5779,9 @@ async function exportAnnotatedPdf() {
           }
 
           else if (a.type === 'stamp') {
-            const sw_ = 100, sh_ = 30;
+            const label = String(a.label || 'STAMP').toUpperCase();
+            const tw = pdfFont.widthOfTextAtSize(label, 10);
+            const sw_ = Math.max(100, tw + 24), sh_ = 30;
             const sx = a.x / 100 * W, sy = H - a.y / 100 * H - sh_;
             const stampColor = isHexColor(a.Color) ? a.Color : colorHex(a.Color);
             const { r: sr, g: sg, b: sb } = hexToRgb(stampColor);
@@ -5694,9 +5790,17 @@ async function exportAnnotatedPdf() {
               color: rgb(sr, sg, sb), opacity: 0.12,
               borderColor: rgb(sr, sg, sb), borderWidth: 1.5, borderOpacity: 1,
             });
-            const label = String(a.label || 'STAMP').toUpperCase();
-            const tw = pdfFont.widthOfTextAtSize(label, 10);
             _drawPdfLabel(page, label, sx + (sw_ - tw) / 2, sy + sh_ / 2 - 4, rgb(sr, sg, sb), 10);
+          }
+
+          else if (a.type === 'count') {
+            const cr = 11;
+            const cx = a.x / 100 * W, cy = H - a.y / 100 * H;
+            const { r: cr_, g: cg_, b: cb_ } = hexToRgb(a.Color || '#dc2626');
+            page.drawCircle({ x: cx, y: cy, size: cr, color: rgb(cr_, cg_, cb_), borderColor: rgb(1, 1, 1), borderWidth: 1.5 });
+            const numLabel = String(a.number);
+            const ntw = pdfFont.widthOfTextAtSize(numLabel, 8);
+            _drawPdfLabel(page, numLabel, cx - ntw / 2, cy - 3, rgb(1, 1, 1), 8);
           }
 
           else if (a.type === 'image' && a.src) {
@@ -6358,6 +6462,7 @@ function _markupSummaryDetail(a) {
     case 'stamp':        return a.label || a.stampId || '';
     case 'image':        return '(image)';
     case 'redact':        return '(marked for redaction)';
+    case 'count':         return `${a.groupLabel} #${a.number}`;
     default:              return '';
   }
 }
@@ -6389,6 +6494,19 @@ async function exportMarkupSummary() {
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [{ wch: 4 }, { wch: 6 }, { wch: 14 }, { wch: 50 }, { wch: 16 }, { wch: 18 }, { wch: 12 }, { wch: 10 }, { wch: 8 }];
     XLSX.utils.book_append_sheet(wb, ws, 'Markup Summary');
+
+    // Second sheet: per-group totals for the Count tool — the actual
+    // quantity-takeoff deliverable, not just a raw list of markers.
+    const counts = annots.filter(a => a.type === 'count');
+    if (counts.length) {
+      const totals = new Map();
+      counts.forEach(a => totals.set(a.groupLabel, (totals.get(a.groupLabel) || 0) + 1));
+      const countRows = [['Group', 'Count'], ...[...totals.entries()]];
+      const wsCount = XLSX.utils.aoa_to_sheet(countRows);
+      wsCount['!cols'] = [{ wch: 24 }, { wch: 8 }];
+      XLSX.utils.book_append_sheet(wb, wsCount, 'Count Totals');
+    }
+
     const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([buf], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
@@ -6505,6 +6623,196 @@ async function generateTiledPdf() {
   } catch (e) {
     toast('Tiling failed: ' + e.message);
     console.error('[EngDoc] generateTiledPdf:', e);
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   COMPRESS PDF
+   Flattens every page to a re-encoded JPEG at a
+   chosen DPI/quality — the practical way to shrink
+   large scanned drawing sets client-side, since
+   pdf-lib has no API to re-encode/downsample images
+   already embedded in a PDF in place. Honestly lossy:
+   the output is image-only, no selectable text.
+═══════════════════════════════════════════════ */
+function openCompressModal() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  const mb = (pdfBytes.byteLength / 1024 / 1024).toFixed(2);
+  document.getElementById('compress-size-hint').textContent = `Current file: ${mb} MB, ${nPages} page${nPages !== 1 ? 's' : ''}`;
+  openM('mcompress');
+}
+
+// Core: bytes in, flattened+recompressed bytes out. Uses the currently-live
+// pdf.js document + page cache when available (fast path for the open
+// document); Batch Process passes useLiveDoc:false to parse `bytes` fresh
+// via a standalone pdf.js document instead, since batch files are never
+// opened as the app's live document.
+async function _compressBytes(bytes, opts) {
+  await loadPdfLib();
+  const { PDFDocument } = PDFLib;
+  const outDoc = await PDFDocument.create();
+  const scale = opts.dpi / 72;
+
+  const doc = opts.useLiveDoc ? pdf : await pdfjsLib.getDocument({ data: bytes.slice(0), verbosityLevel: 0 }).promise;
+  const numPages = opts.useLiveDoc ? nPages : doc.numPages;
+
+  for (let pg = 1; pg <= numPages; pg++) {
+    const liveP = opts.useLiveDoc ? await getCachedPage(pg) : await doc.getPage(pg);
+    const vp = liveP.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width; canvas.height = vp.height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); // JPEG has no alpha channel
+    await liveP.render({ canvasContext: ctx, viewport: vp }).promise;
+
+    const jpegDataUrl = canvas.toDataURL('image/jpeg', opts.quality);
+    const jpegBytes = Uint8Array.from(atob(jpegDataUrl.split(',')[1]), c => c.charCodeAt(0));
+    const jpgImage = await outDoc.embedJpg(jpegBytes);
+
+    const origVp = liveP.getViewport({ scale: 1 });
+    const outPage = outDoc.addPage([origVp.width, origVp.height]);
+    outPage.drawImage(jpgImage, { x: 0, y: 0, width: origVp.width, height: origVp.height });
+  }
+  if (!opts.useLiveDoc) { try { await doc.destroy(); } catch (e) {} }
+
+  return outDoc.save();
+}
+
+async function compressPdf() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  const opts = {
+    dpi: parseInt(document.getElementById('compress-dpi').value),
+    quality: parseFloat(document.getElementById('compress-quality').value),
+    useLiveDoc: true,
+  };
+  closeM('mcompress');
+  toast('Compressing PDF…', 6000);
+  try {
+    const bytes = await _compressBytes(pdfBytes, opts);
+    const base = (pdfName || 'document').replace(/\.pdf$/i, '');
+    dl(bytes, `${base}_compressed.pdf`);
+    const origMb = (pdfBytes.byteLength / 1024 / 1024).toFixed(2);
+    const newMb  = (bytes.length / 1024 / 1024).toFixed(2);
+    const pct = Math.round((1 - bytes.length / pdfBytes.byteLength) * 100);
+    toast(`✓ Compressed ${origMb} MB → ${newMb} MB (${pct > 0 ? '−' + pct + '%' : 'larger — try a lower resolution'})`, 5000);
+  } catch (e) {
+    toast('Compression failed: ' + e.message);
+    console.error('[EngDoc] compressPdf:', e);
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   BATCH PROCESS
+   Runs Watermark/Protect/Compress across many PDF
+   files picked from disk at once — none of them need
+   to be opened as the app's live document. Reuses the
+   exact same _watermarkBytes/_protectBytes/_compressBytes
+   cores the single-document tools use, so behaviour
+   never drifts between the two. Output is a single
+   ZIP download (via a lazy-loaded JSZip).
+═══════════════════════════════════════════════ */
+let batchFiles = [];
+
+async function loadJSZip() {
+  if (window.JSZip) return;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+function dlBlob(bytes, name, mime) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function onBatchFilesSelected(e) {
+  batchFiles = Array.from(e.target.files);
+  document.getElementById('batch-count').textContent =
+    batchFiles.length ? `${batchFiles.length} file${batchFiles.length !== 1 ? 's' : ''} selected` : 'Click to select PDF files';
+  document.getElementById('batch-file-list').innerHTML =
+    batchFiles.map((f, i) => `<div class="frow">${i + 1}. ${escHtml(f.name)}</div>`).join('');
+}
+
+function onBatchActionChange() {
+  const action = document.getElementById('batch-action').value;
+  document.querySelectorAll('.batch-action-fields').forEach(el => el.style.display = 'none');
+  const el = document.getElementById('batch-fields-' + action);
+  if (el) el.style.display = 'block';
+}
+
+async function runBatchProcess() {
+  if (!batchFiles.length) { toast('Select PDF files first'); return; }
+  const action = document.getElementById('batch-action').value;
+
+  let wmOpts = null, protOpts = null, compressOpts = null;
+  if (action === 'watermark') {
+    wmOpts = {
+      wmText: document.getElementById('batch-wm-text').value.trim(),
+      header: '',
+      footer: document.getElementById('batch-wm-footer').value.trim(),
+      opacity: 0.15, wmColor: '#6b7280', prefix: '', digits: 4,
+    };
+    if (!wmOpts.wmText && !wmOpts.footer) { toast('Enter a watermark or footer first'); return; }
+  } else if (action === 'protect') {
+    const pw = document.getElementById('batch-prot-pw').value;
+    if (!pw) { toast('Enter a password first'); return; }
+    protOpts = { userPw: pw, ownerPw: pw, algorithm: 'AES-256', allowPrint: true, allowCopy: true, allowModify: false };
+  } else if (action === 'compress') {
+    compressOpts = { dpi: parseInt(document.getElementById('batch-compress-dpi').value), quality: 0.7, useLiveDoc: false };
+  }
+
+  const runBtn = document.getElementById('batch-run-btn'), cancelBtn = document.getElementById('batch-cancel-btn');
+  const wrap = document.getElementById('batch-progress-wrap'), bar = document.getElementById('batch-progress-bar'), label = document.getElementById('batch-progress-label');
+  runBtn.disabled = true; cancelBtn.disabled = true; wrap.style.display = 'block';
+
+  try {
+    await loadPdfLib();
+    await loadJSZip();
+    const zip = new JSZip();
+    let ok = 0, failed = 0;
+
+    for (let i = 0; i < batchFiles.length; i++) {
+      const file = batchFiles[i];
+      label.textContent = `${file.name} (${i + 1}/${batchFiles.length})…`;
+      bar.style.width = Math.round((i / batchFiles.length) * 100) + '%';
+      try {
+        const inBytes = await file.arrayBuffer();
+        const base = file.name.replace(/\.pdf$/i, '');
+        let outBytes, suffix;
+        if (action === 'watermark') {
+          outBytes = await _watermarkBytes(inBytes, { ...wmOpts, filenameNoExt: base, start: i + 1 });
+          suffix = '_stamped';
+        } else if (action === 'protect') {
+          outBytes = await _protectBytes(inBytes, protOpts);
+          suffix = '_protected';
+        } else {
+          outBytes = await _compressBytes(inBytes, compressOpts);
+          suffix = '_compressed';
+        }
+        zip.file(`${base}${suffix}.pdf`, outBytes);
+        ok++;
+      } catch (fileErr) {
+        console.error('[EngDoc] batch failed for', file.name, fileErr);
+        failed++;
+      }
+    }
+
+    bar.style.width = '100%';
+    if (!ok) { toast('Batch failed — no files could be processed'); return; }
+    label.textContent = 'Zipping…';
+    const zipBytes = await zip.generateAsync({ type: 'uint8array' });
+    dlBlob(zipBytes, `batch_${action}_${Date.now()}.zip`, 'application/zip');
+    closeM('mbatch');
+    toast(`✓ Batch complete — ${ok} file${ok !== 1 ? 's' : ''} processed${failed ? `, ${failed} failed` : ''}`, 4500);
+  } catch (e) {
+    toast('Batch failed: ' + e.message);
+    console.error('[EngDoc] runBatchProcess:', e);
+  } finally {
+    runBtn.disabled = false; cancelBtn.disabled = false; wrap.style.display = 'none';
   }
 }
 
@@ -8028,7 +8336,7 @@ const TOOL_HINTS = {
 const TOOL_TABS = {
   pan:'markup', select:'markup', erase:'markup', zoombox:'markup',
   highlight:'markup', texthighlight:'markup', rect:'markup', rectfill:'markup', circle:'markup',
-  strike:'markup', line:'markup', text:'markup', redact:'markup', link:'markup',
+  strike:'markup', line:'markup', text:'markup', redact:'markup', link:'markup', count:'markup',
   pen:'markup', arrow:'markup', cloud:'markup',
   measure:'measure', area:'measure', tableextract:'measure',
   formtext:'forms', formcheckbox:'forms',
@@ -8507,7 +8815,7 @@ function makeDraggable(el, a, ov) {
 // intercept that click before it ever reaches the input.
 const MOVE_TYPES = new Set(['highlight','rect','rectfill','strike','circle','text',
                              'cloud','pen','texthighlight','arrow','line','measure',
-                             'area','stamp','image','link','redact']);
+                             'area','stamp','image','link','redact','count']);
 
 // ── Ghost shown while dragging ──
 function createGhost(el, ov) {
@@ -9818,11 +10126,39 @@ const STAMPS = [
 ];
 
 let _pendingStamp = null;
+const CUSTOM_STAMPS_KEY = 'engdoc_custom_stamps';
+const CUSTOM_STAMP_COLORS = ['#16a34a','#2563eb','#7c3aed','#dc2626','#d97706','#0891b2','#db2777'];
+
+function _loadCustomStamps() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_STAMPS_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function _saveCustomStamps(list) {
+  localStorage.setItem(CUSTOM_STAMPS_KEY, JSON.stringify(list));
+}
+
+function createCustomStamp() {
+  const label = (prompt('New stamp text (e.g. "REVIEWED BY XYZ"):') || '').trim();
+  if (!label) return;
+  const list = _loadCustomStamps();
+  const Color = CUSTOM_STAMP_COLORS[list.length % CUSTOM_STAMP_COLORS.length];
+  list.push({ id: 'custom-' + Date.now(), label, Color, textColor: '#fff', custom: true });
+  _saveCustomStamps(list);
+  openStampPicker();
+  toast('✓ Custom stamp saved — it will appear here next time too');
+}
+
+function deleteCustomStamp(id, ev) {
+  if (ev) ev.stopPropagation();
+  _saveCustomStamps(_loadCustomStamps().filter(s => s.id !== id));
+  openStampPicker();
+}
 
 function openStampPicker() {
   const grid = document.getElementById('stamp-grid');
   grid.innerHTML = '';
-  STAMPS.forEach(s => {
+  const allStamps = [...STAMPS, ..._loadCustomStamps()];
+  allStamps.forEach(s => {
     const div = document.createElement('div');
     div.className = 'stamp-opt';
     div.innerHTML =
@@ -9830,15 +10166,34 @@ function openStampPicker() {
       '<rect x="1" y="1" width="58" height="26" rx="4" fill="' + s.Color + '" opacity=".15" stroke="' + s.Color + '" stroke-width="1.5"/>' +
       '<text x="30" y="17" text-anchor="middle" font-size="9" font-weight="700" font-family="monospace" fill="' + s.Color + '">' + s.label.toUpperCase() + '</text>' +
       '</svg>' +
-      '<div class="stamp-opt-label">' + s.label + '</div>';
-    div.onclick = () => { _pendingStamp = s; closeM('mstamp'); activateStampPlacement(); };
+      '<div class="stamp-opt-label">' + s.label + '</div>' +
+      (s.custom ? '<button class="stamp-opt-del" title="Delete custom stamp" onclick="deleteCustomStamp(\'' + s.id + '\',event)">✕</button>' : '');
+    div.onclick = () => {
+      _pendingStamp = s;
+      closeM('mstamp');
+      activateStampPlacement(document.getElementById('stamp-dynamic').checked);
+    };
     grid.appendChild(div);
   });
+  const addDiv = document.createElement('div');
+  addDiv.className = 'stamp-opt stamp-opt-add';
+  addDiv.innerHTML =
+    '<svg width="60" height="28" viewBox="0 0 60 28"><rect x="1" y="1" width="58" height="26" rx="4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4,3"/><line x1="24" y1="14" x2="36" y2="14" stroke="currentColor" stroke-width="1.5"/><line x1="30" y1="8" x2="30" y2="20" stroke="currentColor" stroke-width="1.5"/></svg>' +
+    '<div class="stamp-opt-label">New Stamp</div>';
+  addDiv.onclick = createCustomStamp;
+  grid.appendChild(addDiv);
   openM('mstamp');
 }
 
-function activateStampPlacement() {
-  const stamp = _pendingStamp;
+function activateStampPlacement(includeDynamic) {
+  // Copy — never mutate the shared STAMPS/custom-stamp definitions themselves,
+  // or a dynamic placement would permanently graft the name/date onto every
+  // future use of that stamp for the rest of the session.
+  const stamp = { ..._pendingStamp };
+  if (includeDynamic) {
+    const dateStr = new Date().toLocaleDateString();
+    stamp.label = `${stamp.label} — ${currentAuthor || 'Unknown'} — ${dateStr}`;
+  }
   toast('Click to place the "' + stamp.label + '" stamp · Esc to cancel', 3500);
 
   // Build a ghost stamp that follows the cursor
@@ -9846,17 +10201,19 @@ function activateStampPlacement() {
   let _ghostOv    = null;
 
   function buildGhostStamp() {
+    const label = stamp.label.toUpperCase();
+    const w = Math.max(110, _stampTextWidth(label) + 24), h = 36;
     const g = document.createElement('div');
     g.id = 'stamp-ghost';
     g.style.cssText =
       'position:absolute;pointer-events:none;z-index:200;opacity:0.65;' +
       'transform:translate(-50%,-50%);transition:none;';
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width','110'); svg.setAttribute('height','36');
-    svg.setAttribute('viewBox','0 0 110 36');
+    svg.setAttribute('width', w); svg.setAttribute('height', h);
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x','1'); rect.setAttribute('y','1');
-    rect.setAttribute('width','108'); rect.setAttribute('height','34');
+    rect.setAttribute('width', w - 2); rect.setAttribute('height', h - 2);
     rect.setAttribute('rx','4');
     rect.setAttribute('fill', stamp.Color);
     rect.setAttribute('fill-opacity','0.15');
@@ -9864,12 +10221,12 @@ function activateStampPlacement() {
     rect.setAttribute('stroke-width','2');
     rect.setAttribute('stroke-dasharray','5,3');
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    text.setAttribute('x','55'); text.setAttribute('y','23');
+    text.setAttribute('x', w / 2); text.setAttribute('y','23');
     text.setAttribute('text-anchor','middle');
     text.setAttribute('font-size','11'); text.setAttribute('font-weight','700');
     text.setAttribute('font-family','monospace');
     text.setAttribute('fill', stamp.Color);
-    text.textContent = stamp.label.toUpperCase();
+    text.textContent = label;
     svg.appendChild(rect); svg.appendChild(text);
     g.appendChild(svg);
     return g;
@@ -9939,26 +10296,32 @@ function activateStampPlacement() {
   document.addEventListener('keydown', onEsc);
 }
 
+// Rough monospace-at-11px width estimate — good enough to size the stamp
+// box without needing a canvas measureText round-trip for every render.
+function _stampTextWidth(label) { return label.length * 7.2; }
+
 function buildStampEl(a) {
   const stamp = STAMPS.find(s => s.id === a.stampId) || STAMPS[0];
+  const label = (a.label || stamp.label).toUpperCase();
+  const w = Math.max(110, _stampTextWidth(label) + 24), h = 36;
   const wrap = document.createElement('div');
   wrap.className = 'astamp';
   wrap.style.cssText = 'position:absolute;left:' + a.x + '%;top:' + a.y + '%';
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('width', '110'); svg.setAttribute('height', '36');
-  svg.setAttribute('viewBox', '0 0 110 36');
+  svg.setAttribute('width', w); svg.setAttribute('height', h);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
   const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   rect.setAttribute('x','1'); rect.setAttribute('y','1');
-  rect.setAttribute('width','108'); rect.setAttribute('height','34');
+  rect.setAttribute('width', w - 2); rect.setAttribute('height', h - 2);
   rect.setAttribute('rx','4'); rect.setAttribute('fill', a.Color || stamp.Color);
   rect.setAttribute('fill-opacity','0.12');
   rect.setAttribute('stroke', a.Color || stamp.Color); rect.setAttribute('stroke-width','2');
   const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  text.setAttribute('x','55'); text.setAttribute('y','23');
+  text.setAttribute('x', w / 2); text.setAttribute('y','23');
   text.setAttribute('text-anchor','middle');
   text.setAttribute('font-size','11'); text.setAttribute('font-weight','700');
   text.setAttribute('font-family','monospace'); text.setAttribute('fill', a.Color || stamp.Color);
-  text.textContent = (a.label || stamp.label).toUpperCase();
+  text.textContent = label;
   svg.appendChild(rect); svg.appendChild(text);
   wrap.appendChild(svg);
   return wrap;
@@ -9971,6 +10334,7 @@ typeLabels['link'] = 'Link';
 typeLabels['redact'] = 'Redaction';
 typeLabels['formtext'] = 'Text Field';
 typeLabels['formcheckbox'] = 'Checkbox';
+typeLabels['count'] = 'Count';
 
 // ═══════════════════════════════════════════════
 //  ANNOTATION STATUS TRACKING
@@ -10654,6 +11018,7 @@ const _erBtn2 = document.getElementById('t-erase');
 if (_erBtn2) _erBtn2.classList.add('eraser-active');
 // Start on File tab
 switchRibbon('file', document.getElementById('rtab-file'));
+renderCountGroupSelect();
 
 // ═══════════════════════════════════════════════
 //  RIBBON BUTTON TOOLTIPS
@@ -10740,6 +11105,8 @@ const CMDK_COMMANDS = [
   { label: 'Tool: Signature',       group: 'Markup', icon: ICON_TOOL, run: () => openSignatureModal() },
   { label: 'Tool: Insert image',    group: 'Markup', icon: ICON_TOOL, run: () => document.getElementById('fimage').click() },
   { label: 'Tool: Hyperlink',       group: 'Markup', icon: ICON_TOOL, run: () => setTool('link') },
+  { label: 'Tool: Count',           group: 'Markup', icon: ICON_TOOL, run: () => setTool('count') },
+  { label: 'New count group',       group: 'Markup', icon: ICON_TOOL, run: () => addCountGroup() },
   { label: 'Tool: Eraser',          group: 'Markup', icon: ICON_TOOL, run: () => setTool('erase') },
   { label: 'Undo',                  group: 'Markup', icon: ICON_TOOL, run: () => undoLast() },
   { label: 'Redo',                  group: 'Markup', icon: ICON_TOOL, run: () => redoLast() },

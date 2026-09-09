@@ -6339,6 +6339,174 @@ async function exportTableToExcel() {
   }
 }
 
+/* ═══════════════════════════════════════════════
+   MARKUP SUMMARY REPORT
+   Exports every annotation as one row of an .xlsx
+   workbook — the "markup list" deliverable engineering
+   review workflows expect (author, page, type, status,
+   comment text, and type-specific details like a
+   measured distance or a link URL).
+═══════════════════════════════════════════════ */
+function _markupSummaryDetail(a) {
+  switch (a.type) {
+    case 'text':         return a.text || '';
+    case 'measure':      return a.label || '';
+    case 'area':         return a.label || '';
+    case 'link':         return a.url || '';
+    case 'formtext':     return a.value || '';
+    case 'formcheckbox': return a.checked ? 'Checked' : 'Unchecked';
+    case 'stamp':        return a.label || a.stampId || '';
+    case 'image':        return '(image)';
+    case 'redact':        return '(marked for redaction)';
+    default:              return '';
+  }
+}
+
+async function exportMarkupSummary() {
+  if (!annots.length) { toast('No markups to export'); return; }
+  try {
+    await loadSheetJs();
+    const header = ['#', 'Page', 'Type', 'Comment / Detail', 'Author', 'Date', 'Status', 'Color', 'Replies'];
+    const rows = [header];
+    annots
+      .slice()
+      .sort((a, b) => (a.pageNum - b.pageNum) || (a.id - b.id))
+      .forEach((a, i) => {
+        rows.push([
+          i + 1,
+          a.pageNum,
+          typeLabels[a.type] || a.type,
+          _markupSummaryDetail(a),
+          a.author || '',
+          a.ts ? new Date(a.ts).toLocaleString() : '',
+          a.status ? (STATUS_LABEL[a.status] || a.status) : '',
+          a.Color || '',
+          a.replies && a.replies.length ? a.replies.length : '',
+        ]);
+      });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 4 }, { wch: 6 }, { wch: 14 }, { wch: 50 }, { wch: 16 }, { wch: 18 }, { wch: 12 }, { wch: 10 }, { wch: 8 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Markup Summary');
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([buf], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const base = (pdfName || 'document').replace(/\.pdf$/i, '');
+    const a = document.createElement('a');
+    a.href = url; a.download = `${base}_markup_summary.xlsx`;
+    a.click(); URL.revokeObjectURL(url);
+    toast(`✓ Markup summary exported — ${annots.length} item${annots.length !== 1 ? 's' : ''}`);
+  } catch (err) {
+    toast('Export failed: ' + err.message);
+    console.error('[EngDoc] exportMarkupSummary:', err);
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   PRINT TILING
+   Splits a large drawing (A1/A0 engineering sheets)
+   across multiple standard-size pages at TRUE SCALE,
+   using pdf-lib's embedPage to reuse the original
+   vector content for each tile (no rasterizing, so
+   lines/text stay crisp at any print resolution).
+   Adjacent tiles overlap by a configurable margin so
+   printed sheets can be trimmed and taped together.
+═══════════════════════════════════════════════ */
+const TILE_SHEET_SIZES_PT = {
+  A4:     [595.28, 841.89],
+  A3:     [841.89, 1190.55],
+  Letter: [612, 792],
+  Legal:  [612, 1008],
+};
+const MM_TO_PT = 72 / 25.4;
+
+function openTileModal() {
+  if (!pdf) { toast('Open a PDF first'); return; }
+  openM('mtile');
+}
+
+async function generateTiledPdf() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  const sizeKey     = document.getElementById('tile-size').value;
+  const orientation = document.getElementById('tile-orientation').value;
+  const overlapMm   = parseFloat(document.getElementById('tile-overlap').value) || 0;
+  const marginMm    = parseFloat(document.getElementById('tile-margin').value) || 0;
+  const scope       = document.getElementById('tile-scope').value;
+  const showLabels  = document.getElementById('tile-labels').checked;
+
+  let [sheetW, sheetH] = TILE_SHEET_SIZES_PT[sizeKey];
+  if (orientation === 'landscape') [sheetW, sheetH] = [sheetH, sheetW];
+  const overlapPt = overlapMm * MM_TO_PT;
+  const marginPt  = marginMm * MM_TO_PT;
+  const printableW = sheetW - 2 * marginPt;
+  const printableH = sheetH - 2 * marginPt;
+  if (printableW <= overlapPt || printableH <= overlapPt) {
+    toast('Overlap is too large for this sheet size/margin'); return;
+  }
+
+  closeM('mtile');
+  toast('Building tiled PDF…', 4000);
+  try {
+    await loadPdfLib();
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+    const srcDoc = await PDFDocument.load(pdfBytes.slice(0));
+    const srcPages = srcDoc.getPages();
+
+    const targets = scope === 'current' ? [curPg] : Array.from({ length: nPages }, (_, i) => i + 1);
+    const outDoc = await PDFDocument.create();
+    const outFont = await outDoc.embedFont(StandardFonts.Helvetica);
+    let totalTiles = 0;
+
+    for (const pgNum of targets) {
+      const srcPage = srcPages[pgNum - 1];
+      if (!srcPage) continue;
+      const { width: pw, height: ph } = srcPage.getSize();
+
+      const stepX = printableW - overlapPt;
+      const stepY = printableH - overlapPt;
+      const cols = Math.max(1, Math.ceil((pw - overlapPt) / stepX));
+      const rows = Math.max(1, Math.ceil((ph - overlapPt) / stepY));
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const leftX  = c * stepX;
+          const rightX = Math.min(pw, leftX + printableW);
+          const topFromTop    = r * stepY;
+          const bottomFromTop = Math.min(ph, topFromTop + printableH);
+          const top    = ph - topFromTop;
+          const bottom = ph - bottomFromTop;
+          if (rightX <= leftX || top <= bottom) continue;
+
+          const embedded = await outDoc.embedPage(srcPage, { left: leftX, bottom, right: rightX, top });
+          const outPage = outDoc.addPage([sheetW, sheetH]);
+          const tileW = rightX - leftX, tileH = top - bottom;
+          outPage.drawPage(embedded, { x: marginPt, y: sheetH - marginPt - tileH, width: tileW, height: tileH });
+
+          if (showLabels) {
+            const label = (targets.length > 1 ? `Pg ${pgNum} — ` : '') + `Sheet R${r + 1}C${c + 1} of ${rows}×${cols}`;
+            outPage.drawText(label, { x: marginPt, y: Math.max(2, marginPt - 12), size: 7, font: outFont, color: rgb(0.4, 0.4, 0.4) });
+            // Small corner ticks marking the overlap zone, to help align adjacent sheets when taping
+            const tick = 8;
+            const drawTick = (x, y, dx, dy) => outPage.drawLine({ start: { x, y }, end: { x: x + dx, y: y + dy }, thickness: 0.6, color: rgb(0.6, 0.6, 0.6) });
+            if (c > 0)      { drawTick(marginPt + overlapPt, sheetH - marginPt - tileH, 0, tick); drawTick(marginPt + overlapPt, sheetH - marginPt, 0, -tick); }
+            if (r > 0)      { drawTick(marginPt, sheetH - marginPt - overlapPt, tick, 0); drawTick(marginPt + tileW, sheetH - marginPt - overlapPt, -tick, 0); }
+          }
+          totalTiles++;
+        }
+      }
+    }
+
+    if (!totalTiles) { toast('Nothing to tile'); return; }
+    const bytes = await outDoc.save();
+    const base = (pdfName || 'document').replace(/\.pdf$/i, '');
+    dl(bytes, `${base}_tiled.pdf`);
+    toast(`✓ Tiled PDF created — ${totalTiles} sheet${totalTiles !== 1 ? 's' : ''}`, 3000);
+  } catch (e) {
+    toast('Tiling failed: ' + e.message);
+    console.error('[EngDoc] generateTiledPdf:', e);
+  }
+}
 
 // ═══════════════════════════════════════════════
 //  DARK MODE
@@ -10520,3 +10688,172 @@ switchRibbon('file', document.getElementById('rtab-file'));
   ribbonBody.addEventListener('mousedown', hide);
   ribbonBody.addEventListener('scroll', hide);
 })();
+
+/* ═══════════════════════════════════════════════
+   COMMAND PALETTE (Ctrl/Cmd+K)
+   A single fuzzy-searchable list of every tool and
+   action in the app — the fastest path to "how do I
+   do X" once the ribbon has grown to six tabs.
+═══════════════════════════════════════════════ */
+const ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
+const ICON_TOOL    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>';
+const ICON_FILE    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+const ICON_PAGE    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>';
+const ICON_GEAR    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>';
+const ICON_CHECK   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>';
+const ICON_LOCK    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="1"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>';
+
+function _cmdkTab(tab) {
+  return () => switchRibbon(tab, document.getElementById('rtab-' + tab));
+}
+
+const CMDK_COMMANDS = [
+  // File
+  { label: 'Open PDF',              group: 'File', icon: ICON_FILE, run: () => document.getElementById('fopen').click() },
+  { label: 'Save .engdoc session',  group: 'File', icon: ICON_FILE, run: () => saveSessionWithPdf() },
+  { label: 'Export Annotated PDF',  group: 'File', icon: ICON_FILE, run: () => exportAnnotatedPdf() },
+  { label: 'Print',                 group: 'File', icon: ICON_FILE, run: () => printDrawing() },
+  { label: 'Print Tiling',          group: 'File', icon: ICON_FILE, run: () => openTileModal() },
+  { label: 'Merge PDF',             group: 'File', icon: ICON_FILE, run: () => openM('mm') },
+  { label: 'Split PDF',             group: 'File', icon: ICON_FILE, run: () => openM('ms') },
+  { label: 'Set your name',         group: 'File', icon: ICON_GEAR, run: () => openM('mau') },
+  { label: 'Toggle dark mode',      group: 'File', icon: ICON_GEAR, run: () => toggleDark() },
+  { label: 'Keyboard shortcuts',    group: 'File', icon: ICON_GEAR, run: () => openM('mkeys') },
+  { label: 'Toggle sidebar',        group: 'File', icon: ICON_GEAR, run: () => toggleSidebar() },
+
+  // Markup tools
+  { label: 'Tool: Pan',             group: 'Markup', icon: ICON_TOOL, run: () => setTool('pan') },
+  { label: 'Tool: Select text',     group: 'Markup', icon: ICON_TOOL, run: () => setTool('select') },
+  { label: 'Tool: Marquee zoom',    group: 'Markup', icon: ICON_TOOL, run: () => setTool('zoombox') },
+  { label: 'Tool: Highlight',       group: 'Markup', icon: ICON_TOOL, run: () => setTool('highlight') },
+  { label: 'Tool: Marker pen',      group: 'Markup', icon: ICON_TOOL, run: () => setTool('texthighlight') },
+  { label: 'Tool: Strikethrough',   group: 'Markup', icon: ICON_TOOL, run: () => setTool('strike') },
+  { label: 'Tool: Redact',          group: 'Markup', icon: ICON_LOCK, run: () => setTool('redact') },
+  { label: 'Tool: Rectangle',       group: 'Markup', icon: ICON_TOOL, run: () => setTool('rect') },
+  { label: 'Tool: Circle',          group: 'Markup', icon: ICON_TOOL, run: () => setTool('circle') },
+  { label: 'Tool: Cloud',           group: 'Markup', icon: ICON_TOOL, run: () => setTool('cloud') },
+  { label: 'Tool: Line',            group: 'Markup', icon: ICON_TOOL, run: () => setTool('line') },
+  { label: 'Tool: Arrow',           group: 'Markup', icon: ICON_TOOL, run: () => setTool('arrow') },
+  { label: 'Tool: Freehand pen',    group: 'Markup', icon: ICON_TOOL, run: () => setTool('pen') },
+  { label: 'Tool: Text label',      group: 'Markup', icon: ICON_TOOL, run: () => setTool('text') },
+  { label: 'Tool: Stamp',           group: 'Markup', icon: ICON_TOOL, run: () => openStampPicker() },
+  { label: 'Tool: Signature',       group: 'Markup', icon: ICON_TOOL, run: () => openSignatureModal() },
+  { label: 'Tool: Insert image',    group: 'Markup', icon: ICON_TOOL, run: () => document.getElementById('fimage').click() },
+  { label: 'Tool: Hyperlink',       group: 'Markup', icon: ICON_TOOL, run: () => setTool('link') },
+  { label: 'Tool: Eraser',          group: 'Markup', icon: ICON_TOOL, run: () => setTool('erase') },
+  { label: 'Undo',                  group: 'Markup', icon: ICON_TOOL, run: () => undoLast() },
+  { label: 'Redo',                  group: 'Markup', icon: ICON_TOOL, run: () => redoLast() },
+
+  // Measure / Forms
+  { label: 'Tool: Measure distance', group: 'Measure', icon: ICON_PAGE, run: () => setTool('measure') },
+  { label: 'Tool: Measure area',     group: 'Measure', icon: ICON_PAGE, run: () => setTool('area') },
+  { label: 'Calibrate scale',        group: 'Measure', icon: ICON_PAGE, run: () => openM('mscale') },
+  { label: 'Tool: Extract table',    group: 'Measure', icon: ICON_PAGE, run: () => setTool('tableextract') },
+  { label: 'Tool: Fillable text field', group: 'Forms', icon: ICON_PAGE, run: () => setTool('formtext') },
+  { label: 'Tool: Fillable checkbox',   group: 'Forms', icon: ICON_PAGE, run: () => setTool('formcheckbox') },
+
+  // Review
+  { label: 'Run Standards Check',   group: 'Review', icon: ICON_CHECK, run: () => runStandardsCheck() },
+  { label: 'Spelling & Grammar',    group: 'Review', icon: ICON_CHECK, run: () => { openM('mcheck'); switchCheckTab('spelling'); } },
+  { label: 'Compare Revisions',     group: 'Review', icon: ICON_CHECK, run: () => openM('mcompare') },
+  { label: 'Make Searchable (OCR)', group: 'Review', icon: ICON_CHECK, run: () => openOcrModal() },
+  { label: 'Merge reviewer session', group: 'Review', icon: ICON_CHECK, run: () => document.getElementById('fmergesession').click() },
+  { label: 'Drawing Set register',  group: 'Review', icon: ICON_CHECK, run: () => openM('mset') },
+  { label: 'Layers panel',          group: 'Review', icon: ICON_CHECK, run: () => openLayerModal() },
+  { label: 'Export Markup Summary', group: 'Review', icon: ICON_CHECK, run: () => exportMarkupSummary() },
+
+  // Protect
+  { label: 'Watermark & Numbering', group: 'Protect', icon: ICON_LOCK, run: () => openWatermarkModal() },
+  { label: 'Protect PDF (password)', group: 'Protect', icon: ICON_LOCK, run: () => openProtectModal() },
+
+  // Pages
+  { label: 'Rotate current page left',   group: 'Pages', icon: ICON_PAGE, run: () => rotatePages(new Set([curPg]), -90) },
+  { label: 'Rotate current page right',  group: 'Pages', icon: ICON_PAGE, run: () => rotatePages(new Set([curPg]), 90) },
+  { label: 'Duplicate current page',     group: 'Pages', icon: ICON_PAGE, run: () => duplicatePages(new Set([curPg])) },
+  { label: 'Insert blank page after current', group: 'Pages', icon: ICON_PAGE, run: () => insertBlankPageAt(curPg) },
+  { label: 'Extract current page',       group: 'Pages', icon: ICON_PAGE, run: () => extractPages(new Set([curPg])) },
+
+  // Navigation — ribbon/sidebar tabs
+  { label: 'Go to File tab',     group: 'Navigate', icon: ICON_SEARCH, run: _cmdkTab('file') },
+  { label: 'Go to Markup tab',   group: 'Navigate', icon: ICON_SEARCH, run: _cmdkTab('markup') },
+  { label: 'Go to Measure tab',  group: 'Navigate', icon: ICON_SEARCH, run: _cmdkTab('measure') },
+  { label: 'Go to Forms tab',    group: 'Navigate', icon: ICON_SEARCH, run: _cmdkTab('forms') },
+  { label: 'Go to Review tab',   group: 'Navigate', icon: ICON_SEARCH, run: _cmdkTab('review') },
+  { label: 'Go to Protect tab',  group: 'Navigate', icon: ICON_SEARCH, run: _cmdkTab('protect') },
+  { label: 'Show Pages panel',     group: 'Navigate', icon: ICON_SEARCH, run: () => switchTab('pages', document.getElementById('stab-pages')) },
+  { label: 'Show Markup panel',    group: 'Navigate', icon: ICON_SEARCH, run: () => switchTab('notes', document.getElementById('stab-notes')) },
+  { label: 'Show Search panel',    group: 'Navigate', icon: ICON_SEARCH, run: () => switchTab('search', document.getElementById('stab-search')) },
+  { label: 'Show Bookmarks panel', group: 'Navigate', icon: ICON_SEARCH, run: () => switchTab('bookmarks', document.getElementById('stab-bookmarks')) },
+];
+
+let _cmdkFiltered = CMDK_COMMANDS;
+let _cmdkSelIdx = 0;
+
+function openCmdk() {
+  const overlay = document.getElementById('cmdk-overlay');
+  const input = document.getElementById('cmdk-input');
+  overlay.classList.add('open');
+  input.value = '';
+  _cmdkFiltered = CMDK_COMMANDS;
+  _cmdkSelIdx = 0;
+  _cmdkRender();
+  requestAnimationFrame(() => input.focus());
+}
+function closeCmdk() {
+  document.getElementById('cmdk-overlay').classList.remove('open');
+}
+function _cmdkRender() {
+  const list = document.getElementById('cmdk-list');
+  if (!_cmdkFiltered.length) {
+    list.innerHTML = '<div class="cmdk-empty">No matching commands</div>';
+    return;
+  }
+  list.innerHTML = _cmdkFiltered.map((cmd, i) =>
+    '<div class="cmdk-item' + (i === _cmdkSelIdx ? ' sel' : '') + '" data-idx="' + i + '">' +
+      cmd.icon +
+      '<span class="cmdk-item-label">' + escHtml(cmd.label) + '</span>' +
+      '<span class="cmdk-item-group">' + escHtml(cmd.group) + '</span>' +
+    '</div>'
+  ).join('');
+  list.querySelectorAll('.cmdk-item').forEach(el => {
+    el.addEventListener('click', () => _cmdkRun(parseInt(el.dataset.idx)));
+    el.addEventListener('mouseenter', () => {
+      _cmdkSelIdx = parseInt(el.dataset.idx);
+      list.querySelectorAll('.cmdk-item').forEach(e2 => e2.classList.remove('sel'));
+      el.classList.add('sel');
+    });
+  });
+  const selEl = list.querySelector('.cmdk-item.sel');
+  if (selEl) selEl.scrollIntoView({ block: 'nearest' });
+}
+function _cmdkRun(idx) {
+  const cmd = _cmdkFiltered[idx];
+  closeCmdk();
+  if (cmd) { try { cmd.run(); } catch (e) { console.error('[EngDoc] command palette action failed:', e); } }
+}
+function _cmdkFilter(query) {
+  const q = query.trim().toLowerCase();
+  _cmdkFiltered = !q ? CMDK_COMMANDS : CMDK_COMMANDS.filter(c =>
+    c.label.toLowerCase().includes(q) || c.group.toLowerCase().includes(q)
+  );
+  _cmdkSelIdx = 0;
+  _cmdkRender();
+}
+
+document.getElementById('cmdk-input').addEventListener('input', e => _cmdkFilter(e.target.value));
+document.getElementById('cmdk-input').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown') { e.preventDefault(); _cmdkSelIdx = Math.min(_cmdkSelIdx + 1, _cmdkFiltered.length - 1); _cmdkRender(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _cmdkSelIdx = Math.max(_cmdkSelIdx - 1, 0); _cmdkRender(); }
+  else if (e.key === 'Enter') { e.preventDefault(); _cmdkRun(_cmdkSelIdx); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeCmdk(); }
+});
+document.getElementById('cmdk-overlay').addEventListener('mousedown', e => {
+  if (e.target.id === 'cmdk-overlay') closeCmdk();
+});
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    const overlay = document.getElementById('cmdk-overlay');
+    overlay.classList.contains('open') ? closeCmdk() : openCmdk();
+  }
+});

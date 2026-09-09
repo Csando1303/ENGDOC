@@ -122,6 +122,10 @@
     <div id="autosave-dot" title="Auto-saved"></div>
     <div id="doc-name">No document open</div>
   </div>
+  <button id="hdr-cmdk-btn" onclick="openCmdk()" title="Command palette (Ctrl+K)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <span>Ctrl K</span>
+  </button>
   <!-- Hidden file inputs referenced by ribbon buttons -->
   <input type="file" id="fopen" accept=".pdf,.engdoc" style="display:none" onchange="openFile(event)">
   <input type="file" id="fopen-tab" accept=".pdf" style="display:none" onchange="openFileInNewTabFromInput(event)">
@@ -396,6 +400,15 @@
         </div>
         <div class="rgroup-label">Register</div>
       </div>
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn lg" onclick="exportMarkupSummary()" data-tip="Export every markup as a row in an Excel workbook — author, page, type, status, comment">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><line x1="10" y1="9" x2="10" y2="9"/></svg>
+            <span class="rbtn-label">Markup<br>Summary</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Reports</div>
+      </div>
     </div><!-- /review -->
 
     <!-- FILE tab -->
@@ -427,6 +440,10 @@
           <button class="rbtn lg" onclick="printDrawing()" data-tip="Print the current drawing with annotations">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             <span class="rbtn-label">Print</span>
+          </button>
+          <button class="rbtn lg" onclick="openTileModal()" data-tip="Split a large drawing across multiple standard-size sheets for printing and taping together">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+            <span class="rbtn-label">Print<br>Tiling</span>
           </button>
         </div>
         <div class="rgroup-label">Export</div>
@@ -598,6 +615,18 @@
   <div class="sbi" id="sb-snap" style="cursor:pointer" onclick="toggleSnapPanel(event)" title="Snap settings">⌖ Snap</div>
   <div class="sbi" id="sb-count">0 annotations</div>
   <div class="sbi" id="sb-pos">—</div>
+</div>
+
+<!-- COMMAND PALETTE (Ctrl/Cmd+K) -->
+<div id="cmdk-overlay">
+  <div id="cmdk-box">
+    <div id="cmdk-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="cmdk-input" placeholder="Type a command or tool name…" autocomplete="off" spellcheck="false">
+      <span id="cmdk-esc">Esc</span>
+    </div>
+    <div id="cmdk-list"></div>
+  </div>
 </div>
 
 <!-- CONTEXT MENU -->
@@ -927,6 +956,7 @@
         <div class="krow"><span class="kbd">Ctrl Z</span><span class="kdesc">Undo</span></div>
         <div class="krow"><span class="kbd">Ctrl Y</span><span class="kdesc">Redo</span></div>
         <div class="krow"><span class="kbd">Ctrl S</span><span class="kdesc">Save session</span></div>
+        <div class="krow"><span class="kbd">Ctrl K</span><span class="kdesc">Command palette — search any tool/action</span></div>
         <div class="krow"><span class="kbd">Shift</span><span class="kdesc">Snap measure to H/V</span></div>
         <div class="krow"><span class="kbd">Esc</span><span class="kdesc">Cancel / close</span></div>
         <div class="krow"><span class="kbd">Del</span><span class="kdesc">Delete selected annotation</span></div>
@@ -1163,6 +1193,61 @@
     <div class="mfoot">
       <button class="hbtn outline" onclick="closeM('mtableextract')">Cancel</button>
       <button class="hbtn primary" onclick="exportTableToExcel()">Export to Excel</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT TILING MODAL -->
+<div class="overlay" id="mtile">
+  <div class="modal" style="width:440px">
+    <div class="mhead"><span class="mtitle">Print Tiling</span><button class="mclose" onclick="closeM('mtile')">✕</button></div>
+    <div class="mbody">
+      <p style="font-size:12.5px;Color:var(--gray-600);margin-bottom:12px">
+        Splits a large drawing across multiple standard-size sheets, at true scale (no rasterizing —
+        vector lines stay crisp), so they can be printed and taped together.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <label class="flabel">Sheet size</label>
+          <select class="finput fselect" id="tile-size" style="margin-bottom:0;padding:8px">
+            <option value="A4" selected>A4</option>
+            <option value="A3">A3</option>
+            <option value="Letter">Letter</option>
+            <option value="Legal">Legal</option>
+          </select>
+        </div>
+        <div>
+          <label class="flabel">Orientation</label>
+          <select class="finput fselect" id="tile-orientation" style="margin-bottom:0;padding:8px">
+            <option value="portrait">Portrait</option>
+            <option value="landscape" selected>Landscape</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <label class="flabel">Overlap (mm)</label>
+          <input class="finput" id="tile-overlap" type="number" value="20" min="0" max="100" style="margin-bottom:0">
+        </div>
+        <div>
+          <label class="flabel">Margin (mm)</label>
+          <input class="finput" id="tile-margin" type="number" value="8" min="0" max="50" style="margin-bottom:0">
+        </div>
+      </div>
+      <label class="flabel">Pages to tile</label>
+      <select class="finput fselect" id="tile-scope" style="margin-bottom:10px;padding:8px">
+        <option value="current" selected>Current page only</option>
+        <option value="all">Whole document</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;Color:var(--gray-700);cursor:pointer;user-select:none">
+        <input type="checkbox" id="tile-labels" checked style="width:14px;height:14px">
+        Label each sheet with its row/column and overlap guide marks
+      </label>
+      <div id="tile-preview-hint" class="hint" style="margin-top:10px"></div>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('mtile')">Cancel</button>
+      <button class="hbtn primary" onclick="generateTiledPdf()">Generate &amp; Download</button>
     </div>
   </div>
 </div>

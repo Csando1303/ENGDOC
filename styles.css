@@ -231,6 +231,34 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
 #doc-name{font-family:var(--mono);font-size:11.5px;Color:var(--gray-600);background:var(--gray-50);
   border:1px solid var(--gray-200);padding:4px 12px;border-radius:var(--radius-sm);
   max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#hdr-cmdk-btn{display:flex;align-items:center;gap:5px;margin-left:10px;padding:5px 9px;
+  background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);
+  Color:var(--gray-500);cursor:pointer;font-family:var(--font);font-size:10.5px;transition:all .12s}
+#hdr-cmdk-btn:hover{Color:var(--gray-800);border-Color:var(--gray-300);background:var(--gray-100)}
+#hdr-cmdk-btn svg{width:13px;height:13px;flex-shrink:0}
+
+/* ── COMMAND PALETTE ─────────────────────── */
+#cmdk-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);
+  backdrop-filter:blur(2px);z-index:500;align-items:flex-start;justify-content:center;padding-top:14vh}
+#cmdk-overlay.open{display:flex}
+#cmdk-box{background:var(--white);border-radius:10px;width:560px;max-width:92vw;max-height:60vh;
+  box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden}
+#cmdk-input-row{display:flex;align-items:center;gap:10px;padding:12px 16px;
+  border-bottom:1px solid var(--gray-200);flex-shrink:0}
+#cmdk-input-row svg{width:16px;height:16px;Color:var(--gray-400);flex-shrink:0}
+#cmdk-input{flex:1;border:none;outline:none;font-size:14px;font-family:var(--font);
+  background:transparent;Color:var(--gray-800)}
+#cmdk-esc{font-size:10px;font-family:var(--mono);Color:var(--gray-400);
+  border:1px solid var(--gray-200);border-radius:3px;padding:1px 6px;flex-shrink:0}
+#cmdk-list{overflow-y:auto;padding:6px}
+.cmdk-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;
+  cursor:pointer;font-size:13px;Color:var(--gray-700)}
+.cmdk-item svg{width:15px;height:15px;flex-shrink:0;Color:var(--gray-400)}
+.cmdk-item.sel{background:var(--blue-50);Color:var(--blue-700)}
+.cmdk-item.sel svg{Color:var(--blue-500)}
+.cmdk-item-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmdk-item-group{font-size:10px;Color:var(--gray-400);font-family:var(--mono);flex-shrink:0}
+.cmdk-empty{padding:24px 10px;text-align:center;font-size:12.5px;Color:var(--gray-400)}
 
 /* ── TOOLBAR ─────────────────────── */
 /* ── RIBBON ─────────────────────────────────────────────── */

@@ -194,6 +194,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12" stroke-width="2.5"/><path d="M6 6h12M6 18h12" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
             <span class="rbtn-label">Strike</span>
           </button>
+          <button class="rbtn" id="t-redact" data-tip="Redact — mark content for permanent removal (baked in on Export Annotated PDF)" onclick="setTool('redact')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="1"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            <span class="rbtn-label">Redact</span>
+          </button>
         </div>
         <div class="rgroup-label">Highlight</div>
       </div>
@@ -238,11 +242,19 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             <span class="rbtn-label">Stamp</span>
           </button>
+          <button class="rbtn" id="t-signature" data-tip="Draw and place a signature" onclick="openSignatureModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17s2-1 4-1 3 2 5 2 3-2 5-2 4 1 4 1"/><path d="M4 13c2-6 4-9 6-9s2 4 2 7 1 5 2.5 5S17 12 19 8"/></svg>
+            <span class="rbtn-label">Signature</span>
+          </button>
           <button class="rbtn" id="t-image" data-tip="Insert an image onto the drawing" onclick="document.getElementById('fimage').click()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
             <span class="rbtn-label">Image</span>
           </button>
           <input type="file" id="fimage" accept="image/*" style="display:none" onchange="onImageFileSelected(event)">
+          <button class="rbtn" id="t-link" data-tip="Hyperlink — drag a box, then enter a URL" onclick="setTool('link')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.07 0l2.83-2.83a5 5 0 00-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 00-7.07 0L4.1 13.83a5 5 0 007.07 7.07l1.5-1.5"/></svg>
+            <span class="rbtn-label">Link</span>
+          </button>
         </div>
         <div class="rgroup-label">Annotate</div>
       </div>
@@ -273,6 +285,20 @@
           </button>
         </div>
         <div class="rgroup-label">Data</div>
+      </div>
+
+      <div class="rgroup">
+        <div class="rgroup-btns">
+          <button class="rbtn" id="t-formtext" data-tip="Fillable text field — drag a box (exports as a real PDF form field)" onclick="setTool('formtext')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="1"/><line x1="5" y1="12" x2="13" y2="12"/></svg>
+            <span class="rbtn-label">Text Field</span>
+          </button>
+          <button class="rbtn" id="t-formcheckbox" data-tip="Fillable checkbox — click to place (exports as a real PDF form field)" onclick="setTool('formcheckbox')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg>
+            <span class="rbtn-label">Checkbox</span>
+          </button>
+        </div>
+        <div class="rgroup-label">Form Fields</div>
       </div>
 
       <div class="rgroup">
@@ -324,6 +350,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="9" height="18" rx="1"/><rect x="13" y="3" width="9" height="18" rx="1"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
             <span class="rbtn-label">Compare<br>Revisions</span>
           </button>
+          <button class="rbtn lg" onclick="openOcrModal()" data-tip="OCR scanned pages so their text becomes searchable and selectable">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            <span class="rbtn-label">Make<br>Searchable</span>
+          </button>
         </div>
         <div class="rgroup-label">Check</div>
       </div>
@@ -373,10 +403,6 @@
       </div>
       <div class="rgroup">
         <div class="rgroup-btns">
-          <button class="rbtn lg" onclick="saveAsPdf()" data-tip="Save a clean copy of the PDF — no annotations burned in">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><polyline points="9 14 12 17 15 14"/></svg>
-            <span class="rbtn-label">Save<br>PDF</span>
-          </button>
           <button class="rbtn lg" onclick="exportAnnotatedPdf()" data-tip="Export PDF with annotations burned in — shareable with anyone">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13l2 2 4-4"/></svg>
             <span class="rbtn-label">Export<br>Annotated PDF</span>
@@ -397,6 +423,14 @@
           <button class="rbtn lg" onclick="openM('ms')" data-tip="Split a PDF into separate files">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8l-4-4-4 4M8 16l4 4 4-4M12 4v16"/></svg>
             <span class="rbtn-label">Split<br>PDF</span>
+          </button>
+          <button class="rbtn lg" onclick="openWatermarkModal()" data-tip="Add a watermark, header/footer text, or Bates/sheet numbering across all pages">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="7" y1="17" x2="17" y2="7"/></svg>
+            <span class="rbtn-label">Watermark &amp;<br>Numbering</span>
+          </button>
+          <button class="rbtn lg" onclick="openProtectModal()" data-tip="Password-protect and set permissions on the exported PDF">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="1"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            <span class="rbtn-label">Protect<br>PDF</span>
           </button>
         </div>
         <div class="rgroup-label">PDF Tools</div>
@@ -434,6 +468,7 @@
       <button class="stab active" id="stab-pages"  onclick="switchTab('pages',this)">Pages</button>
       <button class="stab" id="stab-notes"          onclick="switchTab('notes',this)">Markup</button>
       <button class="stab" id="stab-search"         onclick="switchTab('search',this)">Search</button>
+      <button class="stab" id="stab-bookmarks"      onclick="switchTab('bookmarks',this)">Bookmarks</button>
       <button class="stab-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Collapse sidebar ([ )">&#xAB;</button>
     </div>
     <!-- Pages selection toolbar — shown when ≥1 page is selected -->
@@ -445,6 +480,18 @@
         </button>
         <button class="ptb-btn" id="ptb-down" onclick="moveSelectedPages(1)" title="Move down">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <button class="ptb-btn" onclick="rotateSelectedPages(-90)" title="Rotate left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M3 7v6h6"/><path d="M3 13A9 9 0 1 0 6 6.7L3 9"/></svg>
+        </button>
+        <button class="ptb-btn" onclick="rotateSelectedPages(90)" title="Rotate right">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M21 7v6h-6"/><path d="M21 13A9 9 0 1 1 18 6.7L21 9"/></svg>
+        </button>
+        <button class="ptb-btn" onclick="duplicateSelectedPages()" title="Duplicate selected pages">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        </button>
+        <button class="ptb-btn" onclick="extractSelectedPages()" title="Extract selected pages to a new PDF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         </button>
         <button class="ptb-btn danger" onclick="deleteSelectedPages()" title="Delete selected pages">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -469,6 +516,16 @@
         <div id="search-status" style="font-size:10px;Color:var(--gray-400);font-family:var(--mono)">Open a PDF to search its text</div>
       </div>
       <div id="search-results"></div>
+    </div>
+
+    <!-- BOOKMARKS PANEL -->
+    <div class="spanel hidden" id="sp-bookmarks">
+      <div class="bm-section-label">My Bookmarks</div>
+      <button class="hbtn outline" style="width:100%;margin-bottom:8px;padding:6px 0;font-size:12px" onclick="addBookmarkForCurrentPage()">+ Add Bookmark for Current Page</button>
+      <div id="bm-user-list"></div>
+      <div id="bm-user-empty" class="bm-empty">No bookmarks yet.</div>
+      <div class="bm-section-label" id="bm-doc-label" style="display:none;margin-top:14px">Document Outline</div>
+      <div id="bm-doc-list"></div>
     </div>
 
   </div>
@@ -523,6 +580,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
     Resize image
   </div>
+  <div class="ctx-item" id="ctx-editlink" onclick="ctxEditLink(event)" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.07 0l2.83-2.83a5 5 0 00-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 00-7.07 0L4.1 13.83a5 5 0 007.07 7.07l1.5-1.5"/></svg>
+    Edit link…
+  </div>
   <div class="ctx-sep"></div>
   <div class="ctx-item" id="ctx-style" onclick="ctxOpenStyle(event)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.4 0 2-1 2-2 0-.5-.2-1-.5-1.4-.3-.4-.5-.9-.5-1.4 0-1 .8-1.8 1.8-1.8H17c2.8 0 5-2.2 5-5C22 6.5 17.5 2 12 2z"/></svg>
@@ -546,6 +607,36 @@
   <div class="ctx-item danger" id="ctx-del" onclick="ctxDelete()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
     Delete annotation
+  </div>
+</div>
+
+<!-- PAGE CONTEXT MENU (right-click a page thumbnail) -->
+<div id="page-ctx-menu">
+  <div class="ctx-item" onclick="pageCtxRotate(-90)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13A9 9 0 1 0 6 6.7L3 9"/></svg>
+    Rotate left
+  </div>
+  <div class="ctx-item" onclick="pageCtxRotate(90)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M21 13A9 9 0 1 1 18 6.7L21 9"/></svg>
+    Rotate right
+  </div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="pageCtxDuplicate()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+    Duplicate page
+  </div>
+  <div class="ctx-item" onclick="pageCtxInsertAfter()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+    Insert blank page after
+  </div>
+  <div class="ctx-item" onclick="pageCtxExtract()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Extract page…
+  </div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="pageCtxDelete()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+    Delete page
   </div>
 </div>
 
@@ -645,6 +736,127 @@
     <div class="mfoot">
       <button class="hbtn outline" onclick="closeM('ms')">Cancel</button>
       <button class="hbtn primary" onclick="doSplit()">Split & Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- WATERMARK / HEADER-FOOTER / BATES NUMBERING MODAL -->
+<div class="overlay" id="mwatermark">
+  <div class="modal" style="width:480px">
+    <div class="mhead"><span class="mtitle">Watermark &amp; Page Numbering</span><button class="mclose" onclick="closeM('mwatermark')">✕</button></div>
+    <div class="mbody">
+      <label class="flabel">Watermark text (diagonal, optional)</label>
+      <input class="finput" id="wm-text" placeholder="e.g. DRAFT / CONFIDENTIAL">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <label class="flabel">Opacity</label>
+          <select class="finput fselect" id="wm-opacity" style="margin-bottom:0;padding:8px">
+            <option value="0.08">Very light</option>
+            <option value="0.15" selected>Light</option>
+            <option value="0.25">Medium</option>
+            <option value="0.4">Dark</option>
+          </select>
+        </div>
+        <div>
+          <label class="flabel">Color</label>
+          <select class="finput fselect" id="wm-Color" style="margin-bottom:0;padding:8px">
+            <option value="#dc2626">Red</option>
+            <option value="#6b7280" selected>Grey</option>
+            <option value="#2563eb">Blue</option>
+          </select>
+        </div>
+      </div>
+
+      <label class="flabel">Header text (optional)</label>
+      <input class="finput" id="wm-header" placeholder="e.g. {filename}">
+      <label class="flabel">Footer text (optional)</label>
+      <input class="finput" id="wm-footer" placeholder="e.g. Page {page} of {pages}  ·  {date}  ·  {n}">
+      <div class="hint" style="margin-bottom:10px">Tokens: <code>{page}</code> current page, <code>{pages}</code> total pages, <code>{date}</code> today's date, <code>{filename}</code> document name, <code>{n}</code> Bates/sheet number (set below).</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div>
+          <label class="flabel">Bates prefix</label>
+          <input class="finput" id="wm-bates-prefix" placeholder="e.g. DWG-" style="margin-bottom:0">
+        </div>
+        <div>
+          <label class="flabel">Start number</label>
+          <input class="finput" id="wm-bates-start" type="number" value="1" min="0" style="margin-bottom:0">
+        </div>
+        <div>
+          <label class="flabel">Digits</label>
+          <input class="finput" id="wm-bates-digits" type="number" value="4" min="1" max="10" style="margin-bottom:0">
+        </div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('mwatermark')">Cancel</button>
+      <button class="hbtn primary" onclick="applyWatermarkAndNumbering()">Apply &amp; Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROTECT PDF (PASSWORD / PERMISSIONS) MODAL -->
+<div class="overlay" id="mprotect">
+  <div class="modal" style="width:440px">
+    <div class="mhead"><span class="mtitle">Protect PDF</span><button class="mclose" onclick="closeM('mprotect')">✕</button></div>
+    <div class="mbody">
+      <label class="flabel">Password to open the file (required)</label>
+      <input class="finput" id="prot-user-pw" type="password" placeholder="Leave blank for no open-password" autocomplete="new-password">
+      <label class="flabel">Owner password (controls permissions below, optional)</label>
+      <input class="finput" id="prot-owner-pw" type="password" placeholder="Defaults to the open-password if blank" autocomplete="new-password">
+
+      <div class="hint" style="margin-bottom:10px">Permissions apply once an owner password is set — without one, anyone who can open the file can also override them in most viewers.</div>
+
+      <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;Color:var(--gray-700);cursor:pointer;user-select:none;margin-bottom:8px">
+        <input type="checkbox" id="prot-allow-print" checked style="width:14px;height:14px">
+        Allow printing
+      </label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;Color:var(--gray-700);cursor:pointer;user-select:none;margin-bottom:8px">
+        <input type="checkbox" id="prot-allow-copy" checked style="width:14px;height:14px">
+        Allow copying text/images
+      </label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;Color:var(--gray-700);cursor:pointer;user-select:none;margin-bottom:8px">
+        <input type="checkbox" id="prot-allow-modify" style="width:14px;height:14px">
+        Allow editing / annotating
+      </label>
+
+      <label class="flabel" style="margin-top:4px">Encryption strength</label>
+      <select class="finput fselect" id="prot-algorithm" style="padding:8px">
+        <option value="AES-256" selected>AES-256 (recommended)</option>
+        <option value="AES-128">AES-128 (older viewer compatibility)</option>
+      </select>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('mprotect')">Cancel</button>
+      <button class="hbtn primary" onclick="applyProtection()">Protect &amp; Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAKE SEARCHABLE (OCR) MODAL -->
+<div class="overlay" id="mocr">
+  <div class="modal" style="width:420px">
+    <div class="mhead"><span class="mtitle">Make Searchable (OCR)</span><button class="mclose" onclick="closeM('mocr')">✕</button></div>
+    <div class="mbody">
+      <p style="font-size:12.5px;Color:var(--gray-600);margin-bottom:12px">
+        Runs text recognition on scanned/image pages so their text becomes searchable and selectable.
+        Pages that already have embedded text are skipped automatically. This can take a few seconds per page.
+      </p>
+      <label class="flabel">Scope</label>
+      <select class="finput fselect" id="ocr-scope" style="padding:8px">
+        <option value="current">Current page only</option>
+        <option value="all" selected>Whole document</option>
+      </select>
+      <div id="ocr-progress-wrap" style="display:none;margin-top:14px">
+        <div style="height:8px;border-radius:4px;background:var(--gray-200);overflow:hidden">
+          <div id="ocr-progress-bar" style="height:100%;width:0%;background:var(--blue-500);transition:width .2s"></div>
+        </div>
+        <div id="ocr-progress-label" style="font-size:11px;Color:var(--gray-500);margin-top:6px;font-family:var(--mono)"></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" id="ocr-cancel-btn" onclick="closeM('mocr')">Cancel</button>
+      <button class="hbtn primary" id="ocr-start-btn" onclick="runOcr()">Start</button>
     </div>
   </div>
 </div>
@@ -859,6 +1071,36 @@
   </div>
 </div>
 
+<!-- SIGNATURE MODAL -->
+<div class="overlay" id="msignature">
+  <div class="modal" style="width:420px">
+    <div class="mhead"><span class="mtitle">Add Signature</span><button class="mclose" onclick="closeM('msignature')">✕</button></div>
+    <div class="mbody">
+      <div id="sig-saved-row" style="display:none;margin-bottom:10px">
+        <label class="flabel">Saved signature</label>
+        <div id="sig-saved-thumb" style="border:1px solid var(--gray-200);border-radius:var(--radius-sm);
+          padding:8px;background:var(--gray-50);cursor:pointer;text-align:center" onclick="useSavedSignature()">
+          <img id="sig-saved-img" style="max-width:100%;max-height:60px" alt="Saved signature">
+        </div>
+      </div>
+      <label class="flabel">Draw your signature</label>
+      <canvas id="sig-pad" width="360" height="140" style="width:100%;height:140px;border:1px solid var(--gray-300);
+        border-radius:var(--radius-sm);background:#fff;cursor:crosshair;touch-action:none"></canvas>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;Color:var(--gray-600);cursor:pointer;user-select:none">
+          <input type="checkbox" id="sig-save-check" checked style="width:13px;height:13px">
+          Remember for next time
+        </label>
+        <button class="hbtn outline" style="padding:5px 11px;font-size:12px" onclick="clearSignaturePad()">Clear</button>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('msignature')">Cancel</button>
+      <button class="hbtn primary" onclick="insertSignature()">Place Signature</button>
+    </div>
+  </div>
+</div>
+
 <!-- TABLE EXTRACT MODAL -->
 <div class="overlay" id="mtableextract">
   <div class="modal" style="width:720px;max-width:96vw">
@@ -900,6 +1142,16 @@
       <button class="hbtn outline" onclick="closeM('mau')">Cancel</button>
       <button class="hbtn primary" onclick="saveAuthor()">Save</button>
     </div>
+  </div>
+</div>
+
+<!-- LINK URL POPOVER (shown after dragging a link box) -->
+<div id="link-pop">
+  <div class="sp-label">Link URL</div>
+  <input id="link-pop-input" placeholder="https://example.com" type="text">
+  <div class="pop-row">
+    <button class="hbtn outline" onclick="linkPopCancel()">Cancel</button>
+    <button class="hbtn primary" onclick="linkPopConfirm()">Add</button>
   </div>
 </div>
 

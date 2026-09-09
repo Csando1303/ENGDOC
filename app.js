@@ -33,6 +33,12 @@ const STATUS_LABEL = { open:'Open', progress:'In Progress', resolved:'Resolved',
 // Page source labels — set when multiple PDFs are merged, maps pageNum→filename
 const pageLabels = {}; // { 1: 'DrawingA.pdf', 2: 'DrawingA.pdf', 3: 'DrawingB.pdf', ... }
 
+// User-added bookmarks — [{ title, pageNum }], persisted like annots.
+// docOutline mirrors the PDF's own (read-only) outline/table of contents,
+// re-derived from the file itself on every load rather than persisted.
+let bookmarks = [];
+let docOutline = [];
+
 // Author
 let currentAuthor = localStorage.getItem('engdoc_author') || '';
 
@@ -142,6 +148,45 @@ const _pageVectorGeom = {};  // { pageNum: {points:[{x,y}], segments:[{x1,y1,x2,
 const pdfPageDimsPt   = {};  // { pageNum: {width, height} }
 
 function nextId() { return ++annotIdSeq; }
+
+// Only http(s)/mailto links are allowed through — anything else (e.g. a
+// bare "javascript:" typed into the URL box) is neutralised by treating the
+// whole string as a bare domain, which normalizeUrl then prefixes with
+// https:// rather than executing it.
+function normalizeUrl(raw) {
+  const u = (raw || '').trim();
+  if (!u) return null;
+  return /^(https?:|mailto:)/i.test(u) ? u : 'https://' + u;
+}
+
+// Link URL popover state
+let linkPopCallback = null;
+function showLinkPop(screenX, screenY, cb, initialVal = '') {
+  linkPopCallback = cb;
+  const pop = document.getElementById('link-pop');
+  const inp = document.getElementById('link-pop-input');
+  inp.value = initialVal;
+  pop.classList.add('open');
+  const pw = 280, ph = 110;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  pop.style.left = Math.min(screenX, vw - pw - 12) + 'px';
+  pop.style.top  = Math.min(screenY + 8, vh - ph - 12) + 'px';
+  requestAnimationFrame(() => { inp.focus(); inp.select(); });
+}
+function linkPopConfirm() {
+  const url = normalizeUrl(document.getElementById('link-pop-input').value);
+  document.getElementById('link-pop').classList.remove('open');
+  if (url && linkPopCallback) linkPopCallback(url);
+  linkPopCallback = null;
+}
+function linkPopCancel() {
+  document.getElementById('link-pop').classList.remove('open');
+  linkPopCallback = null;
+}
+document.getElementById('link-pop-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); linkPopConfirm(); }
+  if (e.key === 'Escape') { e.preventDefault(); linkPopCancel(); }
+});
 
 // Text input popover state
 let txtPopCallback = null;
@@ -261,7 +306,7 @@ async function loadPDF(file) {
   // "Brand new document" reset — identity/annotation state that only makes
   // sense to wipe when we're not just switching back to a previously-open
   // tab (see switchTab, which restores these from the tab record instead).
-  curPg = 1; annots = [];
+  curPg = 1; annots = []; bookmarks = [];
   Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
   history = []; historyIdx = -1; updateUndoRedoButtons();
 
@@ -295,6 +340,7 @@ async function parseAndRenderPdfBytes(bytes) {
   Object.keys(pdfTextContent).forEach(k => delete pdfTextContent[k]);
   Object.keys(pdfPageDimsPt).forEach(k => delete pdfPageDimsPt[k]);
   Object.keys(_pageTextItems).forEach(k => delete _pageTextItems[k]);
+  ocrPages.clear(); ocrWordsByPage = {};
   if (window._pageRawText) Object.keys(window._pageRawText).forEach(k => delete window._pageRawText[k]);
   Object.keys(_pageCache).forEach(k => delete _pageCache[k]); // stale page proxies from the previous doc must not leak in under the same page-number keys
 
@@ -313,6 +359,7 @@ async function parseAndRenderPdfBytes(bytes) {
 
   // Extract text in background — don't block rendering
   extractPdfText().then(() => autoDetectTitleBlock());
+  loadDocOutline();
 }
 
 /* ═══════════════════════════════════════════════
@@ -337,7 +384,7 @@ function saveActiveTabState() {
   if (!rec) return;
   Object.assign(rec, {
     name: pdfName, bytes: pdfBytes, nPages,
-    annots, annotIdSeq,
+    annots, annotIdSeq, bookmarks,
     pageLabels: { ...pageLabels },
     history, historyIdx,
     zoom, curPg,
@@ -355,7 +402,7 @@ function saveActiveTabState() {
 // (switchTab) follows this with parseAndRenderPdfBytes(bytes).
 function restoreTabState(rec) {
   pdfName = rec.name; pdfBytes = rec.bytes;
-  annots = rec.annots; annotIdSeq = rec.annotIdSeq;
+  annots = rec.annots; annotIdSeq = rec.annotIdSeq; bookmarks = rec.bookmarks || [];
   Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
   Object.assign(pageLabels, rec.pageLabels);
   history = rec.history; historyIdx = rec.historyIdx;
@@ -374,6 +421,7 @@ function restoreTabState(rec) {
   renderCheckResults(checkFindings);
   updateLayerPanel();
   clearSearchHighlights();
+  renderBookmarksPanel();
 }
 
 // Discards any in-progress gesture (draw/measure/select/move) before a tab
@@ -405,7 +453,7 @@ async function openFileAsNewTab(file) {
   const id = ++tabIdSeq;
   tabs.push({
     id, name: file.name, bytes: null, nPages: 0,
-    annots: [], annotIdSeq: 0, pageLabels: {},
+    annots: [], annotIdSeq: 0, bookmarks: [], pageLabels: {},
     history: [], historyIdx: -1,
     zoom: 1, curPg: 1,
     measureScale: null, lastMeasurePx: null,
@@ -449,7 +497,7 @@ async function resetToEmptyState() {
   cancelActiveGestures();
   if (pdf) { try { await pdf.destroy(); } catch (e) {} }
   docGen++;
-  pdf = null; nPages = 0; curPg = 1; annots = []; annotIdSeq = 0;
+  pdf = null; nPages = 0; curPg = 1; annots = []; annotIdSeq = 0; bookmarks = []; docOutline = [];
   Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
   history = []; historyIdx = -1; updateUndoRedoButtons();
   renderedPages.clear(); renderQueue.clear();
@@ -514,7 +562,7 @@ async function loadMultiplePDFs(files) {
     const id = ++tabIdSeq;
     tabs.push({
       id, name: files[0].name, bytes: null, nPages: 0,
-      annots: [], annotIdSeq: 0, pageLabels: {},
+      annots: [], annotIdSeq: 0, bookmarks: [], pageLabels: {},
       history: [], historyIdx: -1,
       zoom: 1, curPg: 1,
       measureScale: null, lastMeasurePx: null,
@@ -817,13 +865,6 @@ async function autoDetectTitleBlock() {
   const drawn  = find(['^drawn$', '^drawn\\s*by$', 'designed\\s*by$', 'prepared\\s*by$']);
   const scale  = find(['^scale', '^scales?$']);
 
-  let detected = 0;
-  const set = (id, val) => {
-    if (!val || val.length < 1 || val.length > 300) return;
-    const el = document.getElementById(id);
-    if (el && !el.value) { el.value = val.trim(); detected++; }
-  };
-
   // Pre-fill author name from drawn field
   if (drawn && drawn.length < 40 && drawn !== drawingNo) {
     const authEl = document.getElementById('author-input');
@@ -871,14 +912,7 @@ async function autoDetectTitleBlock() {
     measureScale = { pxPerUnit: pxPerMm * 1000 / ratio, unit: 'm' };
     localStorage.setItem('engdoc_scale', JSON.stringify(measureScale));
     document.getElementById('sb-scale').textContent = `⚖ 1:${ratio} (m)`;
-    detected++;
     toast(`✓ Scale auto-set: 1:${ratio} — measuring in metres`, 3500);
-  }
-
-  if (detected > 0) {
-    toast(`✓ Title block: ${detected} field${detected !== 1 ? 's' : ''} auto-filled — check EMMA panel`, 4500);
-  } else {
-    toast('Title block fields not detected — fill EMMA panel manually', 3000);
   }
 
   console.log('[EngDoc] Title block:', { drawingNo, revision, contractNo, contractTitle, projTitle, drawingTitle, location, contractor, typeField, roleField, drawn });
@@ -1637,6 +1671,12 @@ async function buildThumbs() {
       }
     });
 
+    // ── right-click: page context menu (rotate/duplicate/insert/extract/delete) ──
+    item.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      openPageCtxMenu(i, e.clientX, e.clientY);
+    });
+
     // ── drag-to-reorder (single or multi-page) ──
     item.addEventListener('dragstart', e => {
       // If dragging a selected page, carry all selected; else carry just this one
@@ -1708,6 +1748,16 @@ async function buildThumbs() {
     item.appendChild(wrap); item.appendChild(lbl); item.appendChild(delBtn); panel.appendChild(item);
   }
 
+  // ── trailing "add blank page" affordance ──
+  if (nPages > 0) {
+    const addItem = document.createElement('div');
+    addItem.className = 'titem t-add';
+    addItem.title = 'Add a blank page at the end';
+    addItem.innerHTML = '<div class="tcwrap t-add-plus">+</div><div class="tlbl">Add page</div>';
+    addItem.addEventListener('click', () => insertBlankPageAt(nPages));
+    panel.appendChild(addItem);
+  }
+
   // Lazy-render thumbnails via IntersectionObserver
   const obs = new IntersectionObserver(async entries => {
     for (const entry of entries) {
@@ -1734,40 +1784,293 @@ async function buildThumbs() {
 
 /* ═══════════════════════════════════════════════
    PAGE OPERATIONS
-   Reorder, delete, and move pages in the PDF.
-   All functions rebuild the PDF via PDFLib and
-   reload — labels and selection are preserved.
+   Reorder, delete, move, rotate, duplicate and insert
+   pages in the PDF. All functions rebuild the PDF via
+   PDFLib and reload — labels, selection and annotations
+   are preserved (remapped onto their new page numbers).
 ═══════════════════════════════════════════════ */
 
-// Core helper: rebuild PDF from a given page-order array (1-based original indices)
-async function _rebuildPDF(order) {
+// Rotates one annotation's geometry to compensate for its page having been
+// rotated by `deg` (90/180/270, clockwise) — keeps existing markup aligned
+// with the drawing underneath it instead of drifting off after a rotate.
+// Coordinates are stored as percent-of-page (0-100) for every field except
+// pen/texthighlight/area `points`, which are page-relative fractions (0-1);
+// both are handled by scaling the same rotation math to `unit`.
+function _rotateAnnotForPage(a, deg) {
+  deg = ((deg % 360) + 360) % 360;
+  if (deg === 0) return a;
+  const out = { ...a };
+  const rot = (x, y, unit) => {
+    if (deg === 90)  return { x: unit - y, y: x };
+    if (deg === 180) return { x: unit - x, y: unit - y };
+    /* 270 */         return { x: y, y: unit - x };
+  };
+
+  if (out.w !== undefined && out.h !== undefined && out.x !== undefined) {
+    let nx, ny;
+    if (deg === 90)       { nx = 100 - out.y - out.h; ny = out.x; }
+    else if (deg === 270) { nx = out.y;               ny = 100 - out.x - out.w; }
+    else /* 180 */        { nx = 100 - out.x - out.w; ny = 100 - out.y - out.h; }
+    out.x = nx; out.y = ny;
+    if (deg === 90 || deg === 270) { const t = out.w; out.w = out.h; out.h = t; }
+  } else if (out.x !== undefined && out.y !== undefined) {
+    const p = rot(out.x, out.y, 100);
+    out.x = p.x; out.y = p.y;
+  }
+
+  if (out.x1 !== undefined) {
+    const p1 = rot(out.x1, out.y1, 100), p2 = rot(out.x2, out.y2, 100);
+    out.x1 = p1.x; out.y1 = p1.y; out.x2 = p2.x; out.y2 = p2.y;
+  }
+  if (out.leaderX !== undefined && out.leaderY !== undefined) {
+    const p = rot(out.leaderX, out.leaderY, 100);
+    out.leaderX = p.x; out.leaderY = p.y;
+    if (out.leaderEdge) {
+      const cw  = { top: 'right', right: 'bottom', bottom: 'left', left: 'top' };
+      const opp = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
+      const ccw = { top: 'left', left: 'bottom', bottom: 'right', right: 'top' };
+      out.leaderEdge = deg === 90 ? cw[out.leaderEdge] : deg === 180 ? opp[out.leaderEdge] : ccw[out.leaderEdge];
+    }
+  }
+  if (out.origX !== undefined && out.origY !== undefined) {
+    const p = rot(out.origX, out.origY, 100);
+    out.origX = p.x; out.origY = p.y;
+  }
+  if (out.points) {
+    out.points = out.points.map(pt => rot(pt.x, pt.y, 1));
+  }
+  return out;
+}
+
+// Core helper: rebuild the PDF from a list of output-page descriptors.
+// Each entry is either a plain number (copy that original 1-based page
+// as-is), or { src, rotate } (copy page `src` and add `rotate` degrees to
+// its rotation), or { blank: true, likeSrc } (insert a new blank page sized
+// like original page `likeSrc`, or A4 if omitted/unavailable).
+// Returns { file, pageMap, rotateMap } — pageMap maps each ORIGINAL page
+// number to the 1-based position of its FIRST occurrence in the rebuilt
+// document (a page absent from pageMap was deleted); rotateMap carries the
+// rotation applied to each original page number, for remapping annotations.
+async function _rebuildPDFFromSpec(spec) {
   await loadPdfLib();
-  const { PDFDocument } = PDFLib;
+  const { PDFDocument, degrees } = PDFLib;
   const srcDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
   const newDoc = await PDFDocument.create();
-  const pages  = await newDoc.copyPages(srcDoc, order.map(p => p - 1));
-  pages.forEach(p => newDoc.addPage(p));
+
+  const srcIdxList = spec
+    .filter(s => typeof s === 'number' || s.src)
+    .map(s => (typeof s === 'number' ? s : s.src) - 1);
+  const copied = await newDoc.copyPages(srcDoc, srcIdxList);
+
+  const pageMap = {}, rotateMap = {};
+  let copiedIdx = 0;
+  spec.forEach((s, i) => {
+    if (typeof s === 'number' || s.src) {
+      const origPg = typeof s === 'number' ? s : s.src;
+      const page = copied[copiedIdx++];
+      if (typeof s === 'object' && s.rotate) {
+        page.setRotation(degrees((page.getRotation().angle + s.rotate + 360) % 360));
+        rotateMap[origPg] = ((rotateMap[origPg] || 0) + s.rotate + 360) % 360;
+      }
+      newDoc.addPage(page);
+      if (!(origPg in pageMap)) pageMap[origPg] = i + 1;
+    } else if (s.blank) {
+      const ref = s.likeSrc ? pdfPageDimsPt[s.likeSrc] : null;
+      newDoc.addPage(ref ? [ref.width, ref.height] : [595.28, 841.89]);
+    }
+  });
+
+  // Remap page labels (multi-PDF collation source names) onto new positions
   if (Object.keys(pageLabels).length > 0) {
     const old = { ...pageLabels };
     Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
-    order.forEach((origPg, idx) => { if (old[origPg]) pageLabels[idx + 1] = old[origPg]; });
+    spec.forEach((s, i) => {
+      const origPg = typeof s === 'number' ? s : s.src;
+      if (origPg && old[origPg] !== undefined) pageLabels[i + 1] = old[origPg];
+    });
   }
+
   const bytes = await newDoc.save();
-  return new File([bytes], pdfName, { type: 'application/pdf' });
+  return { file: new File([bytes], pdfName, { type: 'application/pdf' }), pageMap, rotateMap };
 }
 
-// Reload after a structural change, restoring labels and re-selecting pages
-async function _reloadWithOrder(order, newSelectedPages) {
-  const file = await _rebuildPDF(order);
+// Reload after a structural change, restoring labels/selection and
+// remapping annotations onto their new page numbers. Pages absent from
+// pageMap (deleted) drop their annotations; a page that appears more than
+// once in `spec` (duplicated) gets the original annotations cloned onto
+// each of its later occurrences, with fresh ids.
+async function _reloadFromSpec(spec, newSelectedPages) {
+  const oldAnnots = annots;
+  const { file, pageMap, rotateMap } = await _rebuildPDFFromSpec(spec);
+
+  const seen = new Set(), dupTargets = [];
+  spec.forEach((s, i) => {
+    const origPg = typeof s === 'number' ? s : s.src;
+    if (!origPg) return;
+    if (seen.has(origPg)) dupTargets.push({ src: origPg, newPageNum: i + 1 });
+    seen.add(origPg);
+  });
+
   const savedLabels = { ...pageLabels };
   selectedPages.clear();
   if (newSelectedPages) newSelectedPages.forEach(p => selectedPages.add(p));
   await loadPDF(file);
   Object.assign(pageLabels, savedLabels);
+
+  const remapped = oldAnnots
+    .filter(a => pageMap[a.pageNum] !== undefined)
+    .map(a => {
+      const moved = { ...a, pageNum: pageMap[a.pageNum] };
+      const rotDeg = rotateMap[a.pageNum];
+      return rotDeg ? _rotateAnnotForPage(moved, rotDeg) : moved;
+    });
+  const dupAnnots = [];
+  dupTargets.forEach(({ src, newPageNum }) => {
+    oldAnnots.filter(a => a.pageNum === src).forEach(a => {
+      dupAnnots.push({ ...a, id: nextId(), pageNum: newPageNum });
+    });
+  });
+  annots = remapped.concat(dupAnnots);
+  annotIdSeq = annots.reduce((m, a) => Math.max(m, a.id || 0), annotIdSeq);
+
   if (Object.keys(pageLabels).length > 0) buildThumbs();
+  syncAnnots(); updateAnnotPanel(); updateStatusCount();
   // Re-apply selection highlight (buildThumbs already read selectedPages, but do a sync pass)
   updatePagesToolbar();
 }
+
+// Back-compat name used by reorder/delete/move — a spec of plain page
+// numbers (no rotation, no inserts, no duplicates).
+async function _reloadWithOrder(order, newSelectedPages) {
+  return _reloadFromSpec(order, newSelectedPages);
+}
+
+// Rotate one page or a whole selection by ±90°/180°. Existing annotations
+// on affected pages are transformed to stay aligned — see _rotateAnnotForPage.
+async function rotatePages(pageSet, delta) {
+  if (!pageSet || !pageSet.size) return;
+  try {
+    toast('Rotating…', 1500);
+    const spec = [];
+    for (let p = 1; p <= nPages; p++) spec.push(pageSet.has(p) ? { src: p, rotate: delta } : p);
+    await _reloadFromSpec(spec, new Set(pageSet));
+    toast(`✓ Rotated ${pageSet.size === 1 ? 'page' : pageSet.size + ' pages'}`, 2000);
+  } catch (e) {
+    toast('Rotate failed: ' + e.message);
+    console.error('[EngDoc] rotatePages:', e);
+  }
+}
+function rotateSelectedPages(delta) {
+  if (!selectedPages.size) { toast('Select a page to rotate first'); return; }
+  rotatePages(new Set(selectedPages), delta);
+}
+
+// Duplicate one page or a whole selection — each duplicate is inserted
+// immediately after its source and carries the source's annotations along
+// (with fresh ids), matching what most PDF editors do for "duplicate page".
+async function duplicatePages(pageSet) {
+  if (!pageSet || !pageSet.size) return;
+  try {
+    toast('Duplicating…', 1500);
+    const spec = [];
+    const newSel = new Set();
+    for (let p = 1; p <= nPages; p++) {
+      spec.push(p);
+      if (pageSet.has(p)) { spec.push(p); newSel.add(spec.length); }
+    }
+    await _reloadFromSpec(spec, newSel);
+    toast(`✓ ${pageSet.size === 1 ? 'Page' : pageSet.size + ' pages'} duplicated`, 2000);
+  } catch (e) {
+    toast('Duplicate failed: ' + e.message);
+    console.error('[EngDoc] duplicatePages:', e);
+  }
+}
+function duplicateSelectedPages() {
+  if (!selectedPages.size) { toast('Select a page to duplicate first'); return; }
+  duplicatePages(new Set(selectedPages));
+}
+
+// Insert a blank page (sized like `afterPage`, or A4 if there's no
+// reference) immediately after it — afterPage=0 inserts at the very start.
+async function insertBlankPageAt(afterPage) {
+  try {
+    toast('Inserting page…', 1500);
+    const spec = [];
+    if (afterPage === 0) spec.push({ blank: true, likeSrc: 1 });
+    for (let p = 1; p <= nPages; p++) {
+      spec.push(p);
+      if (p === afterPage) spec.push({ blank: true, likeSrc: p });
+    }
+    await _reloadFromSpec(spec, new Set([afterPage + 1]));
+    toast('✓ Blank page inserted', 2000);
+  } catch (e) {
+    toast('Insert failed: ' + e.message);
+    console.error('[EngDoc] insertBlankPageAt:', e);
+  }
+}
+
+// Extract one or more pages into a standalone downloaded PDF, leaving the
+// current document untouched. Annotations are NOT burned in — run Export
+// Annotated PDF first if the extracted pages need markup baked into them.
+async function extractPages(pageSet, filename) {
+  if (!pageSet || !pageSet.size) { toast('Select pages to extract first'); return; }
+  try {
+    await loadPdfLib();
+    const { PDFDocument } = PDFLib;
+    const srcDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+    const newDoc = await PDFDocument.create();
+    const order = [...pageSet].sort((a, b) => a - b);
+    const pages = await newDoc.copyPages(srcDoc, order.map(p => p - 1));
+    pages.forEach(p => newDoc.addPage(p));
+    const bytes = await newDoc.save();
+    const base = (pdfName || 'document').replace(/\.pdf$/i, '');
+    dl(bytes, filename || `${base}_extracted.pdf`);
+    toast(`✓ Extracted ${order.length} page${order.length !== 1 ? 's' : ''}`, 2500);
+  } catch (e) {
+    toast('Extract failed: ' + e.message);
+    console.error('[EngDoc] extractPages:', e);
+  }
+}
+function extractSelectedPages() {
+  if (!selectedPages.size) { toast('Select pages to extract first'); return; }
+  extractPages(new Set(selectedPages));
+}
+
+// ── Page thumbnail right-click context menu ──
+let _pageCtxPageNum = null;
+function openPageCtxMenu(pageNum, cx, cy) {
+  _pageCtxPageNum = pageNum;
+  const menu = document.getElementById('page-ctx-menu');
+  menu.style.left = '0'; menu.style.top = '0';
+  menu.classList.add('open');
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = Math.min(cx, window.innerWidth  - mw - 8) + 'px';
+  menu.style.top  = Math.min(cy, window.innerHeight - mh - 8) + 'px';
+}
+function hidePageCtx() { document.getElementById('page-ctx-menu').classList.remove('open'); }
+function pageCtxRotate(delta) {
+  if (_pageCtxPageNum != null) rotatePages(new Set([_pageCtxPageNum]), delta);
+  hidePageCtx();
+}
+function pageCtxDuplicate() {
+  if (_pageCtxPageNum != null) duplicatePages(new Set([_pageCtxPageNum]));
+  hidePageCtx();
+}
+function pageCtxInsertAfter() {
+  if (_pageCtxPageNum != null) insertBlankPageAt(_pageCtxPageNum);
+  hidePageCtx();
+}
+function pageCtxExtract() {
+  if (_pageCtxPageNum != null) extractPages(new Set([_pageCtxPageNum]));
+  hidePageCtx();
+}
+function pageCtxDelete() {
+  if (_pageCtxPageNum != null) deletePages(new Set([_pageCtxPageNum]));
+  hidePageCtx();
+}
+document.addEventListener('click', e => {
+  if (!document.getElementById('page-ctx-menu').contains(e.target)) hidePageCtx();
+});
 
 // Drag-drop reorder: fromPages = Set, toPage = drop target, insertBefore = boolean
 async function reorderPages(fromPages, toPage, insertBefore) {
@@ -1937,7 +2240,7 @@ function setTool(t) {
       o.style.cursor = '';
       o.className = 'aoverlay active';
       if (['highlight','rect','rectfill','strike','pen','arrow','line',
-           'measure','texthighlight','cloud','area','tableextract'].includes(t)) o.classList.add('cur-cross');
+           'measure','texthighlight','cloud','area','tableextract','link','redact','formtext'].includes(t)) o.classList.add('cur-cross');
       else if (t === 'text')    o.classList.add('cur-text');
       else if (t === 'erase')   o.classList.add('cur-erase');
       else if (t === 'zoombox') o.classList.add('cur-zoombox');
@@ -2110,6 +2413,15 @@ function attachEvents(ov, pageNum, _vpInitial) {
       return;
     }
 
+    // ── FORM CHECKBOX: click-only, fixed size ──
+    if (tool === 'formcheckbox') {
+      const px = ox / vp.width * 100, py = oy / vp.height * 100;
+      const id = nextId();
+      pushAnnot({ id, pageNum, type: 'formcheckbox',
+        x: px, y: py, w: 3, h: 3, name: 'field_' + id, checked: false });
+      return;
+    }
+
     // ── MEASURE: click-click-click state machine (intercept before drag setup) ──
     if (tool === 'measure') {
       const cx = ox, cy = oy;
@@ -2265,6 +2577,15 @@ function attachEvents(ov, pageNum, _vpInitial) {
     } else if (tool === 'tableextract') {
       liveEl.style.border = '2px dashed #2563eb';
       liveEl.style.background = '#2563eb11';
+    } else if (tool === 'link') {
+      liveEl.style.border = '1.5px dashed ' + colorHex('blue');
+      liveEl.style.background = colorHex('blue') + '11';
+    } else if (tool === 'redact') {
+      liveEl.style.background = 'rgba(0,0,0,0.6)';
+      liveEl.style.border = '1px solid #000';
+    } else if (tool === 'formtext') {
+      liveEl.style.border = '1.5px dashed #16a34a';
+      liveEl.style.background = '#16a34a11';
     } else if (tool === 'rectfill') {
       liveEl.style.background = colorHex(Color);
       liveEl.style.opacity = (annotOpacity / 100).toFixed(2);
@@ -2498,6 +2819,19 @@ function attachEvents(ov, pageNum, _vpInitial) {
     if (tool === 'tableextract') {
       if (w < 1 || h < 1) return;
       openTableExtractModal(pageNum, x, y, w, h);
+    } else if (tool === 'link') {
+      if (w < 0.5 || h < 0.5) return;
+      showLinkPop(e.clientX, e.clientY, url => {
+        pushAnnot({ id: nextId(), pageNum, type: 'link', x, y, w, h, url, Color: 'blue' });
+      });
+    } else if (tool === 'redact') {
+      if (w < 0.3 || h < 0.3) return;
+      pushAnnot({ id: nextId(), pageNum, type: 'redact', x, y, w, h, Color: 'black' });
+      toast('Marked for redaction — content is removed when you Export Annotated PDF', 4000);
+    } else if (tool === 'formtext') {
+      if (w < 2 || h < 1) return;
+      const id = nextId();
+      pushAnnot({ id, pageNum, type: 'formtext', x, y, w, h, name: 'field_' + id, value: '', fontSize: 11 });
     } else if (tool === 'strike') {
       if (w < 0.5 || h < 0.5) return;
       pushAnnot({ id: nextId(), pageNum, type: 'strike', x, y, w, h, Color });
@@ -3802,6 +4136,55 @@ function buildAnnotEl(a) {
     img.src = a.src;
     img.draggable = false;
     el.appendChild(img);
+  } else if (a.type === 'formtext') {
+    el = document.createElement('div');
+    el.className = 'aformtext';
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;` +
+      `border:1.5px solid #16a34a;border-radius:2px;background:#f0fdf4`;
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'aformtext-input';
+    inp.value = a.value || '';
+    inp.placeholder = a.name || '';
+    inp.style.fontSize = (a.fontSize || 11) + 'px';
+    inp.addEventListener('mousedown', ev => ev.stopPropagation());
+    inp.addEventListener('click', ev => ev.stopPropagation());
+    inp.addEventListener('input', () => { a.value = inp.value; });
+    inp.addEventListener('blur', () => { syncAnnots(); });
+    el.appendChild(inp);
+  } else if (a.type === 'formcheckbox') {
+    el = document.createElement('div');
+    el.className = 'aformcheckbox';
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%`;
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!a.checked;
+    cb.addEventListener('mousedown', ev => ev.stopPropagation());
+    cb.addEventListener('click', ev => ev.stopPropagation());
+    cb.addEventListener('change', () => { a.checked = cb.checked; syncAnnots(); });
+    el.appendChild(cb);
+  } else if (a.type === 'redact') {
+    el = document.createElement('div');
+    el.className = 'aredact';
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;` +
+      `background:#000;border:1px solid #000`;
+    const lock = document.createElement('span');
+    lock.className = 'aredact-tag';
+    lock.textContent = 'REDACT';
+    el.appendChild(lock);
+  } else if (a.type === 'link') {
+    el = document.createElement('div');
+    el.className = 'alink';
+    el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;width:${a.w}%;height:${a.h}%;` +
+      `border:1.5px dashed ${colorHex(a.Color || 'blue')};border-radius:2px;background:${colorHex(a.Color || 'blue')}11`;
+    const btn = document.createElement('a');
+    btn.className = 'alink-btn';
+    btn.href = a.url; btn.target = '_blank'; btn.rel = 'noopener noreferrer';
+    btn.title = a.url;
+    btn.textContent = '🔗';
+    btn.addEventListener('mousedown', ev => ev.stopPropagation());
+    btn.addEventListener('click', ev => ev.stopPropagation());
+    el.appendChild(btn);
   }
 
   // ── Post-build extensions (applied here, not via patch chain) ──
@@ -4097,6 +4480,35 @@ function buildCircleAnnotEl(a) {
 /* ═══════════════════════════════════════════════
    ANNOTATION PANEL (SIDEBAR)
 ═══════════════════════════════════════════════ */
+// ── Comment reply threads — any annotation can carry a discussion thread,
+// independent of its type or status (Acrobat/Bluebeam-style "reply to a
+// markup"). Stored as a.replies: [{author, text, ts}], persisted the same
+// way as any other annotation field (session save/load, undo history).
+let _expandedReplies = new Set();
+function toggleReplyThread(id) {
+  if (_expandedReplies.has(id)) _expandedReplies.delete(id); else _expandedReplies.add(id);
+  updateAnnotPanel();
+}
+function addReply(id, text) {
+  const a = annots.find(x => x.id === id);
+  if (!a || !text || !text.trim()) return;
+  if (!a.replies) a.replies = [];
+  a.replies.push({ author: currentAuthor || 'Unknown', text: text.trim(), ts: new Date().toISOString() });
+  _expandedReplies.add(id);
+  syncAnnots(); updateAnnotPanel(); pushHistory();
+}
+function deleteReply(id, idx) {
+  const a = annots.find(x => x.id === id);
+  if (!a || !a.replies) return;
+  a.replies.splice(idx, 1);
+  syncAnnots(); updateAnnotPanel(); pushHistory();
+}
+function _submitReply(id) {
+  const input = document.querySelector('.areply-input[data-annotid="' + id + '"]');
+  if (!input) return;
+  addReply(id, input.value);
+}
+
 function updateAnnotPanel() {
   const panel = document.getElementById('sp-notes');
   panel.querySelectorAll('.aitem').forEach(el => el.remove());
@@ -4125,6 +4537,9 @@ function updateAnnotPanel() {
     // Status available on all annotation types (useful for any comment workflow)
     const hasStatus = true;
 
+    const replies = a.replies || [];
+    const expanded = _expandedReplies.has(a.id);
+
     item.innerHTML =
       '<button class="adel" title="Delete annotation (Del)">✕</button>' +
       '<div class="atype">' +
@@ -4136,7 +4551,29 @@ function updateAnnotPanel() {
       '</select>' +
       '<div class="apreview">' + preview + '</div>' +
       '<div class="ats">' + (a.author ? '● ' + a.author + '  · ' : '') + 'Pg ' + a.pageNum + (tsStr ? '  · ' + tsStr : '') + '</div>' +
-      (canEdit ? '<button class="aedit-btn" title="Edit text" onclick="event.stopPropagation();editAnnotById(' + a.id + ')">Edit</button>' : '');
+      (canEdit ? '<button class="aedit-btn" title="Edit text" onclick="event.stopPropagation();editAnnotById(' + a.id + ')">Edit</button>' : '') +
+      '<div class="areply-toggle" onclick="event.stopPropagation();toggleReplyThread(' + a.id + ')">' +
+        '💬 ' + replies.length + (replies.length === 1 ? ' reply' : ' replies') +
+        '<span class="areply-caret">' + (expanded ? '▾' : '▸') + '</span>' +
+      '</div>' +
+      (expanded ?
+        '<div class="areply-thread">' +
+          replies.map((r, i) =>
+            '<div class="areply-row">' +
+              '<div class="areply-body">' +
+                '<span class="areply-author">' + escHtml(r.author || 'Unknown') + '</span>' +
+                (r.ts ? ' <span class="areply-ts">' + new Date(r.ts).toLocaleString(undefined, {dateStyle:'short',timeStyle:'short'}) + '</span>' : '') +
+                '<div class="areply-text">' + escHtml(r.text) + '</div>' +
+              '</div>' +
+              '<button class="areply-del" title="Delete reply" onclick="event.stopPropagation();deleteReply(' + a.id + ',' + i + ')">✕</button>' +
+            '</div>'
+          ).join('') +
+          '<div class="areply-add">' +
+            '<input class="areply-input" placeholder="Reply…" data-annotid="' + a.id + '">' +
+            '<button class="areply-send" onclick="event.stopPropagation();_submitReply(' + a.id + ')">Send</button>' +
+          '</div>' +
+        '</div>'
+      : '');
 
     item.querySelector('.adel').onclick = ev => { ev.stopPropagation(); deleteAnnotById(a.id); };
 
@@ -4149,8 +4586,16 @@ function updateAnnotPanel() {
       syncAnnots(); updateAnnotPanel(); pushHistory();
     };
 
+    const replyInput = item.querySelector('.areply-input');
+    if (replyInput) {
+      replyInput.addEventListener('click', ev => ev.stopPropagation());
+      replyInput.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); _submitReply(a.id); }
+      });
+    }
+
     item.onclick = (ev) => {
-      if (ev.target.closest('select,button')) return;
+      if (ev.target.closest('select,button,input')) return;
       document.querySelectorAll('.aitem').forEach(i => i.classList.remove('selected'));
       item.classList.add('selected');
       scrollToAnnotation(a);
@@ -4334,9 +4779,11 @@ function openCtxMenu(annotId, cx, cy) {
   const isTextable = a && ['text'].includes(a.type);
   const hasStatus  = a && ['text'].includes(a.type);
   const isImage    = a && a.type === 'image';
-  document.getElementById('ctx-edit').style.display    = isTextable ? 'flex' : 'none';
-  document.getElementById('ctx-replace').style.display  = isTextable ? 'flex' : 'none';
-  document.getElementById('ctx-resize').style.display   = isImage    ? 'flex' : 'none';
+  const isLink     = a && a.type === 'link';
+  document.getElementById('ctx-edit').style.display     = isTextable ? 'flex' : 'none';
+  document.getElementById('ctx-replace').style.display   = isTextable ? 'flex' : 'none';
+  document.getElementById('ctx-resize').style.display    = isImage    ? 'flex' : 'none';
+  document.getElementById('ctx-editlink').style.display  = isLink     ? 'flex' : 'none';
 
   // Show status items only for text-bearing annotations
   ['ctx-status-label','ctx-status-open','ctx-status-progress',
@@ -4369,6 +4816,20 @@ function ctxEdit() {
   if (ctxAnnotId == null) { hideCtx(); return; }
   editAnnotById(ctxAnnotId);
   hideCtx(); ctxAnnotId = null;
+}
+
+function ctxEditLink(ev) {
+  if (ctxAnnotId == null) { hideCtx(); return; }
+  const a = annots.find(x => x.id === ctxAnnotId);
+  if (!a) { hideCtx(); ctxAnnotId = null; return; }
+  const cx = ev ? ev.clientX : window.innerWidth / 2;
+  const cy = ev ? ev.clientY : window.innerHeight / 2;
+  hideCtx(); ctxAnnotId = null;
+  showLinkPop(cx, cy, url => {
+    a.url = url;
+    syncAnnots(); updateAnnotPanel();
+    toast('Link updated');
+  }, a.url);
 }
 
 function ctxReplaceText(ev) {
@@ -4412,6 +4873,7 @@ function ctxDuplicate() {
   if (!a) { hideCtx(); return; }
   const copy = JSON.parse(JSON.stringify(a));
   copy.id = nextId();
+  delete copy.replies; // a duplicate starts its own discussion, not the original's
   // Offset slightly so it's visible
   if (copy.x  !== undefined) { copy.x  += 2; copy.y  += 2; }
   if (copy.x1 !== undefined) { copy.x1 += 2; copy.y1 += 2; copy.x2 += 2; copy.y2 += 2; }
@@ -4452,7 +4914,105 @@ function switchTab(tab, btn) {
   document.getElementById('sp-pages').classList.toggle('hidden',   tab !== 'pages');
   document.getElementById('sp-notes').classList.toggle('hidden',   tab !== 'notes');
   document.getElementById('sp-search').classList.toggle('hidden',  tab !== 'search');
+  document.getElementById('sp-bookmarks').classList.toggle('hidden', tab !== 'bookmarks');
   if (tab === 'search') setTimeout(() => document.getElementById('search-input').focus(), 50);
+  if (tab === 'bookmarks') renderBookmarksPanel();
+}
+
+/* ═══════════════════════════════════════════════
+   BOOKMARKS / OUTLINE
+   "My Bookmarks" (bookmarks[]) are user-added and
+   persisted like annotations. docOutline mirrors the
+   PDF's own table of contents (read-only, re-derived
+   from the file itself on every load via pdf.js).
+═══════════════════════════════════════════════ */
+async function loadDocOutline() {
+  docOutline = [];
+  if (!pdf) { renderBookmarksPanel(); return; }
+  try {
+    const raw = await pdf.getOutline();
+    if (raw && raw.length) docOutline = await _resolveOutlineItems(raw);
+  } catch (e) { /* outline is optional — a missing/malformed one is not an error */ }
+  renderBookmarksPanel();
+}
+
+async function _resolveOutlineItems(items) {
+  const out = [];
+  for (const item of items) {
+    let pageNum = null;
+    try {
+      let dest = item.dest;
+      if (typeof dest === 'string') dest = await pdf.getDestination(dest);
+      if (dest && dest[0] != null) pageNum = (await pdf.getPageIndex(dest[0])) + 1;
+    } catch (e) { /* unresolvable destination (e.g. external link) — skip navigation */ }
+    out.push({
+      title: item.title || '(untitled)',
+      pageNum,
+      items: item.items && item.items.length ? await _resolveOutlineItems(item.items) : [],
+    });
+  }
+  return out;
+}
+
+function addBookmarkForCurrentPage() {
+  if (!pdf) { toast('Open a PDF first'); return; }
+  const title = (prompt('Bookmark title:', 'Page ' + curPg) || '').trim();
+  if (!title) return;
+  bookmarks.push({ title, pageNum: curPg });
+  renderBookmarksPanel();
+  toast('✓ Bookmark added');
+}
+
+function deleteBookmark(idx) {
+  bookmarks.splice(idx, 1);
+  renderBookmarksPanel();
+}
+
+function gotoBookmark(pageNum) {
+  if (pageNum == null) { toast('This entry has no linked page'); return; }
+  scrollToPage(pageNum);
+}
+
+function _renderOutlineTree(items, depth) {
+  return items.map(it => {
+    const row =
+      '<div class="bm-row bm-doc-row" style="--bm-depth:' + depth + '" onclick="gotoBookmark(' + (it.pageNum ?? 'null') + ')">' +
+        '<span class="bm-row-title">' + escHtml(it.title) + '</span>' +
+        (it.pageNum ? '<span class="bm-row-pg">p.' + it.pageNum + '</span>' : '') +
+      '</div>';
+    const children = it.items && it.items.length ? _renderOutlineTree(it.items, depth + 1).join('') : '';
+    return row + children;
+  });
+}
+
+function renderBookmarksPanel() {
+  const userList = document.getElementById('bm-user-list');
+  const userEmpty = document.getElementById('bm-user-empty');
+  if (!userList) return; // panel not in DOM yet
+
+  if (!bookmarks.length) {
+    userList.innerHTML = '';
+    userEmpty.style.display = 'block';
+  } else {
+    userEmpty.style.display = 'none';
+    userList.innerHTML = bookmarks.map((bm, i) =>
+      '<div class="bm-row" onclick="gotoBookmark(' + bm.pageNum + ')">' +
+        '<span class="bm-row-title">' + escHtml(bm.title) + '</span>' +
+        '<span class="bm-row-pg">p.' + bm.pageNum + '</span>' +
+        '<button class="bm-row-del" title="Delete bookmark" onclick="event.stopPropagation();deleteBookmark(' + i + ')">✕</button>' +
+      '</div>'
+    ).join('');
+  }
+
+  const docLabel = document.getElementById('bm-doc-label');
+  const docList  = document.getElementById('bm-doc-list');
+  if (docOutline.length) {
+    docLabel.style.display = 'block';
+    docList.innerHTML = _renderOutlineTree(docOutline, 0).join('');
+  } else {
+    docLabel.style.display = 'none';
+    docList.innerHTML = '';
+  }
 }
 
 /* ═══════════════════════════════════════════════
@@ -4468,7 +5028,10 @@ async function loadPdfLib() {
   if (window.PDFLib) return;
   await new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+    // @cantoo/pdf-lib — an actively-maintained fork of pdf-lib with the same
+    // API (same `PDFLib` global) plus real AES encryption via `.encrypt()`,
+    // which the original pdf-lib doesn't support at all.
+    s.src = 'https://cdn.jsdelivr.net/npm/@cantoo/pdf-lib@2.9.2/dist/pdf-lib.min.js';
     s.onload = res; s.onerror = rej; document.head.appendChild(s);
   });
 }
@@ -4528,6 +5091,158 @@ function dl(bytes, name) {
   const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
   const a = document.createElement('a'); a.href = url; a.download = name; a.click();
   URL.revokeObjectURL(url);
+}
+
+/* ═══════════════════════════════════════════════
+   WATERMARK / HEADER-FOOTER / BATES NUMBERING
+   Burns a diagonal watermark and/or header+footer
+   text (with page/date/Bates tokens) into every
+   page, producing a new downloaded PDF. Page
+   content only — does not include markup; run
+   Export Annotated PDF separately for that.
+═══════════════════════════════════════════════ */
+function openWatermarkModal() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  openM('mwatermark');
+}
+
+function _wmSubstitute(str, tokens) {
+  return str
+    .replace(/\{page\}/g, tokens.page)
+    .replace(/\{pages\}/g, tokens.pages)
+    .replace(/\{date\}/g, tokens.date)
+    .replace(/\{filename\}/g, tokens.filename)
+    .replace(/\{n\}/g, tokens.n);
+}
+
+async function applyWatermarkAndNumbering() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  const wmText   = document.getElementById('wm-text').value.trim();
+  const header   = document.getElementById('wm-header').value.trim();
+  const footer   = document.getElementById('wm-footer').value.trim();
+  if (!wmText && !header && !footer) { toast('Enter a watermark, header or footer first'); return; }
+
+  const opacity  = parseFloat(document.getElementById('wm-opacity').value);
+  const wmColor  = document.getElementById('wm-Color').value;
+  const prefix   = document.getElementById('wm-bates-prefix').value;
+  const start    = parseInt(document.getElementById('wm-bates-start').value) || 0;
+  const digits   = parseInt(document.getElementById('wm-bates-digits').value) || 4;
+
+  closeM('mwatermark');
+  toast('Applying watermark / numbering…', 4000);
+  try {
+    await loadPdfLib();
+    const { PDFDocument, rgb, degrees, StandardFonts } = PDFLib;
+    const srcDoc = await PDFDocument.load(pdfBytes.slice(0));
+    const pages  = srcDoc.getPages();
+    const font   = await srcDoc.embedFont(StandardFonts.Helvetica);
+    const today  = new Date().toLocaleDateString('en-GB');
+    const filenameNoExt = (pdfName || 'document').replace(/\.pdf$/i, '');
+
+    const hexToRgbTuple = hex => ({
+      r: parseInt(hex.slice(1, 3), 16) / 255,
+      g: parseInt(hex.slice(3, 5), 16) / 255,
+      b: parseInt(hex.slice(5, 7), 16) / 255,
+    });
+    const wmC = hexToRgbTuple(wmColor);
+
+    pages.forEach((page, idx) => {
+      const { width: W, height: H } = page.getSize();
+      const tokens = {
+        page: idx + 1, pages: pages.length, date: today, filename: filenameNoExt,
+        n: prefix + String(start + idx).padStart(digits, '0'),
+      };
+
+      if (wmText) {
+        const fontSize = Math.max(24, Math.min(64, Math.min(W, H) / (wmText.length * 0.55 + 3)));
+        const tw = font.widthOfTextAtSize(wmText, fontSize);
+        const angle = Math.PI / 4;
+        const cx = W / 2, cy = H / 2;
+        const x = cx - (tw / 2) * Math.cos(angle) + (fontSize / 2) * Math.sin(angle);
+        const y = cy - (tw / 2) * Math.sin(angle) - (fontSize / 2) * Math.cos(angle);
+        page.drawText(wmText, {
+          x, y, size: fontSize, font, color: rgb(wmC.r, wmC.g, wmC.b),
+          opacity, rotate: degrees(45),
+        });
+      }
+
+      if (header) {
+        const text = _wmSubstitute(header, tokens);
+        const size = 9;
+        const tw = font.widthOfTextAtSize(text, size);
+        page.drawText(text, { x: W / 2 - tw / 2, y: H - 24, size, font, color: rgb(0.35, 0.35, 0.35) });
+      }
+      if (footer) {
+        const text = _wmSubstitute(footer, tokens);
+        const size = 9;
+        const tw = font.widthOfTextAtSize(text, size);
+        page.drawText(text, { x: W / 2 - tw / 2, y: 16, size, font, color: rgb(0.35, 0.35, 0.35) });
+      }
+    });
+
+    const bytes = await srcDoc.save();
+    dl(bytes, `${filenameNoExt}_stamped.pdf`);
+    toast('✓ Watermark / numbering applied', 2500);
+  } catch (e) {
+    toast('Failed: ' + e.message);
+    console.error('[EngDoc] applyWatermarkAndNumbering:', e);
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   PROTECT PDF (PASSWORD / PERMISSIONS)
+   Real AES encryption via @cantoo/pdf-lib's
+   PDFDocument.encrypt() — the original pdf-lib has
+   no encryption support at all. Applied to a fresh
+   copy of the current PDF and downloaded; the open
+   session itself is never encrypted.
+═══════════════════════════════════════════════ */
+function openProtectModal() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  openM('mprotect');
+}
+
+async function applyProtection() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  const userPw   = document.getElementById('prot-user-pw').value;
+  const ownerPw  = document.getElementById('prot-owner-pw').value;
+  const algorithm = document.getElementById('prot-algorithm').value;
+  const allowPrint  = document.getElementById('prot-allow-print').checked;
+  const allowCopy   = document.getElementById('prot-allow-copy').checked;
+  const allowModify = document.getElementById('prot-allow-modify').checked;
+
+  if (!userPw && !ownerPw) { toast('Enter at least a password to open the file'); return; }
+
+  closeM('mprotect');
+  toast('Encrypting PDF…', 4000);
+  try {
+    await loadPdfLib();
+    const { PDFDocument } = PDFLib;
+    const srcDoc = await PDFDocument.load(pdfBytes.slice(0));
+
+    srcDoc.encrypt({
+      userPassword: userPw || undefined,
+      ownerPassword: ownerPw || userPw || undefined,
+      permissions: {
+        printing: allowPrint ? 'highResolution' : false,
+        copying: allowCopy,
+        modifying: allowModify,
+        annotating: allowModify,
+        fillingForms: allowModify,
+        documentAssembly: allowModify,
+        contentAccessibility: true,
+      },
+      algorithm,
+    });
+
+    const bytes = await srcDoc.save();
+    const base = (pdfName || 'document').replace(/\.pdf$/i, '');
+    dl(bytes, `${base}_protected.pdf`);
+    toast('✓ PDF protected and downloaded');
+  } catch (e) {
+    toast('Protection failed: ' + e.message);
+    console.error('[EngDoc] applyProtection:', e);
+  }
 }
 
 /* ═══════════════════════════════════════════════
@@ -4648,7 +5363,7 @@ async function _saveToHandle(data, filename) {
 
 function saveSession() {
   if (!pdfName && !annots.length) { toast('Nothing to save'); return; }
-  const data = { v: 2, pdfName, annotIdSeq, measureScale, pageDimsPt: pdfPageDimsPt, annots };
+  const data = { v: 2, pdfName, annotIdSeq, measureScale, pageDimsPt: pdfPageDimsPt, annots, bookmarks };
   const filename = _loadedEngdocName || (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
   _saveToHandle(data, filename).then(ok => {
     if (ok) toast(`✓ Session saved — ${annots.length} annotation${annots.length !== 1 ? 's' : ''}`);
@@ -4665,7 +5380,7 @@ async function saveSessionWithPdf() {
     binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   }
   const b64 = btoa(binary);
-  const data = { v: 3, pdfName, annotIdSeq, measureScale, pageDimsPt: pdfPageDimsPt, annots, pdfData: b64 };
+  const data = { v: 3, pdfName, annotIdSeq, measureScale, pageDimsPt: pdfPageDimsPt, annots, bookmarks, pdfData: b64 };
   const filename = _loadedEngdocName || (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
   const ok = await _saveToHandle(data, filename);
   if (ok) toast(`✓ Saved with embedded PDF — ${sizeMb} MB`);
@@ -4722,13 +5437,14 @@ async function loadSession(e) {
     }
 
     annots = migrateLegacyAnnots(data.annots);
+    bookmarks = data.bookmarks || [];
     annotIdSeq = data.annotIdSeq || annots.reduce((m, a) => Math.max(m, a.id || 0), 0);
     if (data.measureScale) {
       measureScale = data.measureScale;
       document.getElementById('sb-scale').textContent =
         `⚖ Scale: 1 ${measureScale.unit} = ${(measureScale.pxPerUnit).toFixed(1)} px`;
     }
-    syncAnnots(); updateAnnotPanel(); updateStatusCount();
+    syncAnnots(); updateAnnotPanel(); updateStatusCount(); renderBookmarksPanel();
     const scanNote = _msScan
       ? ` — drawing scan loaded (${_msScan.texts.length} element${_msScan.texts.length !== 1 ? 's' : ''}${_msCalibration ? ', calibrated' : ', not yet calibrated'})`
       : '';
@@ -4744,20 +5460,6 @@ async function loadSession(e) {
    pdf-lib so the result is viewable in any PDF
    reader without EngDoc installed.
 ═══════════════════════════════════════════════ */
-function saveAsPdf() {
-  if (!pdfBytes) { toast('Open a PDF first'); return; }
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = pdfName || 'document.pdf';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast(`Saved: ${pdfName}`);
-}
-
 async function exportAnnotatedPdf() {
   if (!pdfBytes) { toast('Open a PDF first'); return; }
 
@@ -4790,6 +5492,65 @@ async function exportAnnotatedPdf() {
     // Fallback fill tints for named presets (custom hex colours use tintHex() instead)
     const FILL = { yellow: '#fef9c3', green: '#dcfce1', red: '#fee0e5', blue: '#dbeafe', black: '#e9ecef', teal: '#ccfbf1', rose: '#ffe4e6' };
 
+    // ── REDACTION: pages carrying a 'redact' annotation are rasterized —
+    // the underlying vector/text content in the marked areas is genuinely
+    // gone from the exported file, not just covered by a drawn box. Other
+    // annotations on that page are still burned in normally afterward.
+    const redactPages = [...new Set(annots.filter(a => a.type === 'redact').map(a => a.pageNum))];
+    if (redactPages.length) {
+      const ok = confirm(
+        `This will permanently flatten ${redactPages.length} page${redactPages.length !== 1 ? 's' : ''} ` +
+        `containing redaction boxes into images — the covered content cannot be recovered from the ` +
+        `exported file. This does not affect your open session, only this export. Continue?`
+      );
+      if (!ok) { toast('Export cancelled'); return; }
+    }
+    for (const pgNum of redactPages) {
+      const srcPage = pages[pgNum - 1];
+      if (!srcPage) continue;
+      const { width: W, height: H } = srcPage.getSize();
+      const boxes = annots.filter(a => a.type === 'redact' && a.pageNum === pgNum);
+
+      const liveP = await getCachedPage(pgNum);
+      const RASTER_SCALE = 3;
+      const vp = liveP.getViewport({ scale: RASTER_SCALE });
+      const canvas = document.createElement('canvas');
+      canvas.width = vp.width; canvas.height = vp.height;
+      const ctx = canvas.getContext('2d');
+      await liveP.render({ canvasContext: ctx, viewport: vp }).promise;
+
+      ctx.fillStyle = '#000';
+      boxes.forEach(b => {
+        ctx.fillRect(
+          b.x / 100 * canvas.width, b.y / 100 * canvas.height,
+          b.w / 100 * canvas.width, b.h / 100 * canvas.height
+        );
+      });
+
+      const pngDataUrl = canvas.toDataURL('image/png');
+      const pngBytes = Uint8Array.from(atob(pngDataUrl.split(',')[1]), ch => ch.charCodeAt(0));
+      const pngImage = await srcDoc.embedPng(pngBytes);
+
+      srcDoc.removePage(pgNum - 1);
+      const newPage = srcDoc.insertPage(pgNum - 1, [W, H]);
+      newPage.drawImage(pngImage, { x: 0, y: 0, width: W, height: H });
+      pages[pgNum - 1] = newPage;
+    }
+
+    // Burn OCR'd words in as an invisible (opacity 0) text layer so the
+    // exported PDF is searchable/selectable, matching what "Make Searchable"
+    // already shows in the app's own Search panel.
+    for (const pgNum of ocrPages) {
+      const page = pages[pgNum - 1];
+      const words = ocrWordsByPage[pgNum];
+      if (!page || !words) continue;
+      words.forEach(w => {
+        try {
+          page.drawText(w.str, { x: w.xPt, y: w.yBotPt, size: w.fontSizePt, font: pdfFont, opacity: 0 });
+        } catch (e) { /* a glyph Tesseract returned that the base font can't encode — skip it */ }
+      });
+    }
+
     // Group annotations by page
     const byPage = {};
     annots.forEach(a => {
@@ -4804,6 +5565,7 @@ async function exportAnnotatedPdf() {
       const { width: W, height: H } = page.getSize();
 
       for (const a of pageAnnots) {
+        if (a.type === 'redact') continue; // already baked into the page raster above
         const c = colorHex(a.Color);
         const cf = isHexColor(a.Color) ? tintHex(a.Color) : (FILL[a.Color] || FILL.yellow);
         const { r, g, b } = hexToRgb(c);
@@ -4865,6 +5627,46 @@ async function exportAnnotatedPdf() {
               opacity: 0.9,
               dashArray: pdfDashArray(a.lineStyle, sw),
             });
+          }
+
+          else if (a.type === 'link' && a.url) {
+            const lx = a.x / 100 * W, ly = H - (a.y + a.h) / 100 * H;
+            const lw = a.w / 100 * W, lh = a.h / 100 * H;
+            page.drawRectangle({
+              x: lx, y: ly, width: lw, height: lh,
+              borderColor: rgb(r, g, b), borderWidth: 1, borderDashArray: [3, 2],
+              color: rgb(r, g, b), opacity: 0.05, borderOpacity: 0.8,
+            });
+            // Real, clickable PDF hyperlink — not just a visual box
+            const { context } = srcDoc;
+            const linkRef = context.register(context.obj({
+              Type: 'Annot', Subtype: 'Link',
+              Rect: [lx, ly, lx + lw, ly + lh],
+              Border: [0, 0, 0],
+              A: { Type: 'Action', S: 'URI', URI: PDFLib.PDFString.of(a.url) },
+            }));
+            const existing = page.node.Annots();
+            if (existing) existing.push(linkRef);
+            else page.node.set(PDFLib.PDFName.of('Annots'), context.obj([linkRef]));
+          }
+
+          else if (a.type === 'formtext') {
+            const fx = a.x / 100 * W, fy = H - (a.y + a.h) / 100 * H;
+            const fw = a.w / 100 * W, fh = a.h / 100 * H;
+            const form = srcDoc.getForm();
+            const field = form.createTextField((a.name || ('field_' + a.id)) + '_' + a.id);
+            field.setText(a.value || '');
+            field.setFontSize(a.fontSize || 11);
+            field.addToPage(page, { x: fx, y: fy, width: fw, height: fh, borderWidth: 1 });
+          }
+
+          else if (a.type === 'formcheckbox') {
+            const fx = a.x / 100 * W, fy = H - (a.y + a.h) / 100 * H;
+            const fw = a.w / 100 * W, fh = a.h / 100 * H;
+            const form = srcDoc.getForm();
+            const field = form.createCheckBox((a.name || ('field_' + a.id)) + '_' + a.id);
+            field.addToPage(page, { x: fx, y: fy, width: fw, height: fh });
+            if (a.checked) field.check();
           }
 
           else if (a.type === 'rectfill') {
@@ -5055,6 +5857,31 @@ async function exportAnnotatedPdf() {
       }
     }
 
+    // Burn user bookmarks into the exported PDF's own table of contents
+    if (bookmarks.length) {
+      try {
+        const { context } = srcDoc;
+        const validBms = bookmarks.filter(bm => pages[bm.pageNum - 1]);
+        if (validBms.length) {
+          const itemRefs = validBms.map(bm => context.register(context.obj({
+            Title: PDFLib.PDFString.of(bm.title),
+            Dest: [pages[bm.pageNum - 1].ref, PDFLib.PDFName.of('Fit')],
+          })));
+          const outlineRootRef = context.nextRef();
+          itemRefs.forEach((ref, i) => {
+            const dict = context.lookup(ref);
+            dict.set(PDFLib.PDFName.of('Parent'), outlineRootRef);
+            if (i > 0) dict.set(PDFLib.PDFName.of('Prev'), itemRefs[i - 1]);
+            if (i < itemRefs.length - 1) dict.set(PDFLib.PDFName.of('Next'), itemRefs[i + 1]);
+          });
+          context.assign(outlineRootRef, context.obj({
+            Type: 'Outlines', First: itemRefs[0], Last: itemRefs[itemRefs.length - 1], Count: itemRefs.length,
+          }));
+          srcDoc.catalog.set(PDFLib.PDFName.of('Outlines'), outlineRootRef);
+        }
+      } catch (bmErr) { console.error('[EngDoc] bookmark outline export:', bmErr); }
+    }
+
     const pdfBytesOut = await srcDoc.save();
     const fname = (pdfName || 'drawing').replace(/\.pdf$/i, '') + '_annotated.pdf';
     dl(pdfBytesOut, fname);
@@ -5115,6 +5942,118 @@ async function loadTesseract() {
     s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
   });
+}
+
+/* ═══════════════════════════════════════════════
+   MAKE SEARCHABLE — FULL-PAGE OCR
+   Renders each scanned/image page to a canvas,
+   runs Tesseract.js over it, and stores word-level
+   text+position in pdfTextContent (same shape the
+   worker-based vector-text extraction produces) so
+   Search picks it up immediately. On export, the
+   same word positions get drawn as an invisible
+   (opacity 0) text layer so the downloaded PDF is
+   searchable/selectable in any reader too.
+   Pages that already have real embedded text are
+   skipped — this only touches scanned pages.
+═══════════════════════════════════════════════ */
+let ocrPages = new Set();  // pageNums that have been OCR'd this session
+let ocrWordsByPage = {};   // { pageNum: [{str, xPt, yBotPt, fontSizePt}] } — PDF-point coords, for export burn-in
+
+function openOcrModal() {
+  if (!pdf) { toast('Open a PDF first'); return; }
+  document.getElementById('ocr-progress-wrap').style.display = 'none';
+  document.getElementById('ocr-progress-bar').style.width = '0%';
+  document.getElementById('ocr-start-btn').disabled = false;
+  document.getElementById('ocr-start-btn').textContent = 'Start';
+  openM('mocr');
+}
+
+function _pageNeedsOcr(pg) {
+  return !pdfTextContent[pg] || pdfTextContent[pg].length === 0;
+}
+
+async function runOcr() {
+  const scope = document.getElementById('ocr-scope').value;
+  const targets = (scope === 'current' ? [curPg] : Array.from({ length: nPages }, (_, i) => i + 1))
+    .filter(_pageNeedsOcr);
+
+  if (!targets.length) {
+    toast('No scanned pages found — every page already has embedded text', 4000);
+    closeM('mocr');
+    return;
+  }
+
+  const startBtn = document.getElementById('ocr-start-btn');
+  const cancelBtn = document.getElementById('ocr-cancel-btn');
+  const wrap = document.getElementById('ocr-progress-wrap');
+  const bar = document.getElementById('ocr-progress-bar');
+  const label = document.getElementById('ocr-progress-label');
+  startBtn.disabled = true; cancelBtn.disabled = true;
+  wrap.style.display = 'block';
+  label.textContent = 'Loading OCR engine…';
+
+  try {
+    await loadTesseract();
+    const OCR_SCALE = 2;
+    const myGen = docGen;
+
+    for (let i = 0; i < targets.length; i++) {
+      const pg = targets[i];
+      label.textContent = `Page ${pg} (${i + 1}/${targets.length})…`;
+      bar.style.width = Math.round((i / targets.length) * 100) + '%';
+
+      const page = await pdf.getPage(pg);
+      if (myGen !== docGen) return; // document changed mid-run — abandon
+      const vp = page.getViewport({ scale: OCR_SCALE });
+      const canvas = document.createElement('canvas');
+      canvas.width = vp.width; canvas.height = vp.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+
+      const { data } = await Tesseract.recognize(canvas, 'eng', {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            label.textContent = `Page ${pg} (${i + 1}/${targets.length}) — recognising… ${Math.round((m.progress || 0) * 100)}%`;
+          }
+        },
+      });
+      if (myGen !== docGen) return;
+
+      const words = (data.words || []).filter(w => w.text && w.text.trim());
+      const pageVpNoScale = page.getViewport({ scale: 1 });
+      const W = pageVpNoScale.width, H = pageVpNoScale.height;
+
+      // pdfTextContent shape: fraction-of-page coords, matching the worker
+      // output used for vector text (see WORKER_SRC above).
+      pdfTextContent[pg] = words.map(w => ({
+        str: w.text.trim(),
+        x: w.bbox.x0 / canvas.width,
+        y: w.bbox.y1 / canvas.height,
+        fontSize: (w.bbox.y1 - w.bbox.y0) / canvas.height,
+        width: (w.bbox.x1 - w.bbox.x0) / canvas.width,
+      }));
+
+      // ocrWordsByPage shape: real PDF points, for direct use when burning
+      // an invisible text layer into the exported PDF.
+      ocrWordsByPage[pg] = words.map(w => ({
+        str: w.text.trim(),
+        xPt: (w.bbox.x0 / OCR_SCALE),
+        yBotPt: H - (w.bbox.y1 / OCR_SCALE),
+        fontSizePt: Math.max(4, (w.bbox.y1 - w.bbox.y0) / OCR_SCALE),
+      }));
+      ocrPages.add(pg);
+    }
+
+    bar.style.width = '100%';
+    buildSearchIndex();
+    toast(`✓ OCR complete — ${targets.length} page${targets.length !== 1 ? 's' : ''} now searchable`, 3500);
+    closeM('mocr');
+  } catch (e) {
+    toast('OCR failed: ' + e.message);
+    console.error('[EngDoc] runOcr:', e);
+  } finally {
+    startBtn.disabled = false; cancelBtn.disabled = false;
+  }
 }
 
 // Cluster a flat list of numbers into groups separated by unusually large gaps.
@@ -5431,7 +6370,7 @@ async function idbSave() {
   try {
     const data = {
       id: 'autosave',
-      pdfName, annots, annotIdSeq,
+      pdfName, annots, annotIdSeq, bookmarks,
       savedAt: new Date().toISOString(),
       annotCount: annots.length,
       pdfBytes: pdfBytes || undefined,
@@ -7390,9 +8329,13 @@ function makeDraggable(el, a, ov) {
   // injected by refreshAnnotMoveHandles() on tool change
 }
 
+// formtext/formcheckbox are deliberately excluded — they host a live
+// <input> the user must be able to click/type into directly, and the move
+// overlay (a full-coverage pointer-events:all layer while panning) would
+// intercept that click before it ever reaches the input.
 const MOVE_TYPES = new Set(['highlight','rect','rectfill','strike','circle','text',
                              'cloud','pen','texthighlight','arrow','line','measure',
-                             'area','stamp','image']);
+                             'area','stamp','image','link','redact']);
 
 // ── Ghost shown while dragging ──
 function createGhost(el, ov) {
@@ -7575,7 +8518,7 @@ function pushHistory() {
 let _selectedAnnotId = null;
 let _resizing = null; // { id, handle, startX, startY, orig{x,y,w,h,fontSize}, ovW, ovH }
 
-const RESIZABLE = ['highlight','rect','rectfill','strike','cloud','image','text'];
+const RESIZABLE = ['highlight','rect','rectfill','strike','cloud','image','text','link','redact'];
 const FONT_SCALABLE = ['text'];
 
 function showResizeHandles(el, a, ov) {
@@ -8852,6 +9795,10 @@ function buildStampEl(a) {
 // Add stamp to buildAnnotEl
 typeLabels['stamp'] = 'Stamp';
 typeLabels['image'] = 'Image';
+typeLabels['link'] = 'Link';
+typeLabels['redact'] = 'Redaction';
+typeLabels['formtext'] = 'Text Field';
+typeLabels['formcheckbox'] = 'Checkbox';
 
 // ═══════════════════════════════════════════════
 //  ANNOTATION STATUS TRACKING
@@ -9249,6 +10196,111 @@ function activateImagePlacement() {
 }
 
 // ═══════════════════════════════════════════════
+//  SIGNATURE
+//  Draw a freehand signature on a canvas pad, then
+//  place it exactly like an inserted image (reuses
+//  _pendingImage/activateImagePlacement above). The
+//  drawn signature can be remembered in localStorage
+//  so it doesn't need to be redrawn every time.
+// ═══════════════════════════════════════════════
+const SIG_STORAGE_KEY = 'engdoc_saved_signature';
+let _sigDrawing = false, _sigLastPt = null, _sigHasStrokes = false;
+
+function _sigCtx() {
+  return document.getElementById('sig-pad').getContext('2d');
+}
+
+function openSignatureModal() {
+  openM('msignature');
+  clearSignaturePad();
+  const saved = localStorage.getItem(SIG_STORAGE_KEY);
+  const row = document.getElementById('sig-saved-row');
+  if (saved) {
+    row.style.display = 'block';
+    document.getElementById('sig-saved-img').src = saved;
+  } else {
+    row.style.display = 'none';
+  }
+  _initSignaturePad();
+}
+
+function clearSignaturePad() {
+  const canvas = document.getElementById('sig-pad');
+  const ctx = _sigCtx();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  _sigHasStrokes = false;
+}
+
+function _sigPointFromEvent(ev, canvas) {
+  const r = canvas.getBoundingClientRect();
+  const clientX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+  const clientY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+  return {
+    x: (clientX - r.left) / r.width  * canvas.width,
+    y: (clientY - r.top)  / r.height * canvas.height,
+  };
+}
+
+function _initSignaturePad() {
+  const canvas = document.getElementById('sig-pad');
+  if (canvas._sigInit) return;
+  canvas._sigInit = true;
+  const ctx = _sigCtx();
+  ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1e293b';
+
+  const start = ev => {
+    ev.preventDefault();
+    _sigDrawing = true;
+    _sigLastPt = _sigPointFromEvent(ev, canvas);
+  };
+  const move = ev => {
+    if (!_sigDrawing) return;
+    ev.preventDefault();
+    const pt = _sigPointFromEvent(ev, canvas);
+    ctx.beginPath();
+    ctx.moveTo(_sigLastPt.x, _sigLastPt.y);
+    ctx.lineTo(pt.x, pt.y);
+    ctx.stroke();
+    _sigLastPt = pt;
+    _sigHasStrokes = true;
+  };
+  const end = () => { _sigDrawing = false; _sigLastPt = null; };
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  canvas.addEventListener('touchend', end);
+}
+
+function useSavedSignature() {
+  const saved = localStorage.getItem(SIG_STORAGE_KEY);
+  if (!saved) return;
+  closeM('msignature');
+  _placeSignatureImage(saved);
+}
+
+function insertSignature() {
+  if (!_sigHasStrokes) { toast('Draw a signature first'); return; }
+  const dataUrl = document.getElementById('sig-pad').toDataURL('image/png');
+  if (document.getElementById('sig-save-check').checked) {
+    localStorage.setItem(SIG_STORAGE_KEY, dataUrl);
+  }
+  closeM('msignature');
+  _placeSignatureImage(dataUrl);
+}
+
+function _placeSignatureImage(src) {
+  const img = new Image();
+  img.onload = () => {
+    _pendingImage = { src, naturalW: img.naturalWidth, naturalH: img.naturalHeight };
+    activateImagePlacement();
+  };
+  img.src = src;
+}
+
+// ═══════════════════════════════════════════════
 //  PRINT
 //  Renders the current PDF page spread with
 //  annotations into a hidden iframe and triggers
@@ -9353,7 +10405,7 @@ async function doRestore() {
       const id = ++tabIdSeq;
       tabs.push({
         id, name: saved.pdfName, bytes: null, nPages: 0,
-        annots: [], annotIdSeq: 0, pageLabels: {},
+        annots: [], annotIdSeq: 0, bookmarks: [], pageLabels: {},
         history: [], historyIdx: -1,
         zoom: 1, curPg: 1,
         measureScale: null, lastMeasurePx: null,
@@ -9373,9 +10425,10 @@ async function doRestore() {
     }
 
     annots     = saved.annots     || [];
+    bookmarks  = saved.bookmarks  || [];
     annotIdSeq = saved.annotIdSeq || annots.reduce((m, a) => Math.max(m, a.id || 0), 0);
 
-    syncAnnots(); updateAnnotPanel();
+    syncAnnots(); updateAnnotPanel(); renderBookmarksPanel();
     if (activeTabId != null) { saveActiveTabState(); renderTabBar(); }
 
     const n = annots.length;
@@ -9411,7 +10464,7 @@ window.addEventListener('beforeunload', () => {
     try {
       const data = {
         id: 'autosave',
-        pdfName, annots, annotIdSeq,
+        pdfName, annots, annotIdSeq, bookmarks,
         savedAt: new Date().toISOString(),
         annotCount: annots.length,
         pdfBytes: pdfBytes || undefined,

@@ -457,6 +457,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
             <span class="rbtn-label">Print<br>Tiling</span>
           </button>
+          <button class="rbtn lg" onclick="openWordExportModal()" data-tip="Export a markup/comments report, or the drawing's readable text, as an editable Word document">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>
+            <span class="rbtn-label">Export to<br>Word</span>
+          </button>
         </div>
         <div class="rgroup-label">Export</div>
       </div>
@@ -1362,6 +1366,48 @@
     <div class="mfoot">
       <button class="hbtn outline" id="batch-cancel-btn" onclick="closeM('mbatch')">Cancel</button>
       <button class="hbtn primary" id="batch-run-btn" onclick="runBatchProcess()">Run Batch &amp; Download ZIP</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT TO WORD MODAL -->
+<div class="overlay" id="mword">
+  <div class="modal" style="width:440px">
+    <div class="mhead"><span class="mtitle">Export to Word</span><button class="mclose" onclick="closeM('mword')">✕</button></div>
+    <div class="mbody">
+      <label class="flabel">What to export</label>
+      <select class="finput fselect" id="word-mode" onchange="onWordModeChange()" style="padding:8px">
+        <option value="markups" selected>Markup / Comments Report</option>
+        <option value="text">Page Text (for editing)</option>
+      </select>
+
+      <div id="word-fields-markups" class="word-mode-fields">
+        <p style="font-size:12.5px;Color:var(--gray-600);margin:8px 0">
+          A formatted report listing every comment and markup, grouped by page — ready to send back to a
+          design team as review comments.
+        </p>
+      </div>
+
+      <div id="word-fields-text" class="word-mode-fields" style="display:none">
+        <p style="font-size:12.5px;Color:var(--gray-600);margin:8px 0">
+          Pulls the drawing's actual embedded (or OCR'd) text into an editable Word document, one section
+          per page. Pages with no text — usually unscanned images — are skipped; run Make Searchable first
+          if you need their text too. This reconstructs plain reading-order paragraphs, not the original
+          visual layout.
+        </p>
+        <label class="flabel">Pages</label>
+        <select class="finput fselect" id="word-text-scope" style="padding:8px">
+          <option value="all" selected>Whole document</option>
+          <option value="current">Current page only</option>
+        </select>
+      </div>
+
+      <label class="flabel">Report title</label>
+      <input class="finput" id="word-title" placeholder="Defaults to the document name">
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('mword')">Cancel</button>
+      <button class="hbtn primary" onclick="exportToWord()">Export &amp; Download</button>
     </div>
   </div>
 </div>

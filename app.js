@@ -6816,6 +6816,196 @@ async function runBatchProcess() {
   }
 }
 
+/* ═══════════════════════════════════════════════
+   EXPORT TO WORD
+   Produces a genuine, editable .docx (via the `docx`
+   library — real OOXML, not an RTF hack) in one of two
+   modes:
+   - "markups": a formatted review-comments report,
+     grouped by page — the Word equivalent of the
+     Markup Summary spreadsheet, for sending comments
+     back to a design team.
+   - "text": the drawing's actual embedded/OCR'd text
+     reconstructed into reading-order paragraphs, one
+     section per page. Honestly scoped — this is NOT a
+     visual layout clone (drawings don't really have
+     "flowing text" to reconstruct); pages with no text
+     are skipped with a note to run Make Searchable.
+═══════════════════════════════════════════════ */
+async function loadDocxLib() {
+  if (window.docx) return;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+function openWordExportModal() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  document.getElementById('word-title').value = '';
+  onWordModeChange();
+  openM('mword');
+}
+function onWordModeChange() {
+  const mode = document.getElementById('word-mode').value;
+  document.querySelectorAll('.word-mode-fields').forEach(el => el.style.display = 'none');
+  document.getElementById('word-fields-' + mode).style.display = 'block';
+}
+
+// Groups a page's extracted text items (pdfTextContent shape: fraction
+// coords, y top-down) into reading-order lines, then lines into paragraphs
+// on a larger vertical-gap threshold — text items alone have no notion of
+// "paragraph break", so a bigger-than-one-line gap is the best available signal.
+function _reconstructPageParagraphs(items) {
+  if (!items || !items.length) return [];
+  const sorted = [...items].sort((a, b) => a.y - b.y || a.x - b.x);
+  const lines = [];
+  let current = [], lastY = null, lastFontSize = 0.012;
+  sorted.forEach(it => {
+    if (lastY !== null && Math.abs(it.y - lastY) > lastFontSize * 0.7) {
+      lines.push({ y: lastY, fontSize: lastFontSize, items: current });
+      current = [];
+    }
+    current.push(it);
+    lastY = it.y; lastFontSize = it.fontSize || lastFontSize;
+  });
+  if (current.length) lines.push({ y: lastY, fontSize: lastFontSize, items: current });
+
+  const lineTexts = lines.map(l => ({
+    text: l.items.sort((a, b) => a.x - b.x).map(it => it.str).join(' '),
+    y: l.y, fontSize: l.fontSize,
+  }));
+
+  const paragraphs = [];
+  let buf = [];
+  for (let i = 0; i < lineTexts.length; i++) {
+    buf.push(lineTexts[i].text);
+    const next = lineTexts[i + 1];
+    const gap = next ? next.y - lineTexts[i].y : Infinity;
+    if (gap > lineTexts[i].fontSize * 1.8) { paragraphs.push(buf.join(' ')); buf = []; }
+  }
+  if (buf.length) paragraphs.push(buf.join(' '));
+  return paragraphs;
+}
+
+async function _buildMarkupsReportDoc(docx, title) {
+  const { Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType } = docx;
+  const children = [];
+  children.push(new Paragraph({ text: title, heading: HeadingLevel.HEADING_1 }));
+  children.push(new Paragraph({
+    children: [new TextRun({ text: `Generated ${new Date().toLocaleString()} — ${annots.length} markup${annots.length !== 1 ? 's' : ''}`, italics: true, color: '666666' })],
+  }));
+
+  const byPage = {};
+  annots.forEach(a => { (byPage[a.pageNum] = byPage[a.pageNum] || []).push(a); });
+  const pageNums = Object.keys(byPage).map(Number).sort((a, b) => a - b);
+
+  pageNums.forEach(pg => {
+    children.push(new Paragraph({ text: `Page ${pg}`, heading: HeadingLevel.HEADING_2, spacing: { before: 300 } }));
+    byPage[pg].sort((a, b) => a.id - b.id).forEach((a, i) => {
+      const detail = _markupSummaryDetail(a) || '(no text)';
+      const meta = [a.author, a.ts ? new Date(a.ts).toLocaleDateString() : null, a.status ? STATUS_LABEL[a.status] : null].filter(Boolean).join(' · ');
+      children.push(new Paragraph({
+        children: [
+          new TextRun({ text: `${i + 1}. [${typeLabels[a.type] || a.type}] `, bold: true }),
+          new TextRun({ text: detail }),
+          meta ? new TextRun({ text: `  (${meta})`, italics: true, color: '888888' }) : new TextRun({ text: '' }),
+        ],
+        spacing: { after: 100 },
+      }));
+      if (a.replies && a.replies.length) {
+        a.replies.forEach(r => {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: `    ↩ ${r.author}: ${r.text}`, italics: true, color: '2563eb' })],
+          }));
+        });
+      }
+    });
+  });
+
+  const counts = annots.filter(a => a.type === 'count');
+  if (counts.length) {
+    children.push(new Paragraph({ text: 'Count Totals', heading: HeadingLevel.HEADING_2, spacing: { before: 400 } }));
+    const totals = new Map();
+    counts.forEach(a => totals.set(a.groupLabel, (totals.get(a.groupLabel) || 0) + 1));
+    const rows = [new TableRow({
+      children: ['Group', 'Count'].map(h => new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: h, bold: true })] })] })),
+    })];
+    [...totals.entries()].forEach(([label, n]) => {
+      rows.push(new TableRow({ children: [
+        new TableCell({ children: [new Paragraph(label)] }),
+        new TableCell({ children: [new Paragraph(String(n))] }),
+      ]}));
+    });
+    children.push(new Table({ width: { size: 60, type: WidthType.PERCENTAGE }, rows }));
+  }
+
+  return new docx.Document({ sections: [{ properties: {}, children }] });
+}
+
+async function _buildPageTextDoc(docx, title, scope) {
+  const { Paragraph, TextRun, HeadingLevel, PageBreak } = docx;
+  const children = [];
+  children.push(new Paragraph({ text: title, heading: HeadingLevel.HEADING_1 }));
+  children.push(new Paragraph({
+    children: [new TextRun({ text: `Extracted ${new Date().toLocaleString()}`, italics: true, color: '666666' })],
+  }));
+
+  const targets = scope === 'current' ? [curPg] : Array.from({ length: nPages }, (_, i) => i + 1);
+  let anyText = false;
+  targets.forEach((pg, idx) => {
+    const paras = _reconstructPageParagraphs(pdfTextContent[pg]);
+    children.push(new Paragraph({ text: `Page ${pg}`, heading: HeadingLevel.HEADING_2, spacing: { before: 300 },
+      pageBreakBefore: idx > 0 }));
+    if (!paras.length) {
+      children.push(new Paragraph({ children: [new TextRun({ text: '(no embedded text on this page — run Make Searchable/OCR first if it’s a scan)', italics: true, color: '999999' })] }));
+    } else {
+      anyText = true;
+      paras.forEach(p => children.push(new Paragraph({ children: [new TextRun(p)], spacing: { after: 160 } })));
+    }
+  });
+
+  return { doc: new docx.Document({ sections: [{ properties: {}, children }] }), anyText };
+}
+
+async function exportToWord() {
+  if (!pdfBytes) { toast('Open a PDF first'); return; }
+  const mode = document.getElementById('word-mode').value;
+  const title = document.getElementById('word-title').value.trim() || `${(pdfName || 'Document').replace(/\.pdf$/i, '')} — ${mode === 'markups' ? 'Markup Report' : 'Extracted Text'}`;
+
+  if (mode === 'markups' && !annots.length) { toast('No markups to export'); return; }
+
+  closeM('mword');
+  toast('Building Word document…', 4000);
+  try {
+    await loadDocxLib();
+    const docxLib = window.docx;
+    let doc, warnNoText = false;
+    if (mode === 'markups') {
+      doc = await _buildMarkupsReportDoc(docxLib, title);
+    } else {
+      const scope = document.getElementById('word-text-scope').value;
+      const result = await _buildPageTextDoc(docxLib, title, scope);
+      doc = result.doc;
+      warnNoText = !result.anyText;
+    }
+
+    const blob = await docxLib.Packer.toBlob(doc);
+    const bytes = await blob.arrayBuffer();
+    const base = (pdfName || 'document').replace(/\.pdf$/i, '');
+    dlBlob(bytes, `${base}_${mode === 'markups' ? 'markup_report' : 'text'}.docx`,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    toast(warnNoText
+      ? '✓ Word document created — but no pages had embedded text (run Make Searchable first for scans)'
+      : '✓ Word document exported', warnNoText ? 5500 : 2500);
+  } catch (e) {
+    toast('Word export failed: ' + e.message);
+    console.error('[EngDoc] exportToWord:', e);
+  }
+}
+
 // ═══════════════════════════════════════════════
 //  DARK MODE
 // ═══════════════════════════════════════════════
@@ -11079,6 +11269,7 @@ const CMDK_COMMANDS = [
   { label: 'Export Annotated PDF',  group: 'File', icon: ICON_FILE, run: () => exportAnnotatedPdf() },
   { label: 'Print',                 group: 'File', icon: ICON_FILE, run: () => printDrawing() },
   { label: 'Print Tiling',          group: 'File', icon: ICON_FILE, run: () => openTileModal() },
+  { label: 'Export to Word',        group: 'File', icon: ICON_FILE, run: () => openWordExportModal() },
   { label: 'Merge PDF',             group: 'File', icon: ICON_FILE, run: () => openM('mm') },
   { label: 'Split PDF',             group: 'File', icon: ICON_FILE, run: () => openM('ms') },
   { label: 'Set your name',         group: 'File', icon: ICON_GEAR, run: () => openM('mau') },

@@ -146,31 +146,20 @@ function nextId() { return ++annotIdSeq; }
 // Text input popover state
 let txtPopCallback = null;
 
-function showTxtPop(screenX, screenY, cb, initialVal = '', emmaData = null) {
+function showTxtPop(screenX, screenY, cb, initialVal = '', styleData = null) {
   txtPopCallback = cb;
   const pop = document.getElementById('txt-pop');
   const ta  = document.getElementById('txt-pop-input');
   const btn = pop.querySelector('.hbtn.primary');
   ta.value = initialVal;
   btn.textContent = initialVal ? 'Save' : 'Add';
-  // Reset EMMA fields
-  document.getElementById('pop-discipline').value = emmaData?.discipline || '';
-  document.getElementById('pop-priority').value   = emmaData?.priority   || '';
-  document.getElementById('pop-gridref').value    = emmaData?.gridRef    || '';
-  document.getElementById('pop-action').value     = emmaData?.action     || '';
-  // EMMA include checkbox — excluded if emmaExclude is explicitly true
-  document.getElementById('pop-emma-include').checked = !(emmaData?.emmaExclude === true);
-  // Show EMMA fields if editing an annotation that has them
-  const hasEmma = emmaData && (emmaData.discipline || emmaData.priority || emmaData.gridRef || emmaData.action);
-  document.getElementById('emma-fields').style.display = hasEmma ? 'block' : 'none';
-  document.getElementById('emma-toggle-btn').textContent = hasEmma ? '− EMMA fields' : '+ EMMA fields';
   // Style controls — colour / font size / opacity, pre-filled from the
   // annotation being edited (or the current default style when adding new)
-  txtPopSetColor(emmaData?.Color ?? Color);
-  const startHex = emmaData?.Color ?? Color;
+  txtPopSetColor(styleData?.Color ?? Color);
+  const startHex = styleData?.Color ?? Color;
   document.getElementById('txtpop-hex').value = isHexColor(startHex) ? startHex : '#fbbf24';
-  document.getElementById('txtpop-font').value = emmaData?.fontSize ?? fontSize;
-  document.getElementById('txtpop-opacity').value = emmaData?.opacity ?? 100;
+  document.getElementById('txtpop-font').value = styleData?.fontSize ?? fontSize;
+  document.getElementById('txtpop-opacity').value = styleData?.opacity ?? 100;
   pop.classList.add('open');
   const pw = 300, ph = 190;
   const vw = window.innerWidth, vh = window.innerHeight;
@@ -183,28 +172,16 @@ function txtPopSetColor(c) {
   _txtPopColor = c;
   document.querySelectorAll('#txtpop-swatches .rcsw').forEach(s => s.classList.toggle('active', s.dataset.c === c));
 }
-function toggleEmmaFields() {
-  const el = document.getElementById('emma-fields');
-  const btn = document.getElementById('emma-toggle-btn');
-  const visible = el.style.display !== 'none';
-  el.style.display = visible ? 'none' : 'block';
-  btn.textContent = visible ? '+ EMMA fields' : '− EMMA fields';
-}
 function txtPopConfirm() {
   const val = document.getElementById('txt-pop-input').value.trim();
   document.getElementById('txt-pop').classList.remove('open');
   if (val && txtPopCallback) {
-    const emmaFields = {
-      discipline:  document.getElementById('pop-discipline').value,
-      priority:    document.getElementById('pop-priority').value,
-      gridRef:     document.getElementById('pop-gridref').value.trim(),
-      action:      document.getElementById('pop-action').value.trim(),
-      emmaExclude: !document.getElementById('pop-emma-include').checked,
+    const styleFields = {
       Color:       _txtPopColor,
       fontSize:    parseInt(document.getElementById('txtpop-font').value) || 12,
       opacity:     parseInt(document.getElementById('txtpop-opacity').value) || 100,
     };
-    txtPopCallback(val, emmaFields);
+    txtPopCallback(val, styleFields);
   }
   txtPopCallback = null;
 }
@@ -284,7 +261,7 @@ async function loadPDF(file) {
   // "Brand new document" reset — identity/annotation state that only makes
   // sense to wipe when we're not just switching back to a previously-open
   // tab (see switchTab, which restores these from the tab record instead).
-  curPg = 1; annots = []; emmaRows = {};
+  curPg = 1; annots = [];
   Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
   history = []; historyIdx = -1; updateUndoRedoButtons();
 
@@ -294,7 +271,7 @@ async function loadPDF(file) {
 
 // Parses PDF bytes into `pdf` and rebuilds everything derived from it —
 // shared by loadPDF (brand-new document) and switchTab (returning to an
-// already-open tab). Deliberately does NOT touch annots/emmaRows/history/
+// already-open tab). Deliberately does NOT touch annots/history/
 // pageLabels — those are the caller's responsibility, since the two call
 // sites need opposite behaviour for them (reset vs. restore).
 async function parseAndRenderPdfBytes(bytes) {
@@ -360,7 +337,7 @@ function saveActiveTabState() {
   if (!rec) return;
   Object.assign(rec, {
     name: pdfName, bytes: pdfBytes, nPages,
-    annots, emmaRows, annotIdSeq,
+    annots, annotIdSeq,
     pageLabels: { ...pageLabels },
     history, historyIdx,
     zoom, curPg,
@@ -370,7 +347,6 @@ function saveActiveTabState() {
     checkFindings, pdfLayers: _pdfLayers,
     searchIndex, searchPersistHits: _searchPersistHits,
     annotNavIdx: _annotNavIdx,
-    emmaFields: captureEmmaFields(),
   });
 }
 
@@ -379,7 +355,7 @@ function saveActiveTabState() {
 // (switchTab) follows this with parseAndRenderPdfBytes(bytes).
 function restoreTabState(rec) {
   pdfName = rec.name; pdfBytes = rec.bytes;
-  annots = rec.annots; emmaRows = rec.emmaRows; annotIdSeq = rec.annotIdSeq;
+  annots = rec.annots; annotIdSeq = rec.annotIdSeq;
   Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
   Object.assign(pageLabels, rec.pageLabels);
   history = rec.history; historyIdx = rec.historyIdx;
@@ -394,15 +370,10 @@ function restoreTabState(rec) {
   _searchPersistHits = rec.searchPersistHits || [];
   _annotNavIdx = rec.annotNavIdx ?? -1;
 
-  Object.entries(rec.emmaFields || {}).forEach(([id, val]) => {
-    const el = document.getElementById(id);
-    if (el) el.value = val;
-  });
   updateUndoRedoButtons();
   renderCheckResults(checkFindings);
   updateLayerPanel();
   clearSearchHighlights();
-  updateEmmaRegister();
 }
 
 // Discards any in-progress gesture (draw/measure/select/move) before a tab
@@ -434,7 +405,7 @@ async function openFileAsNewTab(file) {
   const id = ++tabIdSeq;
   tabs.push({
     id, name: file.name, bytes: null, nPages: 0,
-    annots: [], emmaRows: {}, annotIdSeq: 0, pageLabels: {},
+    annots: [], annotIdSeq: 0, pageLabels: {},
     history: [], historyIdx: -1,
     zoom: 1, curPg: 1,
     measureScale: null, lastMeasurePx: null,
@@ -442,7 +413,7 @@ async function openFileAsNewTab(file) {
     fileHandle: null, loadedEngdocName: null,
     checkFindings: [], pdfLayers: [],
     searchIndex: [], searchPersistHits: [],
-    annotNavIdx: -1, emmaFields: {},
+    annotNavIdx: -1,
   });
   cancelActiveGestures();
   if (activeTabId != null) saveActiveTabState();
@@ -478,7 +449,7 @@ async function resetToEmptyState() {
   cancelActiveGestures();
   if (pdf) { try { await pdf.destroy(); } catch (e) {} }
   docGen++;
-  pdf = null; nPages = 0; curPg = 1; annots = []; emmaRows = {}; annotIdSeq = 0;
+  pdf = null; nPages = 0; curPg = 1; annots = []; annotIdSeq = 0;
   Object.keys(pageLabels).forEach(k => delete pageLabels[k]);
   history = []; historyIdx = -1; updateUndoRedoButtons();
   renderedPages.clear(); renderQueue.clear();
@@ -494,7 +465,6 @@ async function resetToEmptyState() {
   _pdfLayers = []; updateLayerPanel();
   searchIndex = []; clearSearchHighlights();
   _annotNavIdx = -1;
-  updateEmmaRegister();
   activeTabId = null; pdfName = ''; pdfBytes = null;
 
   document.getElementById('doc-name').textContent = 'No document open';
@@ -544,7 +514,7 @@ async function loadMultiplePDFs(files) {
     const id = ++tabIdSeq;
     tabs.push({
       id, name: files[0].name, bytes: null, nPages: 0,
-      annots: [], emmaRows: {}, annotIdSeq: 0, pageLabels: {},
+      annots: [], annotIdSeq: 0, pageLabels: {},
       history: [], historyIdx: -1,
       zoom: 1, curPg: 1,
       measureScale: null, lastMeasurePx: null,
@@ -552,7 +522,7 @@ async function loadMultiplePDFs(files) {
       fileHandle: null, loadedEngdocName: null,
       checkFindings: [], pdfLayers: [],
       searchIndex: [], searchPersistHits: [],
-      annotNavIdx: -1, emmaFields: {},
+      annotNavIdx: -1,
     });
     activeTabId = id;
   }
@@ -853,33 +823,6 @@ async function autoDetectTitleBlock() {
     const el = document.getElementById(id);
     if (el && !el.value) { el.value = val.trim(); detected++; }
   };
-
-  // Map to EMMA panel fields
-  set('emma-doc-no',      drawingNo);
-  set('emma-rev-no',      revision);
-  set('emma-proj-no',     contractNo);
-  set('emma-proj-title',  contractTitle || location || projTitle || contractor);
-  set('emma-specific',    drawingTitle || contractTitle);
-
-  // Discipline from type/role fields
-  const discRaw = typeField || roleField;
-  if (discRaw) {
-    const discEl = document.getElementById('emma-discipline');
-    const discMap = [
-      ['civil', 'Civils'], ['drainage', 'Drainage'],
-      ['track', 'Track'], ['rail engineering', 'Civils'],
-      ['electrical', 'Electrical Power'], ['power', 'Electrical Power'],
-      ['signal', 'Signalling'], ['telecoms', 'Telecoms'], ['telecom', 'Telecoms'],
-      ['geotech', 'Geotechnical'], ['geo', 'Geotechnical'],
-      ['ole', 'OLE'], ['overhead', 'OLE'],
-      ['environ', 'Environmental'], ['bim', 'BIM'], ['survey', 'Survey'],
-      ['project management', 'Project Management'], ['engineering management', 'Engineering Management'],
-    ];
-    const lc = discRaw.toLowerCase();
-    for (const [key, val] of discMap) {
-      if (lc.includes(key)) { discEl.value = val; detected++; break; }
-    }
-  }
 
   // Pre-fill author name from drawn field
   if (drawn && drawn.length < 40 && drawn !== drawingNo) {
@@ -2159,10 +2102,10 @@ function attachEvents(ov, pageNum, _vpInitial) {
     // ── TEXT: always click-only — show popover immediately ──
     if (tool === 'text') {
       const px = ox / vp.width * 100, py = oy / vp.height * 100;
-      showTxtPop(e.clientX, e.clientY, (txt, emmaFields) => {
+      showTxtPop(e.clientX, e.clientY, (txt, styleFields) => {
         pushAnnot({ id: nextId(), pageNum, type: tool, x: px, y: py,
           text: txt, Color, fontSize, box: textBoxDefault,
-          textAlign: textAlignDefault, vAlign: vAlignDefault, ...emmaFields });
+          textAlign: textAlignDefault, vAlign: vAlignDefault, ...styleFields });
       });
       return;
     }
@@ -2520,7 +2463,6 @@ function attachEvents(ov, pageNum, _vpInitial) {
         id: nextId(), pageNum, type: tool,
         points: penPoints.map(p => ({ x: p.x / vp.width, y: p.y / vp.height })),
         Color, sw: tool === 'texthighlight' ? 14 : strokeW(),
-        emmaExclude: tool === 'texthighlight' ? true : false
       });
       penPoints = [];
       return;
@@ -2595,7 +2537,7 @@ function attachEvents(ov, pageNum, _vpInitial) {
 
 /* ═══════════════════════════════════════════════
    ANNOTATION DATA MANAGEMENT — UNDO/REDO HISTORY
-   Each pushAnnot snapshot: {annots:[...], emmaRows:{...}}
+   Each pushAnnot snapshot: {annots:[...]}
    Max 50 states to bound memory usage.
 ═══════════════════════════════════════════════ */
 let history = [];   // array of snapshots
@@ -2605,7 +2547,7 @@ const MAX_HISTORY = 50;
 function snapshotState() {
   // Trim redo states ahead of current index
   history = history.slice(0, historyIdx + 1);
-  history.push({ annots: JSON.parse(JSON.stringify(annots)), emmaRows: JSON.parse(JSON.stringify(emmaRows)) });
+  history.push({ annots: JSON.parse(JSON.stringify(annots)) });
   if (history.length > MAX_HISTORY) history.shift();
   historyIdx = history.length - 1;
   updateUndoRedoButtons();
@@ -2663,14 +2605,13 @@ function pushAnnot(a) {
   if (!a.ts) a.ts = new Date().toISOString();
   annots.push(a);
   snapshotState();
-  syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
+  syncAnnots(); updateAnnotPanel(); updateStatusCount();
 }
 
 function deleteAnnotById(id) {
-  delete emmaRows[id];
   annots = annots.filter(a => a.id !== id);
   snapshotState();
-  syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
+  syncAnnots(); updateAnnotPanel(); updateStatusCount();
 }
 
 function undoLast() {
@@ -2678,8 +2619,7 @@ function undoLast() {
   historyIdx--;
   const snap = history[historyIdx];
   annots = JSON.parse(JSON.stringify(snap.annots));
-  emmaRows = JSON.parse(JSON.stringify(snap.emmaRows));
-  syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
+  syncAnnots(); updateAnnotPanel(); updateStatusCount();
   updateUndoRedoButtons();
   toast('Undone');
 }
@@ -2689,8 +2629,7 @@ function redoLast() {
   historyIdx++;
   const snap = history[historyIdx];
   annots = JSON.parse(JSON.stringify(snap.annots));
-  emmaRows = JSON.parse(JSON.stringify(snap.emmaRows));
-  syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
+  syncAnnots(); updateAnnotPanel(); updateStatusCount();
   updateUndoRedoButtons();
   toast('Redone');
 }
@@ -2701,7 +2640,7 @@ function clearPage() {
   annots = annots.filter(a => a.pageNum !== curPg);
   if (before !== annots.length) {
     snapshotState();
-    syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister();
+    syncAnnots(); updateAnnotPanel(); updateStatusCount();
     toast(`Cleared page ${curPg}`);
   }
 }
@@ -3458,24 +3397,6 @@ function _msFindCandidates(origText, xPct, yPct, limit, pageNum) {
 }
 
 
-async function loadDrawingScan(e) {
-  const f = e.target.files && e.target.files[0];
-  if (!f) return;
-  try {
-    const raw = JSON.parse(await f.text());
-    const texts = Array.isArray(raw.texts) ? raw.texts : null;
-    if (!texts) throw new Error('missing "texts" array — is this a drawing-scan file from Atlas CAD?');
-    _msScan = { texts, range: raw.range || null };
-    _msCalibrate();
-    toast(_msCalibration
-      ? `✓ Drawing scan loaded — ${texts.length} element(s), calibrated`
-      : `Drawing scan loaded — ${texts.length} element(s), but no text matched yet to calibrate from`);
-  } catch (err) {
-    toast('Could not read drawing scan: ' + err.message);
-  }
-  e.target.value = '';
-}
-
 // ── REPLACE TEXT — right-click PDF text to overlay it with a note ──
 // Produces an ordinary type:'text' annotation (box:true, opaque) sized to the
 // original text's bounding box, so it visually covers the PDF text underneath
@@ -3643,7 +3564,7 @@ function confirmReplaceText() {
       a.text = newText;
       a.replacesText = true;
       if (targetEid) a.targetEid = targetEid;
-      syncAnnots(); updateAnnotPanel(); updateEmmaRegister(); snapshotState();
+      syncAnnots(); updateAnnotPanel(); snapshotState();
       toast(targetEid ? 'Replacement updated — bound to drawing element' : 'Replacement updated');
     }
     cancelReplaceText();
@@ -3657,7 +3578,6 @@ function confirmReplaceText() {
     text: newText, origText: oldText, replacesText: true,
     targetEid: targetEid || undefined,
     Color: 'black', box: true, textAlign: 'center', vAlign: 'center',
-    emmaExclude: true,
   });
   toast(targetEid
     ? 'Replacement note added — bound to a confirmed drawing element'
@@ -3821,16 +3741,6 @@ function wireSvgBoundingOverlay(ann, ov) {
   ov.appendChild(proxy);
 }
 
-/* Returns the 1-based EMMa register index for a given annotation id,
-   or 0 if the annotation is excluded or not in the register. */
-function getEmmaIndex(id) {
-  const emmaAnnots = annots.filter(a =>
-    (a.type === 'text' || a.type === 'measure') && !a.emmaExclude
-  );
-  const idx = emmaAnnots.findIndex(a => a.id === id);
-  return idx >= 0 ? idx + 1 : 0;
-}
-
 function buildAnnotEl(a) {
   let el;
   if (a.type === 'highlight') {
@@ -3863,22 +3773,7 @@ function buildAnnotEl(a) {
     const txtInner = document.createElement('div');
     txtInner.className = 'atxt-inner';
     txtInner.style.textAlign = hAlignCss(a.textAlign);
-    if (!a.emmaExclude) {
-      const idx = getEmmaIndex(a.id);
-      if (idx > 0) {
-        const badge = document.createElement('span');
-        badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;background:#7c3aed;Color:#fff;border-radius:50%;font-size:8px;font-weight:700;font-family:var(--mono);margin-right:3px;vertical-align:middle;flex-shrink:0';
-        badge.textContent = idx;
-        txtInner.appendChild(badge);
-      }
-    }
     txtInner.appendChild(document.createTextNode(a.text));
-    if (a.emmaExclude) {
-      const tag = document.createElement('span');
-      tag.style.cssText = 'display:inline-block;font-size:8px;background:rgba(0,0,0,0.08);Color:#888;border-radius:2px;padding:0 3px;margin-left:4px;vertical-align:middle;font-family:var(--mono)';
-      tag.textContent = '⊘';
-      txtInner.appendChild(tag);
-    }
     el.appendChild(txtInner);
   } else if (a.type === 'pen' || a.type === 'texthighlight') {
     el = buildPenAnnotEl(a);
@@ -4251,7 +4146,7 @@ function updateAnnotPanel() {
       if (!ann) return;
       ann.status = this.value;
       this.style.background = statusColors[this.value] || '#fff';
-      syncAnnots(); updateAnnotPanel(); updateEmmaRegister(); pushHistory();
+      syncAnnots(); updateAnnotPanel(); pushHistory();
     };
 
     item.onclick = (ev) => {
@@ -4341,19 +4236,16 @@ function editAnnotById(id) {
   const el = document.querySelector('[data-aid="' + id + '"]');
   let sx = window.innerWidth / 2, sy = window.innerHeight / 2;
   if (el) { const r = el.getBoundingClientRect(); sx = r.left; sy = r.bottom; }
-  const emmaData = {
-    discipline: a.discipline, priority: a.priority,
-    gridRef: a.gridRef, action: a.action,
-    emmaExclude: a.emmaExclude || false,
+  const styleData = {
     Color: a.Color, fontSize: a.fontSize,
     opacity: a.opacity ?? 100,
   };
-  showTxtPop(sx, sy, (txt, emmaFields) => {
+  showTxtPop(sx, sy, (txt, styleFields) => {
     a.text = txt;
-    Object.assign(a, emmaFields);
-    syncAnnots(); updateAnnotPanel(); updateEmmaRegister();
+    Object.assign(a, styleFields);
+    syncAnnots(); updateAnnotPanel();
     toast('Annotation updated');
-  }, a.text, emmaData);
+  }, a.text, styleData);
 }
 
 // ── In-place editing for text annotations ──
@@ -4403,7 +4295,7 @@ function startInlineEdit(a, el, ov) {
     ta.remove();
     if (commit && newText !== (a.text || '')) {
       a.text = newText;
-      syncAnnots(); updateAnnotPanel(); updateEmmaRegister(); pushHistory();
+      syncAnnots(); updateAnnotPanel(); pushHistory();
       return; // syncAnnots rebuilds the element — nothing left to restore
     }
     if (textHost) textHost.style.visibility = '';
@@ -4533,7 +4425,7 @@ function ctxDuplicate() {
 function ctxSetStatus(s) {
   if (ctxAnnotId == null) { hideCtx(); return; }
   const a = annots.find(x => x.id === ctxAnnotId);
-  if (a) { a.status = s; syncAnnots(); updateAnnotPanel(); updateEmmaRegister(); pushHistory(); }
+  if (a) { a.status = s; syncAnnots(); updateAnnotPanel(); pushHistory(); }
   toast('Status → ' + (STATUS_LABEL[s] || s));
   hideCtx(); ctxAnnotId = null;
 }
@@ -4560,9 +4452,6 @@ function switchTab(tab, btn) {
   document.getElementById('sp-pages').classList.toggle('hidden',   tab !== 'pages');
   document.getElementById('sp-notes').classList.toggle('hidden',   tab !== 'notes');
   document.getElementById('sp-search').classList.toggle('hidden',  tab !== 'search');
-  const emmaPanel = document.getElementById('sp-emma');
-  emmaPanel.classList.toggle('visible', tab === 'emma');
-  document.getElementById('sidebar').classList.toggle('emma-open', tab === 'emma');
   if (tab === 'search') setTimeout(() => document.getElementById('search-input').focus(), 50);
 }
 
@@ -4759,7 +4648,7 @@ async function _saveToHandle(data, filename) {
 
 function saveSession() {
   if (!pdfName && !annots.length) { toast('Nothing to save'); return; }
-  const data = { v: 2, pdfName, annotIdSeq, measureScale, pageDimsPt: pdfPageDimsPt, annots, emmaRows };
+  const data = { v: 2, pdfName, annotIdSeq, measureScale, pageDimsPt: pdfPageDimsPt, annots };
   const filename = _loadedEngdocName || (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
   _saveToHandle(data, filename).then(ok => {
     if (ok) toast(`✓ Session saved — ${annots.length} annotation${annots.length !== 1 ? 's' : ''}`);
@@ -4776,7 +4665,7 @@ async function saveSessionWithPdf() {
     binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   }
   const b64 = btoa(binary);
-  const data = { v: 3, pdfName, annotIdSeq, measureScale, pageDimsPt: pdfPageDimsPt, annots, emmaRows, pdfData: b64 };
+  const data = { v: 3, pdfName, annotIdSeq, measureScale, pageDimsPt: pdfPageDimsPt, annots, pdfData: b64 };
   const filename = _loadedEngdocName || (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
   const ok = await _saveToHandle(data, filename);
   if (ok) toast(`✓ Saved with embedded PDF — ${sizeMb} MB`);
@@ -4833,21 +4722,13 @@ async function loadSession(e) {
     }
 
     annots = migrateLegacyAnnots(data.annots);
-    emmaRows = data.emmaRows || {};
     annotIdSeq = data.annotIdSeq || annots.reduce((m, a) => Math.max(m, a.id || 0), 0);
     if (data.measureScale) {
       measureScale = data.measureScale;
       document.getElementById('sb-scale').textContent =
         `⚖ Scale: 1 ${measureScale.unit} = ${(measureScale.pxPerUnit).toFixed(1)} px`;
     }
-    // Restore EMMA panel fields if saved
-    if (data.emmaFields) {
-      Object.entries(data.emmaFields).forEach(([id, val]) => {
-        const el = document.getElementById(id);
-        if (el) el.value = val;
-      });
-    }
-    syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister(); updateEmmaDash();
+    syncAnnots(); updateAnnotPanel(); updateStatusCount();
     const scanNote = _msScan
       ? ` — drawing scan loaded (${_msScan.texts.length} element${_msScan.texts.length !== 1 ? 's' : ''}${_msCalibration ? ', calibrated' : ', not yet calibrated'})`
       : '';
@@ -5095,12 +4976,6 @@ async function exportAnnotatedPdf() {
               opacity: 0.92,
             });
             _drawPdfLabel(page, text.slice(0, 40) + (text.length > 40 ? '…' : ''), px + 4, py + 3, rgb(r, g, b), 7);
-            // EMMa index badge
-            const emmaIdx = getEmmaIndex(a.id);
-            if (emmaIdx > 0 && !a.emmaExclude) {
-              page.drawCircle({ x: px - 4, y: py + 8, size: 6, color: rgb(0.49, 0.23, 0.93), opacity: 0.9 });
-              _drawPdfLabel(page, String(emmaIdx), px - 7, py + 4, rgb(1, 1, 1), 6);
-            }
             // Leader arrow from the chosen box edge to its free point
             if (a.leaderEdge && a.leaderX !== undefined && a.leaderY !== undefined) {
               let fx = px, fy = py;
@@ -5522,375 +5397,6 @@ async function exportTableToExcel() {
   }
 }
 
-/* ═══════════════════════════════════════════════
-   EMMA LIVE REGISTER
-   emmaRows mirrors annots but holds the extra
-   Checking Review fields (cat, type, reply, etc.)
-   Keyed by annot.id so they stay in sync.
-═══════════════════════════════════════════════ */
-let emmaRows = {};      // { annotId: { cat, commentType, accepted, reply, closedOut, notes, docNo, rev } }
-let emmaEditId = null;  // annotId being edited in the modal
-let emmaTemplateBuf = null; // ArrayBuffer of loaded .xlsm template
-
-function emmaRowForAnnot(a) {
-  if (!emmaRows[a.id]) emmaRows[a.id] = { cat:'', commentType:'', accepted:'', reply:'', closedOut:'No', notes:'',
-    docNo: document.getElementById('emma-doc-no').value || '',
-    rev:   document.getElementById('emma-rev-no').value || '' };
-  return emmaRows[a.id];
-}
-
-function updateEmmaRegister() {
-  const register = document.getElementById('emma-register');
-  const empty    = document.getElementById('emma-empty');
-  // Only note/text/measure annotations that aren't excluded go into EMMA
-  const emmaAnnots = annots.filter(a =>
-    (a.type === 'text' || a.type === 'measure') && !a.emmaExclude
-  );
-
-  // Remove existing rows (not the empty message)
-  register.querySelectorAll('.emma-row').forEach(el => el.remove());
-
-  document.getElementById('emma-count-label').textContent = `${emmaAnnots.length} comment${emmaAnnots.length !== 1 ? 's' : ''}`;
-
-  if (!emmaAnnots.length) { empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
-
-  emmaAnnots.forEach((a, i) => {
-    const row = emmaRowForAnnot(a);
-    const div = document.createElement('div');
-    div.className = 'emma-row'; div.dataset.id = a.id;
-
-    const catClass = `emma-cat-${row.cat || ''}`;
-    const stClass  = row.closedOut === 'Yes' ? 'emma-closed-st' : 'emma-open-st';
-    const stLabel  = row.closedOut === 'Yes' ? 'Closed' : 'Open';
-
-    div.innerHTML = `
-      <div class="emma-row-num">${i + 1}</div>
-      <div>
-        <div class="emma-row-comment">${a.text || (a.type === 'measure' ? a.label || '—' : '—')}</div>
-        <div class="emma-row-doc">Pg ${a.pageNum} · ${a.author || '—'}</div>
-        ${row.reply ? `<div class="emma-row-reply"><span style="Color:var(--blue-500);font-weight:600">↩ </span>${row.reply}</div>` : ''}
-      </div>
-      <div><span class="emma-cat-badge ${catClass}">${row.cat || '—'}</span></div>
-      <div style="font-size:9px;Color:var(--gray-500);padding-top:3px">${row.commentType || '—'}</div>
-      <div><span class="emma-status ${stClass}">${stLabel}</span></div>`;
-
-    div.addEventListener('click', () => openEmmaRowEdit(a.id));
-    register.insertBefore(div, empty);
-  });
-}
-
-function openEmmaRowEdit(annotId) {
-  emmaEditId = annotId;
-  const a   = annots.find(x => x.id === annotId); if (!a) return;
-  const row = emmaRowForAnnot(a);
-
-  document.getElementById('er-comment').value  = a.text || (a.type === 'measure' ? a.label || '' : '');
-  document.getElementById('er-docno').value    = row.docNo || document.getElementById('emma-doc-no').value || '';
-  document.getElementById('er-rev').value      = row.rev   || document.getElementById('emma-rev-no').value  || '';
-  document.getElementById('er-cat').value      = row.cat      || '';
-  document.getElementById('er-type').value     = row.commentType || '';
-  document.getElementById('er-accepted').value = row.accepted   || '';
-  document.getElementById('er-closed').value   = row.closedOut  || 'No';
-  document.getElementById('er-reply').value    = row.reply  || '';
-  document.getElementById('er-notes').value    = row.notes  || '';
-  openM('memma-row');
-}
-
-function saveEmmaRow() {
-  if (emmaEditId == null) { closeM('memma-row'); return; }
-  const a = annots.find(x => x.id === emmaEditId); if (!a) { closeM('memma-row'); return; }
-
-  // Update comment text
-  const newText = document.getElementById('er-comment').value.trim();
-  if (newText && a.type === 'text') { a.text = newText; syncAnnots(); updateAnnotPanel(); }
-
-  // Save EMMA fields
-  emmaRows[emmaEditId] = {
-    docNo:       document.getElementById('er-docno').value.trim(),
-    rev:         document.getElementById('er-rev').value.trim(),
-    cat:         document.getElementById('er-cat').value,
-    commentType: document.getElementById('er-type').value,
-    accepted:    document.getElementById('er-accepted').value,
-    closedOut:   document.getElementById('er-closed').value,
-    reply:       document.getElementById('er-reply').value.trim(),
-    notes:       document.getElementById('er-notes').value.trim(),
-  };
-
-  closeM('memma-row');
-  updateEmmaRegister();
-  toast('EMMA row updated');
-}
-
-/* ── Load existing .xlsm template to pre-fill project info ── */
-async function loadEmmaTemplate(e) {
-  const file = e.target.files[0]; if (!file) return;
-  emmaTemplateBuf = await file.arrayBuffer();
-  // Try to read project info using SheetJS
-  try {
-    await loadSheetJs();
-    const wb = XLSX.read(emmaTemplateBuf, { type: 'array' });
-    const ws = wb.Sheets['Document Check Sheet'];
-    if (ws) {
-      const g = (cell) => ws[cell] ? (ws[cell].v ?? '') : '';
-      // D5 = Specific Design, C4 = Project Title, D6 = Discipline, K5 = Rev, K6 = CheckSheetNo
-      const specDesign = g('D5');
-      const projTitle  = g('C4') || g('D4') || '';
-      const discipline = g('D6');
-      const rev        = g('K5');
-      const chkNo      = g('K6');
-
-      if (specDesign) document.getElementById('emma-specific').value   = specDesign;
-      if (projTitle)  document.getElementById('emma-proj-title').value = projTitle;
-      if (discipline) document.getElementById('emma-discipline').value = discipline;
-      if (rev)        document.getElementById('emma-rev-no').value     = typeof rev === 'string' ? rev : String(rev);
-      if (chkNo)      document.getElementById('emma-chk-no').value     = chkNo;
-    }
-    const ws2 = wb.Sheets['Checking Review'];
-    if (ws2) {
-      const g = (cell) => ws2[cell] ? (ws2[cell].v ?? '') : '';
-      const projNo = g('D3');
-      const projNm = g('D4');
-      if (projNo && projNo !== 0) document.getElementById('emma-proj-no').value    = String(projNo);
-      if (projNm && projNm !== 0) document.getElementById('emma-proj-title').value = String(projNm);
-    }
-    toast('✓ Template loaded and saved — will be remembered next time');
-  } catch(err) {
-    toast('Could not read template metadata: ' + err.message);
-  }
-  // Persist to IDB so it survives page reload
-  await idbSaveTemplate(emmaTemplateBuf, file.name);
-  updateTemplateUI(file.name);
-  e.target.value = '';
-}
-
-/* ── Export into real .xlsm template ── */
-async function exportEmma() {
-  const emmaAnnots = annots.filter(a =>
-    (a.type === 'text' || a.type === 'measure') && !a.emmaExclude
-  );
-  if (!emmaAnnots.length) { toast('No EMMA comments to export'); return; }
-  if (!emmaTemplateBuf)   { toast('⚠ No template loaded — load your Checksheet.xlsm via the EMMA panel first', 6000); return; }
-
-  closeM('memma');
-  toast('Building EMMA Checksheet…');
-
-  try {
-    await loadJSZip();
-
-    const docTitle   = document.getElementById('emma-proj-title').value.trim();
-    const projNo     = document.getElementById('emma-proj-no').value.trim();
-    const discipline = document.getElementById('emma-discipline').value;
-    const docNo      = document.getElementById('emma-doc-no').value.trim();
-    const rev        = document.getElementById('emma-rev-no').value.trim();
-    const specific   = document.getElementById('emma-specific').value.trim();
-    const chkNo      = document.getElementById('emma-chk-no').value.trim();
-
-    const zip = await JSZip.loadAsync(emmaTemplateBuf);
-
-    // ── Helper: find worksheet file for a named sheet ──
-    async function getSheetPath(sheetName) {
-      const wbXml   = await zip.file('xl/workbook.xml').async('string');
-      const relsXml = await zip.file('xl/_rels/workbook.xml.rels').async('string');
-      const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const m1 = wbXml.match(new RegExp('<sheet[^>]+name="' + esc(sheetName) + '"[^>]+r:id="([^"]+)"'));
-      const m2 = wbXml.match(new RegExp('<sheet[^>]+r:id="([^"]+)"[^>]+name="' + esc(sheetName) + '"'));
-      const rid = (m1 || m2)?.[1]; if (!rid) return null;
-      const rm = relsXml.match(new RegExp('Id="' + rid + '"[^>]+Target="([^"]+)"'));
-      if (!rm) return null;
-      const t = rm[1].replace(/^\/?xl\//, '');
-      return 'xl/' + t;
-    }
-
-    // ── Shared strings: read existing, add new, write back ──
-    // This is the ONLY correct way to write text into styled cells —
-    // the cell keeps its s= style attribute and we just change the shared string index.
-    let ssXml = await zip.file('xl/sharedStrings.xml').async('string');
-
-    // Parse existing strings into an array
-    const ssEntries = [];
-    const siRe = /<si>([\s\S]*?)<\/si>/g;
-    let siM;
-    while ((siM = siRe.exec(ssXml)) !== null) {
-      // Extract text — may be <t> or multiple <r><t> runs
-      const tVals = [...siM[1].matchAll(/<t[^>]*>([^<]*)<\/t>/g)].map(x => x[1]);
-      ssEntries.push(tVals.join(''));
-    }
-
-    // Look up or add a string, return its index
-    function ssIndex(str) {
-      const s = String(str);
-      const existing = ssEntries.indexOf(s);
-      if (existing !== -1) return existing;
-      // Append new entry
-      ssEntries.push(s);
-      const xmlEsc = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      const needsSpace = s !== s.trim();
-      const tAttr = needsSpace ? ' xml:space="preserve"' : '';
-      // Insert before </sst>
-      ssXml = ssXml.replace(/<\/sst>/, '<si><t' + tAttr + '>' + xmlEsc + '</t></si></sst>');
-      return ssEntries.length - 1;
-    }
-
-    // Update the count attribute on <sst>
-    function finaliseSharedStrings() {
-      const count = ssEntries.length;
-      ssXml = ssXml.replace(/(<sst[^>]+count=")[^"]*(")/,  '$1' + count + '$2');
-      ssXml = ssXml.replace(/(<sst[^>]+uniqueCount=")[^"]*(")/,  '$1' + count + '$2');
-      zip.file('xl/sharedStrings.xml', ssXml);
-    }
-
-    // ── Core cell writer ──
-    // Finds <c r="REF" ...> and updates ONLY the <v> content and t= attribute.
-    // The s= style attribute and all other attributes are left completely untouched.
-    function writeSharedStr(xml, cellRef, strIndex) {
-      // Match existing cell — may be self-closing or have content
-      const cellRe = new RegExp(
-        '(<c\\s+r="' + cellRef + '"(?:\\s+[^>]*)?)(?:\\s*/>|>((?:[\\s\\S]*?))<\\/c>)',
-        'i'
-      );
-      const replacement = (match, openTag, _inner) => {
-        // Remove existing t= attribute, add t="s"
-        let tag = openTag.replace(/\s+t="[^"]*"/, '');
-        return tag + ' t="s"><v>' + strIndex + '</v></c>';
-      };
-      if (cellRe.test(xml)) return xml.replace(cellRe, replacement);
-
-      // Cell doesn't exist — insert into its row
-      const rowNum = cellRef.match(/\d+$/)[0];
-      const rowRe  = new RegExp('(<row\\b[^>]*\\br="' + rowNum + '"[^>]*>)([\\s\\S]*?)(</row>)');
-      return xml.replace(rowRe, (_, open, body, close) =>
-        open + body + '<c r="' + cellRef + '" t="s"><v>' + strIndex + '</v></c>' + close
-      );
-    }
-
-    // Write a number into a cell (no t= attribute needed for numbers)
-    function writeNum(xml, cellRef, num) {
-      const cellRe = new RegExp(
-        '(<c\\s+r="' + cellRef + '"(?:\\s+[^>]*)?)(?:\\s*/>|>(?:[\\s\\S]*?)<\\/c>)',
-        'i'
-      );
-      const replacement = (_, openTag) => {
-        let tag = openTag.replace(/\s+t="[^"]*"/, '');
-        return tag + '><v>' + num + '</v></c>';
-      };
-      if (cellRe.test(xml)) return xml.replace(cellRe, replacement);
-      const rowNum = cellRef.match(/\d+$/)[0];
-      const rowRe  = new RegExp('(<row\\b[^>]*\\br="' + rowNum + '"[^>]*>)([\\s\\S]*?)(</row>)');
-      return xml.replace(rowRe, (_, open, body, close) =>
-        open + body + '<c r="' + cellRef + '"><v>' + num + '</v></c>' + close
-      );
-    }
-
-    // ── Patch Document Check Sheet ──
-    // D3-D7 in Checking Review are FORMULAS that pull from here — write here only.
-    const dcsPath = await getSheetPath('Document Check Sheet');
-    if (dcsPath) {
-      let dcsXml = await zip.file(dcsPath).async('string');
-      if (docTitle)   dcsXml = writeSharedStr(dcsXml, 'D4',  ssIndex(docTitle));
-      if (projNo)     dcsXml = writeNum(dcsXml,       'I4',  projNo);
-      if (specific)   dcsXml = writeSharedStr(dcsXml, 'D5',  ssIndex(specific));
-      if (rev)        dcsXml = writeSharedStr(dcsXml, 'K5',  ssIndex(rev));
-      if (discipline) dcsXml = writeSharedStr(dcsXml, 'D6',  ssIndex(discipline));
-      if (chkNo)      dcsXml = writeSharedStr(dcsXml, 'K6',  ssIndex(chkNo));
-      // Date in G5 — store as a number (Excel serial date)
-      const today = new Date();
-      const serial = Math.floor((today - new Date(1899, 11, 30)) / 86400000);
-      dcsXml = writeNum(dcsXml, 'G5', serial);
-      zip.file(dcsPath, dcsXml);
-    }
-
-    // ── Patch Checking Review data rows ──
-    // Rows start at 11. Only write C (Doc No), E (Date), F (Designer), G (Checker),
-    // H (Cat), I (Comment), J (Type), K (Accepted), L (Reply), M (Closed Out), N (Notes).
-    // Column B is auto-numbered by the template formula, D is formula from DCS.
-    const crPath = await getSheetPath('Checking Review');
-    if (!crPath) { toast('Checking Review sheet not found in template', 5000); return; }
-    let crXml = await zip.file(crPath).async('string');
-
-    const todayStr = new Date().toLocaleDateString('en-GB');
-    emmaAnnots.forEach((a, idx) => {
-      const r   = 11 + idx;
-      const row = emmaRowForAnnot(a);
-      const comment = a.text || (a.type === 'measure' ? a.label || '' : '');
-      const dateStr = a.timestamp ? new Date(a.timestamp).toLocaleDateString('en-GB') : todayStr;
-
-      crXml = writeSharedStr(crXml, 'C' + r, ssIndex(row.docNo || docNo || ''));
-      crXml = writeSharedStr(crXml, 'E' + r, ssIndex(dateStr));
-      crXml = writeSharedStr(crXml, 'F' + r, ssIndex(a.author || currentAuthor || ''));
-      crXml = writeSharedStr(crXml, 'G' + r, ssIndex(currentAuthor || ''));
-      crXml = writeSharedStr(crXml, 'H' + r, ssIndex(row.cat          || ''));
-      crXml = writeSharedStr(crXml, 'I' + r, ssIndex(comment));
-      crXml = writeSharedStr(crXml, 'J' + r, ssIndex(row.commentType  || ''));
-      crXml = writeSharedStr(crXml, 'K' + r, ssIndex(row.accepted     || ''));
-      crXml = writeSharedStr(crXml, 'L' + r, ssIndex(row.reply        || ''));
-      crXml = writeSharedStr(crXml, 'M' + r, ssIndex(row.closedOut    || 'No'));
-      crXml = writeSharedStr(crXml, 'N' + r, ssIndex(row.notes        || ''));
-    });
-    zip.file(crPath, crXml);
-
-    // Write updated shared strings back
-    finaliseSharedStrings();
-
-    // Re-zip and download
-    const outBytes = await zip.generateAsync({
-      type: 'uint8array',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 },
-      mimeType: 'application/vnd.ms-excel.sheet.macroEnabled.12'
-    });
-
-    const fname = (chkNo || (docNo ? docNo.replace(/[^\w-]/g,'_') : 'EMMA')) + '_Checksheet.xlsm';
-    dl(outBytes, fname);
-    toast('✓ EMMA Checksheet exported — ' + emmaAnnots.length + ' comment' + (emmaAnnots.length !== 1 ? 's' : ''));
-
-  } catch(err) {
-    console.error('[EngDoc] exportEmma:', err);
-    toast('Export failed: ' + err.message);
-  }
-}
-
-async function loadJSZip() {
-  if (window.JSZip) return;
-  await new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-    s.onload = res; s.onerror = rej;
-    document.head.appendChild(s);
-  });
-}
-
-function openEmmaExport() {
-  const emmaAnnots = annots.filter(a =>
-    (a.type === 'text' || a.type === 'measure') && !a.emmaExclude
-  );
-  if (!emmaAnnots.length) {
-    toast('No EMMA comments to export — add Notes or Text annotations (with EMMA checked) first'); return;
-  }
-  const projTitle  = document.getElementById('emma-proj-title').value.trim() || '(not set)';
-  const docNo      = document.getElementById('emma-doc-no').value.trim()     || '(not set)';
-  const rev        = document.getElementById('emma-rev-no').value.trim()     || '(not set)';
-  const chkNo      = document.getElementById('emma-chk-no').value.trim()     || '(not set)';
-  const openCount  = emmaAnnots.filter(a => (emmaRows[a.id]?.closedOut || 'No') !== 'Yes').length;
-  const closedCount = emmaAnnots.length - openCount;
-  document.getElementById('emma-export-summary').innerHTML =
-    `Project: ${projTitle}<br>Doc No: ${docNo} · Rev: ${rev}<br>Check Sheet: ${chkNo}<br>` +
-    `Comments: ${emmaAnnots.length} total (${openCount} open, ${closedCount} closed)`;
-
-  // Template status
-  const statusEl = document.getElementById('emma-template-status');
-  if (emmaTemplateBuf) {
-    statusEl.style.cssText = 'background:#dcfce7;Color:#166534;border:1px solid #bbf7d0;margin-top:10px;padding:8px 10px;border-radius:4px;font-size:12px;font-weight:500';
-    statusEl.textContent = '✓ Template loaded — all formatting, Colors and macros will be preserved';
-  } else {
-    statusEl.style.cssText = 'background:#fee2e2;Color:#b91c1c;border:1px solid #fca5a5;margin-top:10px;padding:8px 10px;border-radius:4px;font-size:12px;font-weight:500';
-    statusEl.textContent = '⚠ No template loaded — load your Checksheet.xlsm via the EMMA panel → Load Template before exporting. Without it the formatting will be lost.';
-  }
-  openM('memma');
-}
-
-// Keep old function name as alias in case called anywhere
-const exportXlsx = openEmmaExport;
 
 // ═══════════════════════════════════════════════
 //  DARK MODE
@@ -5910,43 +5416,14 @@ if (localStorage.getItem('engdoc_dark') === '1') toggleDark();
 let idb = null;
 function openIDB() {
   return new Promise((res, rej) => {
-    const req = indexedDB.open('engdoc', 2); // v2 adds templates store
+    const req = indexedDB.open('engdoc', 2);
     req.onupgradeneeded = e => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains('sessions'))  db.createObjectStore('sessions',  { keyPath: 'id' });
-      if (!db.objectStoreNames.contains('templates')) db.createObjectStore('templates', { keyPath: 'id' });
     };
     req.onsuccess = e => { idb = e.target.result; res(idb); };
     req.onerror = () => rej(req.error);
   });
-}
-
-async function idbSaveTemplate(buf, filename) {
-  if (!idb) return;
-  try {
-    const tx = idb.transaction('templates', 'readwrite');
-    tx.objectStore('templates').put({ id: 'emma-template', buf, filename, savedAt: new Date().toISOString() });
-  } catch(e) { /* silent */ }
-}
-
-async function idbLoadTemplate() {
-  if (!idb) return null;
-  return new Promise(res => {
-    try {
-      const tx = idb.transaction('templates', 'readonly');
-      const req = tx.objectStore('templates').get('emma-template');
-      req.onsuccess = () => res(req.result || null);
-      req.onerror = () => res(null);
-    } catch(e) { res(null); }
-  });
-}
-
-async function idbClearTemplate() {
-  if (!idb) return;
-  try {
-    const tx = idb.transaction('templates', 'readwrite');
-    tx.objectStore('templates').delete('emma-template');
-  } catch(e) { /* silent */ }
 }
 
 async function idbSave() {
@@ -5954,8 +5431,7 @@ async function idbSave() {
   try {
     const data = {
       id: 'autosave',
-      pdfName, annots, emmaRows, annotIdSeq,
-      emmaFields: captureEmmaFields(),
+      pdfName, annots, annotIdSeq,
       savedAt: new Date().toISOString(),
       annotCount: annots.length,
       pdfBytes: pdfBytes || undefined,
@@ -5989,45 +5465,6 @@ async function idbClearAutosave() {
   } catch(e) { /* silent */ }
 }
 
-function captureEmmaFields() {
-  const ids = ['emma-proj-title','emma-proj-no','emma-doc-no','emma-rev-no',
-    'emma-specific','emma-chk-no','emma-discipline','emma-checker','emma-date'];
-  const out = {};
-  ids.forEach(id => { const el = document.getElementById(id); if (el) out[id] = el.value; });
-  return out;
-}
-
-function updateTemplateUI(filename) {
-  const btn = document.querySelector('.emma-import-btn');
-  if (!btn) return;
-  // The static <input id="emma-template-file"> is always in the DOM — don't inject a duplicate
-  if (filename) {
-    const short = filename.replace(/\.xlsm$/i,'').replace(/\.xlsx$/i,'').slice(0, 24);
-    btn.innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 11l3 3L22 4"/></svg> ' +
-      short +
-      ' <span onclick="clearEmmaTemplate(event)" style="margin-left:6px;Color:#b91c1c;font-weight:700;cursor:pointer" title="Remove saved template">&times;</span>';
-    btn.style.Color = '#166534';
-    btn.style.borderColor = '#bbf7d0';
-    btn.style.background = '#f0fdf4';
-  } else {
-    btn.innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ' +
-      'Load Template';
-    btn.style.Color = '';
-    btn.style.borderColor = '';
-    btn.style.background = '';
-  }
-}
-
-async function clearEmmaTemplate(e) {
-  e.stopPropagation();
-  emmaTemplateBuf = null;
-  await idbClearTemplate();
-  updateTemplateUI(null);
-  toast('EMMA template removed — load a new one via the EMMA panel');
-}
-
 // Auto-save every 30s and on every annotation push
 let autoSaveTimer = null;
 function scheduleAutoSave() {
@@ -6037,15 +5474,8 @@ function scheduleAutoSave() {
   window._idbDebounce = setTimeout(() => idbSave(), 2000);
 }
 
-// Initialise IDB — restore template + session on startup
+// Initialise IDB — restore session on startup
 openIDB().then(async () => {
-  // Restore template silently first
-  const tmpl = await idbLoadTemplate();
-  if (tmpl && tmpl.buf) {
-    emmaTemplateBuf = tmpl.buf;
-    updateTemplateUI(tmpl.filename || 'Checksheet.xlsm');
-    toast('✓ EMMA template ready: ' + (tmpl.filename || 'Checksheet.xlsm'), 3000);
-  }
   // Check for unsaved autosave session
   const saved = await idbRestore();
   if (saved && saved.pdfName && !pdfName) {
@@ -6709,18 +6139,18 @@ function renderCheckResults(findings) {
   });
 }
 
-/* ── ADD FINDINGS AS EMMA COMMENTS ───────────────────────── */
+/* ── ADD FINDINGS AS COMMENTS ───────────────────────── */
 function addFindingAsComment(findingId) {
   const f = checkFindings.find(x => x.id === findingId);
   if (!f) return;
   _addFindingAnnot(f);
-  toast(`Added "${f.title}" to EMMA register`);
+  toast(`Added "${f.title}" as a comment`);
 }
 
 function addAllCheckFindings() {
   const actionable = checkFindings.filter(f => f.status === 'fail' || f.status === 'warn');
   actionable.forEach(f => _addFindingAnnot(f));
-  toast(`Added ${actionable.length} findings to EMMA register`);
+  toast(`Added ${actionable.length} findings as comments`);
   closeM('mcheck');
 }
 
@@ -6729,25 +6159,16 @@ function _addFindingAnnot(f) {
   const hash = [...f.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) & 0xffff, 0);
   const x = 2 + (hash % 6) * 3;
   const y = 2 + (hash % 12) * 3;
-  const catMap = { fail: '1', warn: '3', info: '' };
   const a = {
     id: nextId(), pageNum: 1, type: 'text',
     x, y, text: `[Standards Check] ${f.title}: ${f.desc.slice(0, 120)}`,
     Color: f.status === 'fail' ? 'red' : f.status === 'warn' ? 'yellow' : 'green',
     author: currentAuthor || 'Standards Checker',
     timestamp: new Date().toISOString(),
-    emmaExclude: false,
     textAlign: 'center', vAlign: 'center', box: true,
   };
   pushAnnot(a);
-  // Pre-set EMMa row with category and reference
-  emmaRows[a.id] = {
-    cat: catMap[f.status] || '',
-    commentType: 'Not to standard',
-    accepted: '', reply: '', closedOut: 'No',
-    notes: f.ref || ''
-  };
-  syncAnnots(); updateAnnotPanel(); updateEmmaRegister();
+  syncAnnots(); updateAnnotPanel();
 }
 
 // ═══════════════════════════════════════════════
@@ -6772,65 +6193,6 @@ function addPointerSupport(ov) {
 }
 
 // ═══════════════════════════════════════════════
-//  EMMA STATUS DASHBOARD
-// ═══════════════════════════════════════════════
-function updateEmmaDash() {
-  const emmaAnnots = annots.filter(a =>
-    (a.type === 'text' || a.type === 'measure') && !a.emmaExclude
-  );
-  const total = emmaAnnots.length;
-  const closed = emmaAnnots.filter(a => emmaRows[a.id]?.closedOut === 'Yes').length;
-  const open = total - closed;
-  const pct = total > 0 ? Math.round(closed / total * 100) : 0;
-
-  const el = id => document.getElementById(id);
-  if (el('ds-total')) el('ds-total').textContent = total;
-  if (el('ds-open'))  el('ds-open').textContent  = open;
-  if (el('ds-closed'))el('ds-closed').textContent = closed;
-  if (el('ds-pct'))   el('ds-pct').textContent   = total > 0 ? pct + '%' : '—';
-  if (el('ds-bar'))   el('ds-bar').style.width   = pct + '%';
-
-  // CAT breakdown badges
-  const catsEl = el('ds-cats');
-  if (catsEl) {
-    const catCounts = { '1': 0, '2': 0, '3': 0, 'BP': 0 };
-    emmaAnnots.forEach(a => {
-      const cat = emmaRows[a.id]?.cat;
-      if (cat && catCounts[cat] !== undefined) catCounts[cat]++;
-    });
-    const catStyles = {
-      '1': 'background:#fee2e2;Color:#b91c1c',
-      '2': 'background:#fef9c3;Color:#854d0e',
-      '3': 'background:#ffedd5;Color:#c2410c',
-      'BP': 'background:#dbeafe;Color:#1d4ed8'
-    };
-    catsEl.innerHTML = Object.entries(catCounts)
-      .filter(([,v]) => v > 0)
-      .map(([k, v]) => `<span class="dash-cat" style="${catStyles[k]}">${k}: ${v}</span>`)
-      .join('');
-  }
-}
-
-// ═══════════════════════════════════════════════
-//  PATCH pushAnnot TO TRIGGER DASHBOARD + AUTOSAVE
-// ═══════════════════════════════════════════════
-const _origPushAnnot = pushAnnot;
-// Wrap pushAnnot to also update dashboard and trigger autosave
-// (pushAnnot is already defined above; we extend its behaviour here)
-const pushAnnotOrig = pushAnnot;
-window._pushAnnotHooked = true;
-
-// Override at module level — extend the existing function
-(function() {
-  const orig = window.pushAnnot || pushAnnot;
-  // Can't reassign const; patch via the call chain instead
-  // Dashboard update fires from syncAnnots which is called by pushAnnot
-})();
-
-// ═══════════════════════════════════════════════
-//  PATCH syncAnnots TO UPDATE DASHBOARD
-// ═══════════════════════════════════════════════
-// ═══════════════════════════════════════════════
 //  WIRE AREA EVENTS + POINTER SUPPORT INTO PAGE RENDER
 // ═══════════════════════════════════════════════
 // Extend renderPageContent to attach area+pointer support after overlay is created
@@ -6847,7 +6209,6 @@ renderPageContent = async function(pageNum) {
       addPointerSupport(ov);
     }
   }
-  updateEmmaDash();
 };
 
 // ═══════════════════════════════════════════════
@@ -6866,7 +6227,6 @@ typeLabels['area'] = 'Area Measurement';
 const _origPushAnnotFinal = pushAnnot;
 pushAnnot = function(a) {
   _origPushAnnotFinal(a);
-  updateEmmaDash();
   scheduleAutoSave();
   if (a.type === 'measure' || a.type === 'area') updateMeasurementTable();
 };
@@ -6875,15 +6235,6 @@ pushAnnot = function(a) {
 const _deleteAnnotBase = deleteAnnotById;
 deleteAnnotById = function(id) {
   _deleteAnnotBase(id);
-  updateEmmaDash();
-  scheduleAutoSave();
-};
-
-// saveEmmaRow post-hook
-const _saveEmmaRowBase = saveEmmaRow;
-saveEmmaRow = function() {
-  _saveEmmaRowBase();
-  updateEmmaDash();
   scheduleAutoSave();
 };
 
@@ -6941,17 +6292,13 @@ async function mergeSession(e) {
       const newId = nextId();
       const merged = migrateLegacyTextboxCalloutAnnot(migrateLegacyNoteAnnot({ ...a, id: newId, mergedFrom: a.author || 'Unknown' }));
       annots.push(merged);
-      // Carry EMMA row data if present
-      if (data.emmaRows && data.emmaRows[a.id]) {
-        emmaRows[newId] = { ...data.emmaRows[a.id] };
-      }
       added++;
     });
 
     // Record all new authors for Color palette
     data.annots.forEach(a => { if (a.author) getAuthorColor(a.author); });
 
-    syncAnnots(); updateAnnotPanel(); updateStatusCount(); updateEmmaRegister(); updateEmmaDash();
+    syncAnnots(); updateAnnotPanel(); updateStatusCount();
     toast(`✓ Merged ${added} annotation${added !== 1 ? 's' : ''} from "${data.pdfName || file.name}"${skipped ? ` (${skipped} duplicates skipped)` : ''}`);
   } catch(err) {
     toast('Merge failed: ' + err.message);
@@ -8211,7 +7558,6 @@ syncAnnots = function() {
 function pushHistory() {
   const snap = {
     annots:    JSON.parse(JSON.stringify(annots)),
-    emmaRows:  JSON.parse(JSON.stringify(emmaRows)),
   };
   // Trim any redo tail
   if (typeof historyIdx !== 'undefined') history.splice(historyIdx + 1);
@@ -9519,7 +8865,7 @@ function cycleAnnotStatus(id, ev) {
   const cur = a.status || 'open';
   const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length];
   a.status = next;
-  syncAnnots(); updateAnnotPanel(); updateEmmaRegister(); pushHistory();
+  syncAnnots(); updateAnnotPanel(); pushHistory();
   toast('Status → ' + STATUS_LABEL[next]);
 }
 
@@ -9710,133 +9056,6 @@ loadPDF = async function(file) {
   await loadPdfLayers();
   updateLayerPanel();
 };
-
-// ═══════════════════════════════════════════════
-//  BATCH EMMA EXPORT
-//  Exports all drawings in the Drawing Set
-//  register to a single consolidated EMMA register.
-// ═══════════════════════════════════════════════
-async function batchExportEmma() {
-  if (!drawingSet.length) {
-    toast('Add drawings to the Drawing Set Register first (Review tab)', 4000); return;
-  }
-  if (!emmaTemplateBuf) {
-    toast('⚠ Load your EMMA Checksheet template first', 4000); return;
-  }
-
-  toast('Building consolidated EMMA register…');
-  await loadJSZip();
-  const { PDFDocument } = await (window.PDFLib ? Promise.resolve(window) : loadPdfLib().then(() => window));
-
-  // We build one workbook per drawing then combine rows
-  // Reuse exportEmma logic but collect all annotations across drawing set
-  const allRows = [];
-  drawingSet.forEach(drawing => {
-    const drawingAnnots = (drawing.annots || []).filter(a =>
-      ['text','measure'].includes(a.type) && !a.emmaExclude
-    );
-    drawingAnnots.forEach(a => {
-      allRows.push({
-        docNo:  drawing.name.replace(/\.pdf$/i,''),
-        text:   a.text || a.label || '',
-        author: a.author || '',
-        status: a.status || 'open',
-        priority: a.priority || '',
-        pageNum: a.pageNum,
-        type:   a.type,
-      });
-    });
-  });
-
-  // Also include current open drawing
-  const curAnnots = annots.filter(a =>
-    ['text','measure'].includes(a.type) && !a.emmaExclude
-  );
-  curAnnots.forEach(a => {
-    allRows.push({
-      docNo:   pdfName ? pdfName.replace(/\.pdf$/i,'') : 'Current',
-      text:    a.text || a.label || '',
-      author:  a.author || '',
-      status:  a.status || 'open',
-      priority: a.priority || '',
-      pageNum: a.pageNum,
-      type:    a.type,
-    });
-  });
-
-  if (!allRows.length) { toast('No EMMA comments found across drawing set'); return; }
-
-  try {
-    const zip = await JSZip.loadAsync(emmaTemplateBuf);
-
-    // Get sheet paths
-    const wbXml  = await zip.file('xl/workbook.xml').async('string');
-    const relXml = await zip.file('xl/_rels/workbook.xml.rels').async('string');
-    const getPath = name => {
-      const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-      const m = wbXml.match(new RegExp('sheet[^>]+name="'+esc(name)+'"[^>]+r:id="([^"]+)"')) ||
-                wbXml.match(new RegExp('sheet[^>]+r:id="([^"]+)"[^>]+name="'+esc(name)+'"'));
-      if (!m) return null;
-      const rm = relXml.match(new RegExp('Id="'+m[1]+'"[^>]+Target="([^"]+)"'));
-      if (!rm) return null;
-      return 'xl/' + rm[1].replace(/^\/?xl\//,'');
-    };
-
-    let ssXml = await zip.file('xl/sharedStrings.xml').async('string');
-    const ssEntries = [...ssXml.matchAll(/<si>[\s\S]*?<\/si>/g)].map(m => {
-      return [...m[0].matchAll(/<t[^>]*>([^<]*)<\/t>/g)].map(x=>x[1]).join('');
-    });
-    const ssIndex = str => {
-      const s = String(str);
-      const i = ssEntries.indexOf(s);
-      if (i !== -1) return i;
-      ssEntries.push(s);
-      const esc = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      ssXml = ssXml.replace('</sst>', '<si><t>' + esc + '</t></si></sst>');
-      return ssEntries.length - 1;
-    };
-    const writeCell = (xml, ref, idx) => {
-      const re = new RegExp('(<c\\s+r="'+ref+'"(?:\\s+[^>]*)?)(?:\\s*/>|>[\\s\\S]*?</c>)', 'i');
-      const rep = (_, open) => open.replace(/\s+t="[^"]*"/,'') + ' t="s"><v>' + idx + '</v></c>';
-      if (re.test(xml)) return xml.replace(re, rep);
-      const row = ref.match(/\d+$/)[0];
-      return xml.replace(new RegExp('(<row\\b[^>]*\\br="'+row+'"[^>]*>)([\\s\\S]*?)(</row>)'),
-        (_,o,b,cl) => o+b+'<c r="'+ref+'" t="s"><v>'+idx+'</v></c>'+cl);
-    };
-
-    const crPath = getPath('Checking Review');
-    if (!crPath) { toast('Checking Review sheet not found in template'); return; }
-    let crXml = await zip.file(crPath).async('string');
-
-    const today = new Date().toLocaleDateString('en-GB');
-    allRows.forEach((row, idx) => {
-      const r = 11 + idx;
-      crXml = writeCell(crXml, 'C'+r, ssIndex(row.docNo));
-      crXml = writeCell(crXml, 'E'+r, ssIndex(today));
-      crXml = writeCell(crXml, 'F'+r, ssIndex(row.author));
-      crXml = writeCell(crXml, 'G'+r, ssIndex(row.author));
-      crXml = writeCell(crXml, 'H'+r, ssIndex(row.priority));
-      crXml = writeCell(crXml, 'I'+r, ssIndex(row.text));
-      crXml = writeCell(crXml, 'M'+r, ssIndex(row.status === 'resolved' ? 'Yes' : 'No'));
-    });
-    zip.file(crPath, crXml);
-
-    // Update shared strings count
-    const cnt = ssEntries.length;
-    ssXml = ssXml.replace(/(<sst[^>]+count=")[^"]*(")/,'$1'+cnt+'$2')
-                 .replace(/(<sst[^>]+uniqueCount=")[^"]*(")/,'$1'+cnt+'$2');
-    zip.file('xl/sharedStrings.xml', ssXml);
-
-    const out = await zip.generateAsync({ type:'uint8array', compression:'DEFLATE',
-      compressionOptions:{ level:6 }, mimeType:'application/vnd.ms-excel.sheet.macroEnabled.12' });
-
-    dl(out, 'EMMA_Consolidated_' + new Date().toISOString().slice(0,10) + '.xlsm');
-    toast('✓ Consolidated EMMA exported — ' + allRows.length + ' comments from ' + (drawingSet.length + 1) + ' drawings');
-  } catch(e) {
-    console.error('[EngDoc] batchExportEmma:', e);
-    toast('Batch export failed: ' + e.message);
-  }
-}
 
 // ═══════════════════════════════════════════════
 //  SEARCH — persist highlights across navigation
@@ -10134,7 +9353,7 @@ async function doRestore() {
       const id = ++tabIdSeq;
       tabs.push({
         id, name: saved.pdfName, bytes: null, nPages: 0,
-        annots: [], emmaRows: {}, annotIdSeq: 0, pageLabels: {},
+        annots: [], annotIdSeq: 0, pageLabels: {},
         history: [], historyIdx: -1,
         zoom: 1, curPg: 1,
         measureScale: null, lastMeasurePx: null,
@@ -10142,7 +9361,7 @@ async function doRestore() {
         fileHandle: null, loadedEngdocName: null,
         checkFindings: [], pdfLayers: [],
         searchIndex: [], searchPersistHits: [],
-        annotNavIdx: -1, emmaFields: {},
+        annotNavIdx: -1,
       });
       activeTabId = id;
       const file = new File([saved.pdfBytes], saved.pdfName, { type: 'application/pdf' });
@@ -10154,17 +9373,9 @@ async function doRestore() {
     }
 
     annots     = saved.annots     || [];
-    emmaRows   = saved.emmaRows   || {};
     annotIdSeq = saved.annotIdSeq || annots.reduce((m, a) => Math.max(m, a.id || 0), 0);
 
-    if (saved.emmaFields) {
-      Object.entries(saved.emmaFields).forEach(([id, val]) => {
-        const el = document.getElementById(id);
-        if (el) el.value = val;
-      });
-    }
-
-    syncAnnots(); updateAnnotPanel(); updateEmmaRegister();
+    syncAnnots(); updateAnnotPanel();
     if (activeTabId != null) { saveActiveTabState(); renderTabBar(); }
 
     const n = annots.length;
@@ -10200,8 +9411,7 @@ window.addEventListener('beforeunload', () => {
     try {
       const data = {
         id: 'autosave',
-        pdfName, annots, emmaRows, annotIdSeq,
-        emmaFields: captureEmmaFields(),
+        pdfName, annots, annotIdSeq,
         savedAt: new Date().toISOString(),
         annotCount: annots.length,
         pdfBytes: pdfBytes || undefined,

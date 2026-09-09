@@ -127,7 +127,6 @@
   <input type="file" id="fopen-tab" accept=".pdf" style="display:none" onchange="openFileInNewTabFromInput(event)">
   <input type="file" id="fsession" accept=".engdoc" style="display:none" onchange="loadSession(event)">
   <input type="file" id="fmergesession" accept=".engdoc" style="display:none" onchange="mergeSession(event)">
-  <input type="file" id="fmsscan" accept=".json" style="display:none" onchange="loadDrawingScan(event)">
 </div>
 
 <!-- TAB BAR -->
@@ -330,20 +329,12 @@
       </div>
       <div class="rgroup">
         <div class="rgroup-btns">
-          <button class="rbtn lg" onclick="openEmmaExport()" data-tip="Export current drawing to EMMA Checksheet.xlsm">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
-            <span class="rbtn-label">EMMA<br>Export</span>
-          </button>
-          <button class="rbtn lg" onclick="batchExportEmma()" data-tip="Export all drawings in set to a single consolidated EMMA register">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><rect x="3" y="11" width="4" height="6" rx="1"/><rect x="10" y="9" width="4" height="8" rx="1"/></svg>
-            <span class="rbtn-label">Batch<br>Export</span>
-          </button>
           <button class="rbtn lg" onclick="document.getElementById('fmergesession').click()" data-tip="Merge another reviewer's session">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><circle cx="12" cy="18" r="3"/><path d="M8 11v2a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4v-2"/></svg>
             <span class="rbtn-label">Merge<br>Session</span>
           </button>
         </div>
-        <div class="rgroup-label">EMMA &amp; Collaborate</div>
+        <div class="rgroup-label">Collaborate</div>
       </div>
       <div class="rgroup">
         <div class="rgroup-btns">
@@ -367,10 +358,6 @@
           <button class="rbtn lg" onclick="document.getElementById('fopen').click()" data-tip="Open a PDF drawing">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12H3l9-9 9 9h-2M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>
             <span class="rbtn-label">Open<br>PDF</span>
-          </button>
-          <button class="rbtn lg" onclick="document.getElementById('fmsscan').click()" data-tip="Load a drawing scan exported from Atlas CAD (scan BEFORE markup) — lets Replace Text confirm the exact element for each note">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><path d="M11 8v3l2 1.5"/></svg>
-            <span class="rbtn-label">Load<br>Drawing Scan</span>
           </button>
         </div>
         <div class="rgroup-label">Open</div>
@@ -446,7 +433,6 @@
     <div class="stabs">
       <button class="stab active" id="stab-pages"  onclick="switchTab('pages',this)">Pages</button>
       <button class="stab" id="stab-notes"          onclick="switchTab('notes',this)">Markup</button>
-      <button class="stab emma" id="stab-emma"      onclick="switchTab('emma',this)">EMMA</button>
       <button class="stab" id="stab-search"         onclick="switchTab('search',this)">Search</button>
       <button class="stab-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()" title="Collapse sidebar ([ )">&#xAB;</button>
     </div>
@@ -485,92 +471,6 @@
       <div id="search-results"></div>
     </div>
 
-    <div id="sp-emma">
-      <!-- Project metadata -->
-      <div class="emma-meta">
-        <label class="flabel">Project Title</label>
-        <input class="finput" id="emma-proj-title" placeholder="e.g. Taff's Well Depot">
-        <div class="emma-meta-grid">
-          <div>
-            <label class="flabel">Project No.</label>
-            <input class="finput" id="emma-proj-no" placeholder="e.g. 12345">
-          </div>
-          <div>
-            <label class="flabel">Discipline</label>
-            <select class="finput fselect" id="emma-discipline" style="padding:5px 8px">
-              <option value="Civils">Civils</option>
-              <option value="BIM">BIM</option>
-              <option value="Drainage">Drainage</option>
-              <option value="Electrical Power">Electrical Power</option>
-              <option value="Engineering Management">Engineering Management</option>
-              <option value="Environmental">Environmental</option>
-              <option value="Geotechnical">Geotechnical</option>
-              <option value="Multidisciplinary">Multidisciplinary</option>
-              <option value="OLE">OLE</option>
-              <option value="Project Management">Project Management</option>
-              <option value="Signalling">Signalling</option>
-              <option value="Survey">Survey</option>
-              <option value="Telecoms">Telecoms</option>
-              <option value="Track">Track</option>
-            </select>
-          </div>
-          <div>
-            <label class="flabel">Document No.</label>
-            <input class="finput" id="emma-doc-no" placeholder="e.g. DWG-001">
-          </div>
-          <div>
-            <label class="flabel">Revision</label>
-            <input class="finput" id="emma-rev-no" placeholder="e.g. Rev A">
-          </div>
-          <div>
-            <label class="flabel">Specific Design</label>
-            <input class="finput" id="emma-specific" placeholder="e.g. Form test" style="grid-column:1/-1">
-          </div>
-        </div>
-        <div style="margin-top:4px">
-          <label class="flabel">Check Sheet No.</label>
-          <input class="finput" id="emma-chk-no" placeholder="e.g. -CHK-CIV-002" style="margin-bottom:0">
-        </div>
-      </div>
-
-      <!-- Dashboard -->
-      <div class="emma-dash" id="emma-dash">
-        <div class="emma-dash-title">Review Status</div>
-        <div class="dash-stats">
-          <div class="dash-stat"><div class="dash-stat-num" id="ds-total">0</div><div class="dash-stat-lbl">Total</div></div>
-          <div class="dash-stat"><div class="dash-stat-num" id="ds-open" style="Color:#ef4444">0</div><div class="dash-stat-lbl">Open</div></div>
-          <div class="dash-stat"><div class="dash-stat-num" id="ds-closed" style="Color:#22c55e">0</div><div class="dash-stat-lbl">Closed</div></div>
-          <div class="dash-stat"><div class="dash-stat-num" id="ds-pct">—</div><div class="dash-stat-lbl">Complete</div></div>
-        </div>
-        <div class="dash-bar"><div class="dash-bar-fill" id="ds-bar" style="width:0%"></div></div>
-        <div class="dash-cats" id="ds-cats"></div>
-      </div>
-
-      <!-- Toolbar -->
-      <div class="emma-toolbar">
-        <span id="emma-count-label">0 comments</span>
-        <div style="flex:1"></div>
-        <label class="emma-import-btn" title="Load existing Checksheet.xlsm to import project info">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Load Template
-          <input type="file" id="emma-template-file" accept=".xlsm,.xlsx" style="display:none" onchange="loadEmmaTemplate(event)">
-        </label>
-      </div>
-
-      <!-- Live register -->
-      <div class="emma-register-head">
-        <span>#</span>
-        <span>Comment</span>
-        <span>Cat</span>
-        <span>Type</span>
-        <span>Status</span>
-      </div>
-      <div class="emma-register" id="emma-register">
-        <div class="emma-empty" id="emma-empty">
-          No comments yet.<br>Add a <strong>Note</strong> or <strong>Text</strong> annotation<br>to populate the EMMA register.
-        </div>
-      </div>
-    </div>
   </div>
 
   <div id="viewer" ondragover="onDragOver(event)" ondrop="onDrop(event)">
@@ -749,85 +649,6 @@
   </div>
 </div>
 
-<!-- EMMA ROW EDIT MODAL -->
-<div class="overlay" id="memma-row">
-  <div class="modal" style="width:500px">
-    <div class="mhead">
-      <span class="mtitle">Edit EMMA Comment</span>
-      <button class="mclose" onclick="closeM('memma-row')">✕</button>
-    </div>
-    <div class="mbody">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px">
-        <div class="full" style="grid-column:1/-1">
-          <label class="flabel">Checker / RE Comment</label>
-          <textarea class="finput" id="er-comment" style="height:72px;resize:none;margin-bottom:0"></textarea>
-        </div>
-        <div>
-          <label class="flabel">Document No.</label>
-          <input class="finput" id="er-docno" style="margin-bottom:0">
-        </div>
-        <div>
-          <label class="flabel">Rev</label>
-          <input class="finput" id="er-rev" placeholder="e.g. A" style="margin-bottom:0">
-        </div>
-        <div>
-          <label class="flabel">Checker Cat</label>
-          <select class="finput fselect" id="er-cat" style="padding:5px 8px;margin-bottom:0">
-            <option value="">—</option>
-            <option value="1">Cat 1 — Critical (safety / must fix)</option>
-            <option value="2">Cat 2 — Minor (consider fixing)</option>
-            <option value="3">Cat 3 — Major (technical, should fix)</option>
-            <option value="BP">BP — Best Practice</option>
-          </select>
-        </div>
-        <div>
-          <label class="flabel">Comment Type</label>
-          <select class="finput fselect" id="er-type" style="padding:5px 8px;margin-bottom:0">
-            <option value="">—</option>
-            <option>Best Practice</option><option>Buildability issues</option>
-            <option>Carbon management</option><option>Clarity needed</option>
-            <option>Coordination</option><option>Design disagreement</option>
-            <option>General</option><option>Grammar</option>
-            <option>Incorrect reference</option><option>Incorrect symbol used</option>
-            <option>Missing information</option><option>Not to standard</option>
-            <option>Presentation</option><option>Procedural</option>
-            <option>Query</option><option>Safety - good practice</option>
-            <option>Safety - issue/risk</option><option>Scope</option><option>Spelling</option>
-          </select>
-        </div>
-        <div>
-          <label class="flabel">Accepted By Designer?</label>
-          <select class="finput fselect" id="er-accepted" style="padding:5px 8px;margin-bottom:0">
-            <option value="">—</option>
-            <option value="Y">Y — Yes</option>
-            <option value="N">N — No</option>
-          </select>
-        </div>
-        <div>
-          <label class="flabel">Closed Out?</label>
-          <select class="finput fselect" id="er-closed" style="padding:5px 8px;margin-bottom:0">
-            <option value="No">No</option>
-            <option value="Yes">Yes</option>
-            <option value="Transferred to next stage">Transferred</option>
-          </select>
-        </div>
-        <div style="grid-column:1/-1">
-          <label class="flabel">Update or Reply</label>
-          <textarea class="finput" id="er-reply" style="height:52px;resize:none;margin-bottom:0"></textarea>
-        </div>
-        <div style="grid-column:1/-1">
-          <label class="flabel">Notes</label>
-          <input class="finput" id="er-notes" style="margin-bottom:0">
-        </div>
-      </div>
-    </div>
-    <div class="mfoot">
-      <button class="hbtn outline" onclick="closeM('memma-row')">Cancel</button>
-      <button class="hbtn primary" onclick="saveEmmaRow()">Save</button>
-    </div>
-  </div>
-</div>
-
 <!-- KEYBOARD SHORTCUTS MODAL -->
 <div class="overlay" id="mkeys">
   <div class="modal">
@@ -997,7 +818,7 @@
     <div class="mfoot" style="justify-content:space-between">
       <span id="check-summary" style="font-size:12px;Color:var(--gray-500)"></span>
       <div style="display:flex;gap:8px">
-        <button class="hbtn outline" onclick="addAllCheckFindings()" id="check-add-btn" style="display:none">Add All as EMMA Comments</button>
+        <button class="hbtn outline" onclick="addAllCheckFindings()" id="check-add-btn" style="display:none">Add All as Comments</button>
         <button class="hbtn outline" onclick="addAllSpellSuggestions()" id="spell-add-btn" style="display:none">Add All as Comments</button>
         <button class="hbtn primary" onclick="closeM('mcheck')">Close</button>
       </div>
@@ -1063,22 +884,6 @@
   </div>
 </div>
 
-<!-- EMMA SHEET EXPORT MODAL -->
-<div class="overlay" id="memma">
-  <div class="modal" style="width:400px">
-    <div class="mhead"><span class="mtitle">Download EMMA Checksheet</span><button class="mclose" onclick="closeM('memma')">✕</button></div>
-    <div class="mbody">
-      <p style="font-size:13px;Color:var(--gray-600);margin-bottom:12px">Writes your comments into the <strong>Checking Review</strong> and <strong>Document Check Sheet</strong> tabs of the Amey EMMa Checksheet.</p>
-      <div id="emma-export-summary" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:10px;font-size:12px;Color:var(--gray-700);line-height:1.8;font-family:var(--mono)"></div>
-      <div id="emma-template-status" style="margin-top:10px;padding:8px 10px;border-radius:var(--radius-sm);font-size:12px;font-weight:500"></div>
-    </div>
-    <div class="mfoot">
-      <button class="hbtn outline" onclick="closeM('memma')">Cancel</button>
-      <button class="hbtn primary" onclick="exportEmma()">Download Checksheet</button>
-    </div>
-  </div>
-</div>
-
 <!-- AUTHOR NAME MODAL -->
 <div id="mau" class="overlay">
   <div class="modal">
@@ -1140,43 +945,7 @@
     </div>
     <div id="tpl-list" style="padding:4px 0"></div>
   </div>
-  <div id="emma-fields" style="display:none;margin-top:6px;border-top:1px solid var(--gray-200);padding-top:8px">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
-      <div>
-        <div style="font-size:9px;font-weight:600;Color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Discipline</div>
-        <select id="pop-discipline" style="width:100%;font-family:var(--font);font-size:12px;border:1px solid var(--gray-300);border-radius:3px;padding:4px 6px;background:var(--white)">
-          <option value="">—</option>
-          <option>Structural</option><option>Civil</option><option>Mechanical</option>
-          <option>Electrical</option><option>Plumbing</option><option>Fire</option>
-          <option>Architecture</option><option>Landscape</option><option>Other</option>
-        </select>
-      </div>
-      <div>
-        <div style="font-size:9px;font-weight:600;Color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Priority</div>
-        <select id="pop-priority" style="width:100%;font-family:var(--font);font-size:12px;border:1px solid var(--gray-300);border-radius:3px;padding:4px 6px;background:var(--white)">
-          <option value="">—</option>
-          <option value="Critical">🔴 Critical</option>
-          <option value="Major">🟠 Major</option>
-          <option value="Minor">🟡 Minor</option>
-          <option value="Info">🔵 Info</option>
-        </select>
-      </div>
-    </div>
-    <div style="margin-bottom:6px">
-      <div style="font-size:9px;font-weight:600;Color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Grid Ref / Location</div>
-      <input id="pop-gridref" style="width:100%;font-family:var(--font);font-size:12px;border:1px solid var(--gray-300);border-radius:3px;padding:4px 6px" placeholder="e.g. B3 / Level 2 / Grid 4-5">
-    </div>
-    <div>
-      <div style="font-size:9px;font-weight:600;Color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Action Required</div>
-      <input id="pop-action" style="width:100%;font-family:var(--font);font-size:12px;border:1px solid var(--gray-300);border-radius:3px;padding:4px 6px" placeholder="e.g. Revise detail, Confirm specification…">
-    </div>
-  </div>
   <div class="pop-row" style="margin-top:8px">
-    <button class="hbtn outline" style="padding:5px 11px;font-size:12px;margin-right:auto" id="emma-toggle-btn" onclick="toggleEmmaFields()">+ EMMA fields</button>
-    <label style="display:flex;align-items:center;gap:5px;font-size:11px;Color:var(--gray-600);cursor:pointer;user-select:none">
-      <input type="checkbox" id="pop-emma-include" checked style="width:13px;height:13px;accent-Color:var(--blue-500)">
-      EMMA
-    </label>
     <button class="hbtn outline" style="padding:5px 11px;font-size:12px" onclick="txtPopCancel()">Cancel</button>
     <button class="hbtn primary" style="padding:5px 11px;font-size:12px" onclick="txtPopConfirm()">Add</button>
   </div>

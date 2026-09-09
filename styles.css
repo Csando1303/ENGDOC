@@ -471,9 +471,11 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
   display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;
   transition:width .2s}
 .stabs{display:flex;border-bottom:1px solid var(--gray-200)}
-.stab{flex:1;padding:10px 0;font-size:11px;font-weight:500;text-align:center;cursor:pointer;
+.stab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  padding:7px 2px;font-size:9.5px;font-weight:500;cursor:pointer;
   Color:var(--gray-500);border-bottom:2px solid transparent;background:none;white-space:nowrap;
   border-top:none;border-left:none;border-right:none;font-family:var(--font);transition:Color .12s}
+.stab svg{width:15px;height:15px;flex-shrink:0;pointer-events:none}
 .stab:hover{Color:var(--gray-700)}
 .stab.active{Color:var(--blue-600);border-bottom-Color:var(--blue-500)}
 .spanel{flex:1;overflow-y:auto;padding:10px 8px}

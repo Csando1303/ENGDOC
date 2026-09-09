@@ -3039,11 +3039,14 @@ document.addEventListener('keydown', e => {
     if (toolKeys[e.key.toLowerCase()]) { setTool(toolKeys[e.key.toLowerCase()]); return; }
     if (e.key === '[') { toggleSidebar(); return; }
   }
-  // Alt+1/2/3 — switch ribbon tabs
+  // Alt+1..6 — switch ribbon tabs
   if (e.altKey && !inInput) {
-    if (e.key === '1') { e.preventDefault(); switchRibbon('file',   document.getElementById('rtab-file'));   return; }
-    if (e.key === '2') { e.preventDefault(); switchRibbon('markup', document.getElementById('rtab-markup')); return; }
-    if (e.key === '3') { e.preventDefault(); switchRibbon('review', document.getElementById('rtab-review')); return; }
+    if (e.key === '1') { e.preventDefault(); switchRibbon('file',    document.getElementById('rtab-file'));    return; }
+    if (e.key === '2') { e.preventDefault(); switchRibbon('markup',  document.getElementById('rtab-markup'));  return; }
+    if (e.key === '3') { e.preventDefault(); switchRibbon('measure', document.getElementById('rtab-measure')); return; }
+    if (e.key === '4') { e.preventDefault(); switchRibbon('forms',   document.getElementById('rtab-forms'));   return; }
+    if (e.key === '5') { e.preventDefault(); switchRibbon('review',  document.getElementById('rtab-review'));  return; }
+    if (e.key === '6') { e.preventDefault(); switchRibbon('protect', document.getElementById('rtab-protect')); return; }
   }
 });
 
@@ -7857,9 +7860,10 @@ const TOOL_HINTS = {
 const TOOL_TABS = {
   pan:'markup', select:'markup', erase:'markup', zoombox:'markup',
   highlight:'markup', texthighlight:'markup', rect:'markup', rectfill:'markup', circle:'markup',
-  strike:'markup', line:'markup', text:'markup',
+  strike:'markup', line:'markup', text:'markup', redact:'markup', link:'markup',
   pen:'markup', arrow:'markup', cloud:'markup',
-  measure:'markup', area:'markup',
+  measure:'measure', area:'measure', tableextract:'measure',
+  formtext:'forms', formcheckbox:'forms',
 };
 
 function switchRibbon(tab, btn) {

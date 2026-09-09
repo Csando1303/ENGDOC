@@ -5480,6 +5480,7 @@ async function saveSessionWithPdf() {
   const data = { v: 3, pdfName, annotIdSeq, measureScale, pageDimsPt: pdfPageDimsPt, annots, bookmarks, pdfData: b64 };
   const filename = _loadedEngdocName || (pdfName ? pdfName.replace(/\.pdf$/i,'') : 'session') + '.engdoc';
   const ok = await _saveToHandle(data, filename);
+  const sizeMb = (b64.length / 1024 / 1024).toFixed(1);
   if (ok) toast(`✓ Saved with embedded PDF — ${sizeMb} MB`);
 }
 

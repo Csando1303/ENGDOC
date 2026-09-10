@@ -6703,11 +6703,69 @@ async function compressPdf() {
 }
 
 /* ═══════════════════════════════════════════════
+   EXTRACT TABLE BY TEXT
+   Finds a page (or run of pages) inside a PDF by an
+   anchor line of text — e.g. a report title that only
+   appears on the first page of a table — and pulls
+   just those pages out into their own PDF. Used from
+   Batch Process to find the same table across many
+   different source PDFs at once.
+
+   Multi-page tables are auto-detected via a "Page X of
+   Y" footer near the anchor: if found, the whole run of
+   Y pages (from the one showing "Page 1") is extracted;
+   otherwise only the single matched page is taken.
+═══════════════════════════════════════════════ */
+async function _extractTableMatches(bytes, opts) {
+  const searchText = opts.searchText.trim().toLowerCase();
+  await loadPdfLib();
+  const { PDFDocument } = PDFLib;
+  const srcDoc = await PDFDocument.load(bytes);
+
+  const doc = await pdfjsLib.getDocument({ data: bytes.slice(0), verbosityLevel: 0 }).promise;
+  const numPages = doc.numPages;
+  const results = [];
+  const consumed = new Set();
+
+  try {
+    for (let p = 1; p <= numPages; p++) {
+      if (consumed.has(p)) continue;
+      const page = await doc.getPage(p);
+      const tc = await page.getTextContent();
+      const pageText = tc.items.map(it => it.str).join(' ');
+      if (!pageText.toLowerCase().includes(searchText)) continue;
+
+      let start = p, end = p;
+      const pn = pageText.match(/Page\s+(\d+)\s+of\s+(\d+)/i);
+      if (pn) {
+        const k = parseInt(pn[1], 10), total = parseInt(pn[2], 10);
+        if (total >= 1 && k >= 1) {
+          start = Math.max(1, p - (k - 1));
+          end = Math.min(numPages, start + total - 1);
+        }
+      }
+      for (let i = start; i <= end; i++) consumed.add(i);
+
+      const outDoc = await PDFDocument.create();
+      const indices = [];
+      for (let i = start; i <= end; i++) indices.push(i - 1);
+      const copied = await outDoc.copyPages(srcDoc, indices);
+      copied.forEach(pg => outDoc.addPage(pg));
+      results.push({ start, end, bytes: await outDoc.save() });
+    }
+  } finally {
+    try { await doc.destroy(); } catch (e) {}
+  }
+
+  return results;
+}
+
+/* ═══════════════════════════════════════════════
    BATCH PROCESS
-   Runs Watermark/Protect/Compress across many PDF
-   files picked from disk at once — none of them need
-   to be opened as the app's live document. Reuses the
-   exact same _watermarkBytes/_protectBytes/_compressBytes
+   Runs Watermark/Protect/Compress/Extract across many
+   PDF files picked from disk at once — none of them
+   need to be opened as the app's live document. Reuses
+   the exact same _watermarkBytes/_protectBytes/_compressBytes
    cores the single-document tools use, so behaviour
    never drifts between the two. Output is a single
    ZIP download (via a lazy-loaded JSZip).
@@ -6731,11 +6789,13 @@ function dlBlob(bytes, name, mime) {
 }
 
 function onBatchFilesSelected(e) {
-  batchFiles = Array.from(e.target.files);
+  // Folder picks (webkitdirectory) return every file under the folder tree,
+  // so filter down to PDFs; plain file picks are already accept=".pdf"-scoped.
+  batchFiles = Array.from(e.target.files).filter(f => /\.pdf$/i.test(f.name));
   document.getElementById('batch-count').textContent =
-    batchFiles.length ? `${batchFiles.length} file${batchFiles.length !== 1 ? 's' : ''} selected` : 'Click to select PDF files';
+    batchFiles.length ? `${batchFiles.length} PDF${batchFiles.length !== 1 ? 's' : ''} selected` : 'No PDFs found in selection';
   document.getElementById('batch-file-list').innerHTML =
-    batchFiles.map((f, i) => `<div class="frow">${i + 1}. ${escHtml(f.name)}</div>`).join('');
+    batchFiles.map((f, i) => `<div class="frow">${i + 1}. ${escHtml(f.webkitRelativePath || f.name)}</div>`).join('');
 }
 
 function onBatchActionChange() {
@@ -6749,7 +6809,7 @@ async function runBatchProcess() {
   if (!batchFiles.length) { toast('Select PDF files first'); return; }
   const action = document.getElementById('batch-action').value;
 
-  let wmOpts = null, protOpts = null, compressOpts = null;
+  let wmOpts = null, protOpts = null, compressOpts = null, extractOpts = null;
   if (action === 'watermark') {
     wmOpts = {
       wmText: document.getElementById('batch-wm-text').value.trim(),
@@ -6764,6 +6824,10 @@ async function runBatchProcess() {
     protOpts = { userPw: pw, ownerPw: pw, algorithm: 'AES-256', allowPrint: true, allowCopy: true, allowModify: false };
   } else if (action === 'compress') {
     compressOpts = { dpi: parseInt(document.getElementById('batch-compress-dpi').value), quality: 0.7, useLiveDoc: false };
+  } else if (action === 'extract') {
+    const searchText = document.getElementById('batch-extract-text').value.trim();
+    if (!searchText) { toast('Enter the line of text that identifies the table first'); return; }
+    extractOpts = { searchText };
   }
 
   const runBtn = document.getElementById('batch-run-btn'), cancelBtn = document.getElementById('batch-cancel-btn');
@@ -6782,7 +6846,20 @@ async function runBatchProcess() {
       bar.style.width = Math.round((i / batchFiles.length) * 100) + '%';
       try {
         const inBytes = await file.arrayBuffer();
-        const base = file.name.replace(/\.pdf$/i, '');
+        // Preserve subfolder structure in the zip (and avoid name collisions
+        // between same-named files in different subfolders) when the files
+        // came from a folder pick.
+        const base = (file.webkitRelativePath || file.name).replace(/\.pdf$/i, '');
+        if (action === 'extract') {
+          const matches = await _extractTableMatches(inBytes, extractOpts);
+          if (!matches.length) { console.warn('[EngDoc] batch extract: no match in', file.name); failed++; continue; }
+          matches.forEach((m, idx) => {
+            const suffix = matches.length > 1 ? `_table${idx + 1}` : '_table';
+            zip.file(`${base}${suffix}_p${m.start}-${m.end}.pdf`, m.bytes);
+          });
+          ok++;
+          continue;
+        }
         let outBytes, suffix;
         if (action === 'watermark') {
           outBytes = await _watermarkBytes(inBytes, { ...wmOpts, filenameNoExt: base, start: i + 1 });

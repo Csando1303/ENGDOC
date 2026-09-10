@@ -483,7 +483,7 @@
       </div>
       <div class="rgroup">
         <div class="rgroup-btns">
-          <button class="rbtn lg" onclick="openM('mbatch')" data-tip="Apply watermark, protect, or compress to many PDF files at once — downloads a ZIP">
+          <button class="rbtn lg" onclick="openM('mbatch')" data-tip="Apply watermark, protect, compress, or extract a table by text to many PDF files at once — downloads a ZIP">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="9" height="9" rx="1"/><rect x="13" y="6" width="9" height="9" rx="1"/><rect x="2" y="17" width="9" height="4" rx="1"/><rect x="13" y="17" width="9" height="4" rx="1"/></svg>
             <span class="rbtn-label">Batch<br>Process</span>
           </button>
@@ -1320,11 +1320,19 @@
     <div class="mhead"><span class="mtitle">Batch Process</span><button class="mclose" onclick="closeM('mbatch')">✕</button></div>
     <div class="mbody">
       <label class="flabel">PDF files</label>
-      <div class="fdrop" onclick="document.getElementById('batch-file-input').click()">
-        <input type="file" id="batch-file-input" accept=".pdf" multiple style="display:none" onchange="onBatchFilesSelected(event)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="22" height="22" style="margin-bottom:6px;Color:var(--gray-400)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <div id="batch-count">Click to select PDF files</div>
+      <div style="display:flex;gap:8px">
+        <div class="fdrop" style="flex:1" onclick="document.getElementById('batch-file-input').click()">
+          <input type="file" id="batch-file-input" accept=".pdf" multiple style="display:none" onchange="onBatchFilesSelected(event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="22" height="22" style="margin-bottom:6px;Color:var(--gray-400)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div>Click to select files</div>
+        </div>
+        <div class="fdrop" style="flex:1" onclick="document.getElementById('batch-folder-input').click()">
+          <input type="file" id="batch-folder-input" webkitdirectory directory multiple style="display:none" onchange="onBatchFilesSelected(event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="22" height="22" style="margin-bottom:6px;Color:var(--gray-400)"><path d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+          <div>Click to select a folder</div>
+        </div>
       </div>
+      <div id="batch-count" style="margin-top:6px;font-size:12px;Color:var(--gray-500)">No files selected</div>
       <div class="flist" id="batch-file-list"></div>
 
       <label class="flabel" style="margin-top:6px">Action to apply to every file</label>
@@ -1332,6 +1340,7 @@
         <option value="watermark">Watermark &amp; Numbering</option>
         <option value="protect">Protect (Password)</option>
         <option value="compress">Compress</option>
+        <option value="extract">Extract Table by Text</option>
       </select>
 
       <div id="batch-fields-watermark" class="batch-action-fields">
@@ -1354,6 +1363,12 @@
           <option value="110">110 DPI</option>
           <option value="85">85 DPI</option>
         </select>
+      </div>
+
+      <div id="batch-fields-extract" class="batch-action-fields" style="display:none">
+        <label class="flabel">Line of text that identifies the table</label>
+        <input class="finput" id="batch-extract-text" placeholder="e.g. National Hazard Directory - Customised Report">
+        <div class="hint">Matched case-insensitively against each page's text. The page containing it is extracted; if a "Page X of Y" footer is found nearby, the whole Y-page table is pulled out. Files with no match are skipped.</div>
       </div>
 
       <div id="batch-progress-wrap" style="display:none;margin-top:12px">

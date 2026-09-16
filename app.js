@@ -5553,6 +5553,25 @@ async function loadSession(e) {
 }
 
 /* ═══════════════════════════════════════════════
+   PWA FILE HANDLING — double-clicking a .engdoc file
+   (once EngDoc is installed as a PWA and associated with
+   the extension) launches the app and lands here instead
+   of at a blank tab. Chromium-only (Edge/Chrome); other
+   browsers just never fire this and behave as before.
+═══════════════════════════════════════════════ */
+if ('launchQueue' in window) {
+  window.launchQueue.setConsumer(async (launchParams) => {
+    if (!launchParams.files || !launchParams.files.length) return;
+    const fileHandle = launchParams.files[0];
+    const file = await fileHandle.getFile();
+    await loadSession({ target: { files: [file], value: '' }, _fileHandle: fileHandle });
+  });
+}
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {}); // installability only — safe to ignore failures
+}
+
+/* ═══════════════════════════════════════════════
    EXPORT ANNOTATED PDF
    Burns all annotations onto the PDF pages using
    pdf-lib so the result is viewable in any PDF

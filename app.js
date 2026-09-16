@@ -2438,6 +2438,14 @@ function attachEvents(ov, pageNum, _vpInitial) {
     // Select tool handled by attachSelectEvents above
     if (tool === 'select') return;
 
+    // Text under the cursor takes priority over whatever the active tool
+    // would otherwise do with this drag (pan-scroll, draw a shape, etc.) —
+    // except the highlighters, which are meant to draw directly on text.
+    if (!TEXT_PRIORITY_EXCLUDED_TOOLS.has(tool) && _hitTextItemAt(pageNum, ov, e.clientX, e.clientY)) {
+      _selStart(e, pageNum, ov);
+      return;
+    }
+
     // ── PAN: always scrolls — .ann-move-overlay stopPropagation prevents this when dragging annotation ──
     if (tool === 'pan') {
       panDragging = true;
@@ -9648,7 +9656,9 @@ let _selState = null; // { pageNum, ov, svgEl, rectEl, x0, y0 }
 let _selHits  = [];   // currently highlighted text items
 
 function _selStart(ev, pageNum, ov) {
-  if (tool !== 'select') return;
+  // Callers (attachSelectEvents for the Select tool, the text-priority hijack
+  // in attachEvents for every other tool) already decide whether a text
+  // selection should start here — no tool check needed in this function.
   if (ev.button !== 0) return;
   ev.preventDefault();
   ev.stopPropagation();
@@ -9672,11 +9682,14 @@ function _selStart(ev, pageNum, ov) {
   svgEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:5';
   ov.appendChild(svgEl);
 
-  _selState = { pageNum, ov, svgEl, rectEl, x0, y0, x1: x0, y1: y0 };
+  // A plain click with no drag only selects a word in the dedicated Select
+  // tool — everywhere else that's a no-op (matching normal apps: a bare
+  // click doesn't select text, only a drag or a double-click does).
+  _selState = { pageNum, ov, svgEl, rectEl, x0, y0, x1: x0, y1: y0, clickSelectOK: tool === 'select' };
 }
 
 function _selMove(ev) {
-  if (!_selState || tool !== 'select') return;
+  if (!_selState) return;
   const { ov, rectEl, x0, y0 } = _selState;
   const r = ov.getBoundingClientRect();
   const x1 = ev.clientX - r.left;
@@ -9693,24 +9706,21 @@ function _selMove(ev) {
 }
 
 function _selEnd(ev) {
-  if (!_selState || tool !== 'select') return;
+  if (!_selState) return;
 
   _selHighlight(_selState);
-
-  // Sort hits into reading order: top-to-bottom, then left-to-right within each line.
-  // PDF extraction order is draw order, not reading order — this is why text copies backwards.
-  const LINE_THRESHOLD = 0.6; // fraction of avg font height — items within this are on the same line
-  const readingOrder = [..._selHits].sort((a, b) => {
-    const avgH = ((a.h || 12) + (b.h || 12)) / 2;
-    const lineDiff = (a.y - b.y) / avgH;
-    if (Math.abs(lineDiff) > LINE_THRESHOLD) return a.y - b.y; // different lines: top first
-    return a.x - b.x; // same line: left to right
-  });
-  const text = readingOrder.map(h => h.str).join(' ').replace(/\s+/g, ' ').trim();
 
   // Tiny drag with no hits = click = try to select the item under the cursor
   const isDot = Math.abs(_selState.x1 - _selState.x0) < 4 &&
                 Math.abs(_selState.y1 - _selState.y0) < 4;
+
+  if (isDot && !_selState.clickSelectOK) {
+    // Plain click outside the Select tool — no-op, let the click through
+    // as whatever it would normally have been (double-click still selects).
+    _selClear();
+    _selState = null;
+    return;
+  }
 
   if (isDot) {
     // Point-select: find the single text item the cursor is over
@@ -9755,17 +9765,24 @@ function _selEnd(ev) {
   rectEl.style.borderColor = 'rgba(37,99,235,0.35)';
   rectEl.style.background  = 'rgba(37,99,235,0.04)';
 
-  // Copy to clipboard
-  navigator.clipboard.writeText(text)
-    .then(() => toast('Copied ' + text.length + ' chars · drag to reselect · Esc to clear', 2800))
-    .catch(() => {
-      const ta = document.createElement('textarea');
-      ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
-      document.body.appendChild(ta); ta.focus(); ta.select();
-      try { document.execCommand('copy'); toast('Copied · Esc to clear', 2400); }
-      catch(e) { toast('Press Ctrl+C to copy selection', 2400); }
-      ta.remove();
-    });
+  // Sort hits into reading order (computed AFTER any point-select override
+  // above, so this always reflects what's actually highlighted) — top-to-
+  // bottom, then left-to-right within each line. PDF extraction order is
+  // draw order, not reading order, which is why unsorted text copies
+  // backwards.
+  const LINE_THRESHOLD = 0.6; // fraction of avg font height — items within this are on the same line
+  const readingOrder = [..._selHits].sort((a, b) => {
+    const avgH = ((a.h || 12) + (b.h || 12)) / 2;
+    const lineDiff = (a.y - b.y) / avgH;
+    if (Math.abs(lineDiff) > LINE_THRESHOLD) return a.y - b.y; // different lines: top first
+    return a.x - b.x; // same line: left to right
+  });
+  const text = readingOrder.map(h => h.str).join(' ').replace(/\s+/g, ' ').trim();
+
+  // Highlight now, copy on Ctrl+C — same as double-click word select, and
+  // avoids silently overwriting the clipboard on every drag that happens to
+  // start on text while some other tool is active.
+  toast((isDot ? 'Selected word' : 'Selected ' + text.length + ' chars') + ' · Ctrl+C to copy · Esc to clear', 2400);
 
   _selState = null; // clear state ref but leave DOM elements for visual feedback
 }
@@ -9852,6 +9869,23 @@ function _selClear() {
   _selHits = [];
 }
 
+// Tools where text selection should NOT take priority over the tool's own
+// click/drag: Highlight/Text Highlight draw directly on top of text by
+// design (that's the whole point of a highlighter); Text/Form Checkbox/
+// Count/Measure are click-only (or click-click-click) tools that place
+// something exactly where you click, including on top of existing text —
+// hijacking that click for selection would silently eat it and place
+// nothing. Every other tool lets text selection win when a drag starts on
+// text.
+const TEXT_PRIORITY_EXCLUDED_TOOLS = new Set(['highlight', 'texthighlight', 'text', 'formcheckbox', 'count', 'measure']);
+
+function _hitTextItemAt(pageNum, ov, clientX, clientY) {
+  const r = ov.getBoundingClientRect();
+  const cx = clientX - r.left, cy = clientY - r.top;
+  const items = _pageTextItems[pageNum] || [];
+  return items.find(item => _rectHitsItem(cx - 2, cy - 2, 4, 4, item));
+}
+
 // Wire up select events to page overlays on each render
 // Called from attachEvents in renderPageContent
 function attachSelectEvents(ov, pageNum) {
@@ -9859,7 +9893,86 @@ function attachSelectEvents(ov, pageNum) {
     if (tool !== 'select') return;
     _selStart(ev, pageNum, ov);
   });
+  ov.addEventListener('dblclick', ev => {
+    if (TEXT_PRIORITY_EXCLUDED_TOOLS.has(tool)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    _selWordAt(ev, pageNum, ov);
+  });
+  // Hover feedback: show a text cursor whenever the pointer is over a text
+  // item, regardless of the active tool (except the highlighters, whose own
+  // crosshair cursor should stay put since they always draw on the text).
+  ov.addEventListener('mousemove', ev => {
+    if (_selState || TEXT_PRIORITY_EXCLUDED_TOOLS.has(tool)) { ov.classList.remove('text-hover'); return; }
+    const hit = _hitTextItemAt(pageNum, ov, ev.clientX, ev.clientY);
+    ov.classList.toggle('text-hover', !!hit);
+  });
+  ov.addEventListener('mouseleave', () => ov.classList.remove('text-hover'));
 }
+
+// Double-click: highlight the single text item under the cursor without
+// copying it yet — Ctrl+C (below) does the actual copy, matching normal
+// desktop double-click-then-copy text selection behaviour.
+function _selWordAt(ev, pageNum, ov) {
+  _selClear();
+
+  const hit = _hitTextItemAt(pageNum, ov, ev.clientX, ev.clientY);
+  if (!hit) return;
+  const r = ov.getBoundingClientRect();
+  const cx = ev.clientX - r.left;
+  const cy = ev.clientY - r.top;
+
+  const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svgEl.dataset.selSvg = '1';
+  svgEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:5';
+  ov.appendChild(svgEl);
+
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('class', 'sel-hit');
+  rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
+  rect.setAttribute('width', hit.w.toFixed(1)); rect.setAttribute('height', hit.h.toFixed(1));
+  const tx = hit.x, ty = hit.y - hit.h;
+  const deg = hit.angle * 180 / Math.PI;
+  rect.setAttribute('transform',
+    'translate(' + tx.toFixed(1) + ',' + ty.toFixed(1) + ')' +
+    (deg !== 0 ? ' rotate(' + deg.toFixed(2) + ')' : '')
+  );
+  svgEl.appendChild(rect);
+
+  _selHits = [hit];
+  _selState = { pageNum, ov, svgEl, rectEl: { remove(){} }, x0: cx, y0: cy, x1: cx, y1: cy };
+  toast('Selected "' + hit.str.trim() + '" · Ctrl+C to copy · Esc to clear', 2200);
+}
+
+// Ctrl+C: copy whatever _selHits currently holds (from a double-click word
+// select, or left over from a drag-select). Falls through to the browser's
+// own copy when there's no active text selection, so this never steals
+// Ctrl+C from inputs/textareas or other in-app copy behaviour.
+document.addEventListener('keydown', ev => {
+  if (!(ev.ctrlKey || ev.metaKey) || ev.key.toLowerCase() !== 'c') return;
+  if (!_selHits.length) return;
+  if (ev.target.closest('input,textarea,select')) return;
+
+  const readingOrder = [..._selHits].sort((a, b) => {
+    const avgH = ((a.h || 12) + (b.h || 12)) / 2;
+    const lineDiff = (a.y - b.y) / avgH;
+    if (Math.abs(lineDiff) > 0.6) return a.y - b.y;
+    return a.x - b.x;
+  });
+  const text = readingOrder.map(h => h.str).join(' ').replace(/\s+/g, ' ').trim();
+  if (!text) return;
+  ev.preventDefault();
+
+  navigator.clipboard.writeText(text)
+    .then(() => toast('Copied ' + text.length + ' chars', 2000))
+    .catch(() => {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      try { document.execCommand('copy'); toast('Copied', 1800); } catch(e) {}
+      ta.remove();
+    });
+});
 
 // Global mousemove and mouseup for the drag (works even if mouse leaves overlay)
 document.addEventListener('mousemove', ev => { if (_selState) _selMove(ev); });
@@ -10392,8 +10505,8 @@ document.addEventListener('keydown', ev => {
   if (ev.key === 'Escape') {
     _mqStart = null;
     document.getElementById('zoom-marquee').style.display = 'none';
+    if (_selHits.length) clearTextSelection(); // clears a double-click word highlight even in pan mode
     if (tool === 'select' || tool === 'zoombox') {
-      clearTextSelection();
       setTool('pan');
     }
   }

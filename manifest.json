@@ -8,16 +8,20 @@
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "file_handlers": [
     {
       "action": "./index.html",
       "accept": {
         "application/json": [".engdoc"]
-      }
+      },
+      "icons": [
+        { "src": "icons/file-icon-192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "icons/file-icon-512.png", "sizes": "512x512", "type": "image/png" }
+      ]
     }
   ]
 }

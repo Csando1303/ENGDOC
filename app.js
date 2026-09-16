@@ -1598,6 +1598,14 @@ async function renderPageContent(pageNum) {
   canvas.style.height = '';
 }
 
+// Set by a cursor/marquee zoom just before calling applyZoom() so
+// rerenderAll() can restore the exact same content point under the same
+// screen point once the real re-render lands, instead of unconditionally
+// snapping to the top of the current page (which was overriding the
+// careful cursor-relative math ~250ms later and showing up as a jump/jitter
+// on every zoom step).
+let _zoomAnchor = null;
+
 async function rerenderAll() {
   if (!pdf) return;
   const savedPg = curPg;
@@ -1634,12 +1642,27 @@ async function rerenderAll() {
   // Yield once with setTimeout(0) so the CSS scale preview above can paint before
   // the first rAF render fires. Without this yield the preview and the hi-res render
   // race and the user sees neither improvement.
+  const anchor = _zoomAnchor;
+  _zoomAnchor = null;
+
   setTimeout(() => {
     scheduleRender();
     // Ensure scroll position after render
     requestAnimationFrame(() => {
-      const el = document.getElementById('pw-' + savedPg);
-      if (el) el.scrollIntoView({ block: 'start' });
+      if (anchor) {
+        // The caller (Ctrl+Wheel / marquee zoom) already computed the exact
+        // scrollLeft/scrollTop that keeps its anchor point fixed on screen
+        // and applied it immediately for instant feedback — just re-apply
+        // the same values verbatim now that the real layout exists, instead
+        // of recomputing (each rapid wheel tick already folds the previous
+        // tick's adjustment in, so re-scaling here would double-count it).
+        const viewer = document.getElementById('viewer');
+        viewer.scrollLeft = anchor.scrollLeft;
+        viewer.scrollTop  = anchor.scrollTop;
+      } else {
+        const el = document.getElementById('pw-' + savedPg);
+        if (el) el.scrollIntoView({ block: 'start' });
+      }
     });
   }, 0);
 }
@@ -2232,6 +2255,28 @@ function scrollToPage(n) {
 function changePage(d) { scrollToPage(Math.max(1, Math.min(nPages, curPg + d))); }
 function jumpTo(v) { const p = parseInt(v); if (p >= 1 && p <= nPages) scrollToPage(p); }
 
+// Text/Form Text annotations store fontSize as a document-relative size
+// (like choosing "12pt" in a word processor) but render it as a raw CSS px
+// value — since their x/y/w/h are %, those already scale with zoom
+// automatically via layout, but a fixed px font-size does not, so the text
+// visibly shrinks relative to its box (and the drawing) as you zoom in and
+// balloons as you zoom out. Re-applying fontSize*zoom after every zoom
+// change keeps the note the same size relative to the drawing, matching
+// how real PDF annotation text behaves. Cheap DOM writes only — no rebuild.
+function _rescaleAnnotFonts() {
+  annots.forEach(a => {
+    if (a.fontSize == null) return;
+    const el = document.querySelector('.aoverlay [data-aid="' + a.id + '"]');
+    if (!el) return;
+    if (a.type === 'formtext') {
+      const inp = el.querySelector('.aformtext-input');
+      if (inp) inp.style.fontSize = (a.fontSize * zoom) + 'px';
+    } else {
+      el.style.fontSize = (a.fontSize * zoom) + 'px';
+    }
+  });
+}
+
 let _zoomTimer = null;
 async function applyZoom(val) {
   if (!pdf) return;
@@ -2249,6 +2294,10 @@ async function applyZoom(val) {
   if (sbZoom) sbZoom.innerHTML = '<div class="sbdot b"></div>' + pct;
   const mobLabel = document.getElementById('mob-zoom-label');
   if (mobLabel) mobLabel.textContent = pct;
+
+  // Instant — doesn't need to wait for the debounced hi-res re-render below,
+  // since it's just a style write on elements that already exist.
+  _rescaleAnnotFonts();
 
   // Debounce the actual re-render — 150ms collapses rapid changes
   clearTimeout(_zoomTimer);
@@ -4175,7 +4224,7 @@ function buildAnnotEl(a) {
     const txtC = colorHex(a.Color);
     const txtBox = a.box !== false;
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;Color:${txtC};` +
-      `font-size:${a.fontSize || 13}px;opacity:${(a.opacity ?? 100) / 100};` +
+      `font-size:${(a.fontSize || 13) * zoom}px;opacity:${(a.opacity ?? 100) / 100};` +
       `display:flex;flex-direction:column;justify-content:${vAlignCss(a.vAlign)};` +
       (txtBox ? `border:1.5px solid ${txtC};border-radius:3px;background:${a.replacesText ? '#fff' : 'rgba(255,255,255,.85)'}` : 'border:none;background:none') +
       (a.w !== undefined ? `;width:${a.w}%;min-width:0;max-width:none` : '') +
@@ -4224,7 +4273,7 @@ function buildAnnotEl(a) {
     inp.className = 'aformtext-input';
     inp.value = a.value || '';
     inp.placeholder = a.name || '';
-    inp.style.fontSize = (a.fontSize || 11) + 'px';
+    inp.style.fontSize = ((a.fontSize || 11) * zoom) + 'px';
     inp.addEventListener('mousedown', ev => ev.stopPropagation());
     inp.addEventListener('click', ev => ev.stopPropagation());
     inp.addEventListener('input', () => { a.value = inp.value; });
@@ -9068,9 +9117,12 @@ function initMarqueeZoom() {
     const scale = newZoom / zoom;
     await applyZoom(String(Math.round(newZoom * 100) / 100));
 
-    // After re-render, scroll so selection centre is in the viewport centre
+    // After re-render, scroll so selection centre is in the viewport centre.
+    // Stashed as the zoom anchor too, so rerenderAll's debounced real render
+    // re-applies this exact value instead of snapping to the page top.
     viewer.scrollLeft = centreX * scale - vr.width  / 2;
     viewer.scrollTop  = centreY * scale - vr.height / 2;
+    _zoomAnchor = { scrollLeft: viewer.scrollLeft, scrollTop: viewer.scrollTop };
 
     // Drop back to pan
     setTool('pan');
@@ -9091,8 +9143,15 @@ document.getElementById('viewer').addEventListener('wheel', async e => {
   const newZoom = Math.max(0.2, Math.min(8, zoom * factor));
   const scale = newZoom / zoom;
   await applyZoom(String(Math.round(newZoom * 100) / 100));
+  // Instant preview scroll, using the current (not-yet-relaid-out) DOM —
+  // stashed as the zoom anchor too, so rerenderAll's debounced real render
+  // re-applies this exact value instead of snapping to the page top. Each
+  // rapid wheel tick (e.g. a trackpad pinch) recomputes this from the
+  // previous tick's own scrollLeft, so it stays correctly anchored to the
+  // cursor across a whole burst of ticks, not just the last one in isolation.
   viewer.scrollLeft = mouseX * scale - (e.clientX - vr.left);
   viewer.scrollTop  = mouseY * scale - (e.clientY - vr.top);
+  _zoomAnchor = { scrollLeft: viewer.scrollLeft, scrollTop: viewer.scrollTop };
 }, { passive: false });
 
 // ═══════════════════════════════════════════════
@@ -9388,7 +9447,7 @@ function showResizeHandles(el, a, ov) {
           domEl.style.top    = ann.y + '%';
           if (domEl.style.width  !== undefined) domEl.style.width  = ann.w + '%';
           if (domEl.style.height !== undefined) domEl.style.height = ann.h + '%';
-          if (origFontSize != null) domEl.style.fontSize = ann.fontSize + 'px';
+          if (origFontSize != null) domEl.style.fontSize = (ann.fontSize * zoom) + 'px';
           // A text box being resized for the first time still carries its
           // original CSS max-width:280px (only cleared on rebuild) — clear
           // it inline too so the live drag isn't clamped before that happens.

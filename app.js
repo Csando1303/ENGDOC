@@ -5564,7 +5564,11 @@ if ('launchQueue' in window) {
     if (!launchParams.files || !launchParams.files.length) return;
     const fileHandle = launchParams.files[0];
     const file = await fileHandle.getFile();
-    await loadSession({ target: { files: [file], value: '' }, _fileHandle: fileHandle });
+    if (file.name.toLowerCase().endsWith('.engdoc')) {
+      await loadSession({ target: { files: [file], value: '' }, _fileHandle: fileHandle });
+    } else {
+      await openFileAsNewTab(file); // plain PDF launched via file association
+    }
   });
 }
 if ('serviceWorker' in navigator) {

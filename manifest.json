@@ -22,6 +22,12 @@
         { "src": "icons/file-icon-192.png", "sizes": "192x192", "type": "image/png" },
         { "src": "icons/file-icon-512.png", "sizes": "512x512", "type": "image/png" }
       ]
+    },
+    {
+      "action": "./index.html",
+      "accept": {
+        "application/pdf": [".pdf"]
+      }
     }
   ]
 }

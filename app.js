@@ -1606,6 +1606,46 @@ async function renderPageContent(pageNum) {
 // on every zoom step).
 let _zoomAnchor = null;
 
+// Anchor by page-relative FRACTION, not by scaling absolute scroll pixels.
+// Pages are separated by a fixed-px gap/padding (see padTop/gap constants
+// elsewhere) that does NOT scale with zoom, so "multiply the whole scroll
+// offset by the zoom ratio" drifts more and more the further you are down a
+// multi-page document — that residual drift is what was still showing up as
+// jitter after the scrollIntoView fix. Expressing the anchor as "this
+// fraction across this specific page" and re-measuring that same page's
+// real DOM rect after the re-render sidesteps the gap math entirely.
+// (fromClientX,fromClientY) is the screen point to anchor on right now (e.g.
+// the cursor, or a marquee selection's centre); (toClientX,toClientY) is
+// where that same content point should end up on screen once the re-render
+// lands (the same spot, for cursor-zoom — the viewport centre, for marquee
+// zoom, since that gesture recentres on the selection).
+function _captureZoomAnchor(fromClientX, fromClientY, toClientX, toClientY) {
+  const wraps = document.querySelectorAll('.pwrap');
+  for (const wrap of wraps) {
+    const r = wrap.getBoundingClientRect();
+    if (fromClientY >= r.top && fromClientY <= r.bottom && r.height > 0 && r.width > 0) {
+      return {
+        pageNum: parseInt(wrap.id.slice(3), 10), // 'pw-<n>'
+        fracX: (fromClientX - r.left) / r.width,
+        fracY: (fromClientY - r.top) / r.height,
+        toClientX, toClientY,
+      };
+    }
+  }
+  return null; // anchor point is over a gap/margin, not a page — nothing to restore
+}
+
+function _restoreZoomAnchor(anchor) {
+  const wrap = document.getElementById('pw-' + anchor.pageNum);
+  if (!wrap) return;
+  const r = wrap.getBoundingClientRect();
+  const targetClientX = r.left + anchor.fracX * r.width;
+  const targetClientY = r.top + anchor.fracY * r.height;
+  const viewer = document.getElementById('viewer');
+  viewer.scrollLeft += targetClientX - anchor.toClientX;
+  viewer.scrollTop  += targetClientY - anchor.toClientY;
+}
+
 async function rerenderAll() {
   if (!pdf) return;
   const savedPg = curPg;
@@ -1650,15 +1690,7 @@ async function rerenderAll() {
     // Ensure scroll position after render
     requestAnimationFrame(() => {
       if (anchor) {
-        // The caller (Ctrl+Wheel / marquee zoom) already computed the exact
-        // scrollLeft/scrollTop that keeps its anchor point fixed on screen
-        // and applied it immediately for instant feedback — just re-apply
-        // the same values verbatim now that the real layout exists, instead
-        // of recomputing (each rapid wheel tick already folds the previous
-        // tick's adjustment in, so re-scaling here would double-count it).
-        const viewer = document.getElementById('viewer');
-        viewer.scrollLeft = anchor.scrollLeft;
-        viewer.scrollTop  = anchor.scrollTop;
+        _restoreZoomAnchor(anchor);
       } else {
         const el = document.getElementById('pw-' + savedPg);
         if (el) el.scrollIntoView({ block: 'start' });
@@ -2273,6 +2305,9 @@ function _rescaleAnnotFonts() {
       if (inp) inp.style.fontSize = (a.fontSize * zoom) + 'px';
     } else {
       el.style.fontSize = (a.fontSize * zoom) + 'px';
+      // Auto-sized text notes (no explicit a.w) also need their wrap width
+      // rescaled — see the matching comment where this element is built.
+      if (a.type === 'text' && a.w === undefined) el.style.maxWidth = (280 * zoom) + 'px';
     }
   });
 }
@@ -4227,7 +4262,12 @@ function buildAnnotEl(a) {
       `font-size:${(a.fontSize || 13) * zoom}px;opacity:${(a.opacity ?? 100) / 100};` +
       `display:flex;flex-direction:column;justify-content:${vAlignCss(a.vAlign)};` +
       (txtBox ? `border:1.5px solid ${txtC};border-radius:3px;background:${a.replacesText ? '#fff' : 'rgba(255,255,255,.85)'}` : 'border:none;background:none') +
-      (a.w !== undefined ? `;width:${a.w}%;min-width:0;max-width:none` : '') +
+      // Auto-sized notes (no explicit a.w) fall back to the .atxt class's
+      // max-width:280px — a fixed CSS px value that doesn't scale with zoom,
+      // so once font-size started scaling with zoom (see above) the same
+      // 280px box wrapped that now-larger text onto more lines than before.
+      // Scale the cap by zoom too so wrapping stays consistent at any zoom.
+      (a.w !== undefined ? `;width:${a.w}%;min-width:0;max-width:none` : `;max-width:${280 * zoom}px`) +
       (a.h !== undefined ? `;min-height:${a.h}%` : '');
     // Inner wrapper carries the horizontal alignment so it applies to the
     // wrapped text run (badge + text + tag) without disturbing the outer
@@ -9104,9 +9144,11 @@ function initMarqueeZoom() {
     if (selW < 12 || selH < 12) return; // too small — ignore
 
     const vr = viewer.getBoundingClientRect();
-    // Centre of selection in current viewer-scroll coordinates
-    const centreX = Math.min(e.clientX, start.cx) + selW / 2 - vr.left + viewer.scrollLeft;
-    const centreY = Math.min(e.clientY, start.cy) + selH / 2 - vr.top  + viewer.scrollTop;
+    // Centre of selection, in both client and absolute scroll-space coords
+    const centreClientX = Math.min(e.clientX, start.cx) + selW / 2;
+    const centreClientY = Math.min(e.clientY, start.cy) + selH / 2;
+    const centreX = centreClientX - vr.left + viewer.scrollLeft;
+    const centreY = centreClientY - vr.top  + viewer.scrollTop;
 
     // New zoom = fit the selection width/height into the viewer
     const newZoom = Math.min(
@@ -9115,14 +9157,16 @@ function initMarqueeZoom() {
       zoom * 10
     );
     const scale = newZoom / zoom;
+    // Recentre on the selection — anchored by page fraction (see
+    // _captureZoomAnchor) so rerenderAll's debounced real render lands it
+    // exactly right instead of drifting from the fixed per-page gap not
+    // scaling with zoom the way page content does.
+    _zoomAnchor = _captureZoomAnchor(centreClientX, centreClientY, vr.left + vr.width / 2, vr.top + vr.height / 2);
     await applyZoom(String(Math.round(newZoom * 100) / 100));
 
-    // After re-render, scroll so selection centre is in the viewport centre.
-    // Stashed as the zoom anchor too, so rerenderAll's debounced real render
-    // re-applies this exact value instead of snapping to the page top.
+    // Instant approximate preview while the debounced real render is pending
     viewer.scrollLeft = centreX * scale - vr.width  / 2;
     viewer.scrollTop  = centreY * scale - vr.height / 2;
-    _zoomAnchor = { scrollLeft: viewer.scrollLeft, scrollTop: viewer.scrollTop };
 
     // Drop back to pan
     setTool('pan');
@@ -9142,16 +9186,19 @@ document.getElementById('viewer').addEventListener('wheel', async e => {
   const factor = e.deltaY > 0 ? 0.88 : 1.14;
   const newZoom = Math.max(0.2, Math.min(8, zoom * factor));
   const scale = newZoom / zoom;
+  // Anchored by page fraction (see _captureZoomAnchor) rather than scaling
+  // the absolute scroll offset — the fixed px gap between pages doesn't
+  // scale with zoom the way page content does, so the naive "multiply the
+  // whole scroll position" approach drifted more and more the further down
+  // a multi-page document you were, which showed up as jitter. Each rapid
+  // wheel tick (e.g. a trackpad pinch) re-captures fresh against the current
+  // (still real, not-yet-rerendered) layout, so only the last tick's anchor
+  // before the debounce settles ever actually gets used.
+  _zoomAnchor = _captureZoomAnchor(e.clientX, e.clientY, e.clientX, e.clientY);
   await applyZoom(String(Math.round(newZoom * 100) / 100));
-  // Instant preview scroll, using the current (not-yet-relaid-out) DOM —
-  // stashed as the zoom anchor too, so rerenderAll's debounced real render
-  // re-applies this exact value instead of snapping to the page top. Each
-  // rapid wheel tick (e.g. a trackpad pinch) recomputes this from the
-  // previous tick's own scrollLeft, so it stays correctly anchored to the
-  // cursor across a whole burst of ticks, not just the last one in isolation.
+  // Instant approximate preview while the debounced real render is pending
   viewer.scrollLeft = mouseX * scale - (e.clientX - vr.left);
   viewer.scrollTop  = mouseY * scale - (e.clientY - vr.top);
-  _zoomAnchor = { scrollLeft: viewer.scrollLeft, scrollTop: viewer.scrollTop };
 }, { passive: false });
 
 // ═══════════════════════════════════════════════

@@ -3350,7 +3350,9 @@ function attachOverlayCtxMenu(ov) {
     // toolbar. Works in every tool (not just Select) since no tool other
     // than Select uses the right mouse button for anything of its own.
     const pageN = parseInt(ov.dataset.page);
-    let items = _selHits.length ? _selHits : null;
+    // _selHits holds {item,start,end} character-range wrappers now — this
+    // consumer (Replace Text / Atlas CAD matching) works on whole raw items.
+    let items = _selHits.length ? [...new Set(_selHits.map(h => h.item))] : null;
     if (!items) {
       const r = ov.getBoundingClientRect();
       const cx = ev.clientX - r.left, cy = ev.clientY - r.top;
@@ -9723,26 +9725,18 @@ function _selEnd(ev) {
   }
 
   if (isDot) {
-    // Point-select: find the single text item the cursor is over
+    // Point-select: find the word under the cursor within whichever item
+    // it belongs to (an item can span multiple words).
     const cx = _selState.x0, cy = _selState.y0;
     const items = _pageTextItems[_selState.pageNum] || [];
     const hit = items.find(item => _rectHitsItem(cx - 2, cy - 2, 4, 4, item));
     if (hit) {
-      // Highlight just that item
+      const idx = _charIndexAt(hit, cx, cy);
+      const word = _wordRangeAt(hit.str, idx) || { start: idx, end: idx };
       const { svgEl } = _selState;
       while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild);
-      _selHits = [hit];
-      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      rect.setAttribute('class', 'sel-hit');
-      rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
-      rect.setAttribute('width', hit.w.toFixed(1)); rect.setAttribute('height', hit.h.toFixed(1));
-      const tx = hit.x, ty = hit.y - hit.h;
-      const deg = hit.angle * 180 / Math.PI;
-      rect.setAttribute('transform',
-        'translate(' + tx.toFixed(1) + ',' + ty.toFixed(1) + ')' +
-        (deg !== 0 ? ' rotate(' + deg.toFixed(2) + ')' : '')
-      );
-      svgEl.appendChild(rect);
+      _selHits = [{ item: hit, start: word.start, end: word.end }];
+      _drawHitRect(svgEl, hit, word.start, word.end);
       // Keep a tiny invisible rect el
       _selState.rectEl.style.cssText = 'left:' + (cx-2) + 'px;top:' + (cy-2) + 'px;width:4px;height:4px;border:none;background:none';
     } else {
@@ -9765,19 +9759,7 @@ function _selEnd(ev) {
   rectEl.style.borderColor = 'rgba(37,99,235,0.35)';
   rectEl.style.background  = 'rgba(37,99,235,0.04)';
 
-  // Sort hits into reading order (computed AFTER any point-select override
-  // above, so this always reflects what's actually highlighted) — top-to-
-  // bottom, then left-to-right within each line. PDF extraction order is
-  // draw order, not reading order, which is why unsorted text copies
-  // backwards.
-  const LINE_THRESHOLD = 0.6; // fraction of avg font height — items within this are on the same line
-  const readingOrder = [..._selHits].sort((a, b) => {
-    const avgH = ((a.h || 12) + (b.h || 12)) / 2;
-    const lineDiff = (a.y - b.y) / avgH;
-    if (Math.abs(lineDiff) > LINE_THRESHOLD) return a.y - b.y; // different lines: top first
-    return a.x - b.x; // same line: left to right
-  });
-  const text = readingOrder.map(h => h.str).join(' ').replace(/\s+/g, ' ').trim();
+  const text = _selReadingOrderText();
 
   // Highlight now, copy on Ctrl+C — same as double-click word select, and
   // avoids silently overwriting the clipboard on every drag that happens to
@@ -9801,28 +9783,13 @@ function _selHighlight(state) {
   if (!items) return;
 
   items.forEach(item => {
-    // item.x, item.y = CSS pixels, bottom-left origin (y increases downward from top)
-    // Convert to top-left bounding box for the hit test
-    if (!_rectHitsItem(rx, ry, rw, rh, item)) return;
-
-    _selHits.push(item);
-
-    // Draw highlight rect in SVG — use item's own transform for rotated text
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('class', 'sel-hit');
-    rect.setAttribute('x', '0');
-    rect.setAttribute('y', '0');
-    rect.setAttribute('width',  item.w.toFixed(1));
-    rect.setAttribute('height', item.h.toFixed(1));
-    // Transform: translate to item position, then rotate
-    const tx = item.x;
-    const ty = item.y - item.h; // y is baseline; move up by height
-    const deg = item.angle * 180 / Math.PI;
-    rect.setAttribute('transform',
-      'translate(' + tx.toFixed(1) + ',' + ty.toFixed(1) + ')' +
-      (deg !== 0 ? ' rotate(' + deg.toFixed(2) + ')' : '')
-    );
-    svgEl.appendChild(rect);
+    // Character-level overlap, not the whole item — lets a drag that starts
+    // or ends mid-word grab exactly the characters under the rect, same as
+    // native text selection.
+    const range = _charRangeInRect(item, rx, ry, rw, rh);
+    if (!range) return;
+    _selHits.push({ item, start: range.start, end: range.end });
+    _drawHitRect(svgEl, item, range.start, range.end);
   });
 }
 
@@ -9856,6 +9823,108 @@ function _rectHitsItem(rx, ry, rw, rh, item) {
   }
 
   return rx < ix + iw && rx + rw > ix && ry < iy + ih && ry + rh > iy;
+}
+
+// ── Sub-item (character-level) selection helpers ──
+// pdf.js only gives per-item width, not per-glyph — these assume roughly
+// uniform character widths within a single text run, which is a fine
+// approximation for the drafting fonts common on engineering drawings and
+// still lands on the right character most of the time for proportional
+// fonts. This is what lets a drag start/end mid-word instead of always
+// grabbing a whole item.
+function _itemCharWidth(item) {
+  return item.w / Math.max(1, item.str.length);
+}
+
+// item-space point (same CSS-px space as item.x/item.y, i.e. overlay-
+// relative, NOT clientX/clientY) -> local (u along width, v along height)
+// coordinates. Inverse of the rotation used in _rectHitsItem/_drawHitRect.
+function _worldToLocal(item, wx, wy) {
+  const ix = item.x, iy = item.y - item.h;
+  const dx = wx - ix, dy = wy - iy;
+  const cos = Math.cos(item.angle), sin = Math.sin(item.angle);
+  return { u: dx * cos + dy * sin, v: -dx * sin + dy * cos };
+}
+
+function _charIndexAt(item, wx, wy) {
+  const { u } = _worldToLocal(item, wx, wy);
+  const cw = _itemCharWidth(item);
+  return Math.max(0, Math.min(item.str.length - 1, Math.floor(u / cw)));
+}
+
+// Character range (start/end, inclusive) that an axis-aligned page-space
+// rect overlaps within an item, or null if it doesn't touch the item at all.
+function _charRangeInRect(item, rx, ry, rw, rh) {
+  const ix = item.x, iy = item.y - item.h;
+  const cos = Math.cos(item.angle), sin = Math.sin(item.angle);
+  const corners = [[rx, ry], [rx + rw, ry], [rx + rw, ry + rh], [rx, ry + rh]].map(([wx, wy]) => {
+    const dx = wx - ix, dy = wy - iy;
+    return { u: dx * cos + dy * sin, v: -dx * sin + dy * cos };
+  });
+  const minU = Math.min(...corners.map(c => c.u));
+  const maxU = Math.max(...corners.map(c => c.u));
+  const minV = Math.min(...corners.map(c => c.v));
+  const maxV = Math.max(...corners.map(c => c.v));
+  if (maxU <= 0 || minU >= item.w || maxV <= 0 || minV >= item.h) return null;
+
+  const cw = _itemCharWidth(item);
+  const n = item.str.length;
+  const start = Math.max(0, Math.floor(minU / cw));
+  const end   = Math.min(n - 1, Math.ceil(maxU / cw) - 1);
+  if (end < start) return null;
+  return { start, end };
+}
+
+// Maximal non-whitespace run containing character index `idx` — this is
+// what "double-click selects a word" resolves to, even for an item whose
+// string spans several words.
+function _wordRangeAt(str, idx) {
+  if (!str.length) return null;
+  if (/\s/.test(str[idx])) {
+    if (idx > 0 && !/\s/.test(str[idx - 1])) idx -= 1;
+    else if (idx < str.length - 1 && !/\s/.test(str[idx + 1])) idx += 1;
+    else return null;
+  }
+  let start = idx, end = idx;
+  while (start > 0 && !/\s/.test(str[start - 1])) start--;
+  while (end < str.length - 1 && !/\s/.test(str[end + 1])) end++;
+  return { start, end };
+}
+
+// Draws the highlight rect for one selected character range of an item —
+// same translate+rotate as the item's own box, but with x/width narrowed
+// to just the selected characters.
+function _drawHitRect(svgEl, item, start, end) {
+  const cw = _itemCharWidth(item);
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('class', 'sel-hit');
+  rect.setAttribute('x', (start * cw).toFixed(2));
+  rect.setAttribute('y', '0');
+  rect.setAttribute('width', ((end - start + 1) * cw).toFixed(2));
+  rect.setAttribute('height', item.h.toFixed(1));
+  const tx = item.x, ty = item.y - item.h;
+  const deg = item.angle * 180 / Math.PI;
+  rect.setAttribute('transform',
+    'translate(' + tx.toFixed(1) + ',' + ty.toFixed(1) + ')' +
+    (deg !== 0 ? ' rotate(' + deg.toFixed(2) + ')' : '')
+  );
+  svgEl.appendChild(rect);
+}
+
+function _hitText(h) { return h.item.str.slice(h.start, h.end + 1); }
+
+// Shared reading-order text assembly for _selEnd, Ctrl+C and Ctrl+A: top-to-
+// bottom, then left-to-right within each line (PDF extraction order is draw
+// order, not reading order, which is why unsorted text copies backwards).
+function _selReadingOrderText() {
+  const LINE_THRESHOLD = 0.6; // fraction of avg font height — items within this are on the same line
+  const ordered = [..._selHits].sort((a, b) => {
+    const avgH = ((a.item.h || 12) + (b.item.h || 12)) / 2;
+    const lineDiff = (a.item.y - b.item.y) / avgH;
+    if (Math.abs(lineDiff) > LINE_THRESHOLD) return a.item.y - b.item.y;
+    return (a.item.x + a.start * _itemCharWidth(a.item)) - (b.item.x + b.start * _itemCharWidth(b.item));
+  });
+  return ordered.map(_hitText).join(' ').replace(/\s+/g, ' ').trim();
 }
 
 function _selClear() {
@@ -9921,27 +9990,18 @@ function _selWordAt(ev, pageNum, ov) {
   const r = ov.getBoundingClientRect();
   const cx = ev.clientX - r.left;
   const cy = ev.clientY - r.top;
+  const idx = _charIndexAt(hit, cx, cy);
+  const word = _wordRangeAt(hit.str, idx) || { start: idx, end: idx };
 
   const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svgEl.dataset.selSvg = '1';
   svgEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:5';
   ov.appendChild(svgEl);
+  _drawHitRect(svgEl, hit, word.start, word.end);
 
-  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-  rect.setAttribute('class', 'sel-hit');
-  rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
-  rect.setAttribute('width', hit.w.toFixed(1)); rect.setAttribute('height', hit.h.toFixed(1));
-  const tx = hit.x, ty = hit.y - hit.h;
-  const deg = hit.angle * 180 / Math.PI;
-  rect.setAttribute('transform',
-    'translate(' + tx.toFixed(1) + ',' + ty.toFixed(1) + ')' +
-    (deg !== 0 ? ' rotate(' + deg.toFixed(2) + ')' : '')
-  );
-  svgEl.appendChild(rect);
-
-  _selHits = [hit];
+  _selHits = [{ item: hit, start: word.start, end: word.end }];
   _selState = { pageNum, ov, svgEl, rectEl: { remove(){} }, x0: cx, y0: cy, x1: cx, y1: cy };
-  toast('Selected "' + hit.str.trim() + '" · Ctrl+C to copy · Esc to clear', 2200);
+  toast('Selected "' + hit.str.slice(word.start, word.end + 1).trim() + '" · Ctrl+C to copy · Esc to clear', 2200);
 }
 
 // Ctrl+C: copy whatever _selHits currently holds (from a double-click word
@@ -9953,13 +10013,7 @@ document.addEventListener('keydown', ev => {
   if (!_selHits.length) return;
   if (ev.target.closest('input,textarea,select')) return;
 
-  const readingOrder = [..._selHits].sort((a, b) => {
-    const avgH = ((a.h || 12) + (b.h || 12)) / 2;
-    const lineDiff = (a.y - b.y) / avgH;
-    if (Math.abs(lineDiff) > 0.6) return a.y - b.y;
-    return a.x - b.x;
-  });
-  const text = readingOrder.map(h => h.str).join(' ').replace(/\s+/g, ' ').trim();
+  const text = _selReadingOrderText();
   if (!text) return;
   ev.preventDefault();
 
@@ -10002,14 +10056,7 @@ document.addEventListener('keydown', ev => {
     x0: 0, y0: 0, x1: vp.width, y1: vp.height,
   };
   _selHighlight(_selState);
-  // Sort into reading order before copying
-  const _ctrlAOrdered = [..._selHits].sort((a, b) => {
-    const avgH = ((a.h || 12) + (b.h || 12)) / 2;
-    const lineDiff = (a.y - b.y) / avgH;
-    if (Math.abs(lineDiff) > 0.6) return a.y - b.y;
-    return a.x - b.x;
-  });
-  const text = _ctrlAOrdered.map(h => h.str).join(' ').replace(/\s+/g, ' ').trim();
+  const text = _selReadingOrderText();
   if (text) {
     navigator.clipboard.writeText(text).catch(() => {});
     toast('Copied all text on page (' + text.length + ' chars)', 2400);

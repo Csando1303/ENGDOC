@@ -1678,7 +1678,6 @@ async function _applyCssZoomPreview() {
     // Short ease between successive scale values — smooths out a fast burst
     // of wheel ticks into one continuous zoom instead of a series of little
     // jumps, without adding noticeable lag to a single click/keyboard step.
-    canvas.style.transition = 'transform 90ms ease-out';
     canvas.style.transform = 'scale(' + scaleFactor + ')';
   });
 }
@@ -1687,6 +1686,7 @@ async function rerenderAll() {
   if (!pdf) return;
   const savedPg = curPg;
 
+  _rescaleAnnotFonts();
   await _applyCssZoomPreview();
 
   // ── Hi-res re-render ──
@@ -2356,21 +2356,15 @@ async function applyZoom(val) {
   const mobLabel = document.getElementById('mob-zoom-label');
   if (mobLabel) mobLabel.textContent = pct;
 
-  // Instant — doesn't need to wait for the debounced hi-res re-render below,
-  // since these are just style writes on elements that already exist. Doing
-  // this live, on every call (not just once the debounce settles), is what
-  // makes a fast burst of wheel ticks look like continuous zooming instead
-  // of a pause followed by one jump.
-  _rescaleAnnotFonts();
-  await _applyCssZoomPreview();
-
-  // Debounce the actual re-render — collapses rapid changes (e.g. a
-  // trackpad pinch firing many wheel ticks) into one hi-res render instead
-  // of racing to keep up with each one. Short enough that the CSS-scale
-  // preview above resolves into the real render quickly, so the pause
-  // before it lands reads as brief rather than stuck.
+  // Note font/box rescaling and the canvas preview are deliberately NOT run
+  // live on every tick here — during a fast wheel/pinch burst that repainted
+  // notes at every intermediate zoom value along the way, momentarily far
+  // larger/smaller than the value the user actually stopped on before it
+  // settled back down. Only touching them once, when the debounce below
+  // fires, means nothing visibly changes size until the gesture ends, then
+  // it snaps straight to the correct final size once.
   clearTimeout(_zoomTimer);
-  _zoomTimer = setTimeout(() => rerenderAll(), 120);
+  _zoomTimer = setTimeout(() => rerenderAll(), 80);
 }
 
 /* ═══════════════════════════════════════════════

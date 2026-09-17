@@ -1650,6 +1650,31 @@ async function rerenderAll() {
   _rescaleAnnotFonts();
   const scaleFactor = await _applyCssZoomPreview();
 
+  // Re-estimate EVERY page's shell size at the new zoom right away — not
+  // just the pages about to be re-rendered (getVisibleRange() below only
+  // covers those). Off-screen pages otherwise keep their stale pre-zoom
+  // wrap/overlay dimensions (and stale pageViewports entry) until they're
+  // individually scrolled into view, and popping to the correct size at
+  // exactly that moment shifts every page below them — that's the
+  // "bouncing while scrolling, landing somewhere unexpected" bug. Same
+  // page1-based estimate buildPageShells() uses for the initial load;
+  // each page's own renderPageContent still corrects this precisely once
+  // it actually renders (matters if pages aren't all the same size).
+  {
+    const page1Obj = _pageCache[1] || await pdf.getPage(1);
+    if (!_pageCache[1]) _pageCache[1] = page1Obj;
+    const vp1 = page1Obj.getViewport({ scale: zoom });
+    for (let i = 1; i <= nPages; i++) {
+      const wrap = document.getElementById('pw-' + i);
+      if (!wrap) continue;
+      wrap.style.width  = vp1.width  + 'px';
+      wrap.style.height = vp1.height + 'px';
+      const ov = wrap.querySelector('.aoverlay');
+      if (ov) { ov.style.width = vp1.width + 'px'; ov.style.height = vp1.height + 'px'; }
+      pageViewports[i] = { width: vp1.width, height: vp1.height, vp: vp1 };
+    }
+  }
+
   // ── Hi-res re-render ──
   // Mark all pages unrendered — DO NOT clear _pageCache (page objects are zoom-independent)
   renderedPages.clear();

@@ -9144,11 +9144,8 @@ function initMarqueeZoom() {
     if (selW < 12 || selH < 12) return; // too small — ignore
 
     const vr = viewer.getBoundingClientRect();
-    // Centre of selection, in both client and absolute scroll-space coords
     const centreClientX = Math.min(e.clientX, start.cx) + selW / 2;
     const centreClientY = Math.min(e.clientY, start.cy) + selH / 2;
-    const centreX = centreClientX - vr.left + viewer.scrollLeft;
-    const centreY = centreClientY - vr.top  + viewer.scrollTop;
 
     // New zoom = fit the selection width/height into the viewer
     const newZoom = Math.min(
@@ -9156,17 +9153,15 @@ function initMarqueeZoom() {
       (vr.height / selH) * zoom,
       zoom * 10
     );
-    const scale = newZoom / zoom;
     // Recentre on the selection — anchored by page fraction (see
     // _captureZoomAnchor) so rerenderAll's debounced real render lands it
     // exactly right instead of drifting from the fixed per-page gap not
-    // scaling with zoom the way page content does.
+    // scaling with zoom the way page content does. Deliberately not also
+    // nudging scrollLeft/scrollTop immediately here — a second, slightly
+    // different scroll jump right before the real one reads as the page
+    // being dragged rather than zoomed in place.
     _zoomAnchor = _captureZoomAnchor(centreClientX, centreClientY, vr.left + vr.width / 2, vr.top + vr.height / 2);
     await applyZoom(String(Math.round(newZoom * 100) / 100));
-
-    // Instant approximate preview while the debounced real render is pending
-    viewer.scrollLeft = centreX * scale - vr.width  / 2;
-    viewer.scrollTop  = centreY * scale - vr.height / 2;
 
     // Drop back to pan
     setTool('pan');
@@ -9179,26 +9174,24 @@ document.getElementById('viewer').addEventListener('wheel', async e => {
   if (!e.ctrlKey && !e.metaKey) return;
   e.preventDefault();
   if (!pdf) return;
-  const viewer = document.getElementById('viewer');
-  const vr = viewer.getBoundingClientRect();
-  const mouseX = e.clientX - vr.left + viewer.scrollLeft;
-  const mouseY = e.clientY - vr.top  + viewer.scrollTop;
   const factor = e.deltaY > 0 ? 0.88 : 1.14;
   const newZoom = Math.max(0.2, Math.min(8, zoom * factor));
-  const scale = newZoom / zoom;
   // Anchored by page fraction (see _captureZoomAnchor) rather than scaling
   // the absolute scroll offset — the fixed px gap between pages doesn't
   // scale with zoom the way page content does, so the naive "multiply the
   // whole scroll position" approach drifted more and more the further down
-  // a multi-page document you were, which showed up as jitter. Each rapid
-  // wheel tick (e.g. a trackpad pinch) re-captures fresh against the current
-  // (still real, not-yet-rerendered) layout, so only the last tick's anchor
-  // before the debounce settles ever actually gets used.
+  // a multi-page document you were. Each rapid wheel tick (e.g. a trackpad
+  // pinch) re-captures fresh against the current (still real, not-yet-
+  // rerendered) layout, so only the last tick's anchor before the debounce
+  // settles ever actually gets used.
+  //
+  // Deliberately NOT also nudging scrollLeft/scrollTop here for an "instant
+  // preview" — that produced a second, slightly different scroll jump
+  // moments before the real one below, which reads as the page being
+  // dragged/scrolled rather than zoomed in place. Better to hold still and
+  // apply the one correct scroll change in sync with the real re-render.
   _zoomAnchor = _captureZoomAnchor(e.clientX, e.clientY, e.clientX, e.clientY);
   await applyZoom(String(Math.round(newZoom * 100) / 100));
-  // Instant approximate preview while the debounced real render is pending
-  viewer.scrollLeft = mouseX * scale - (e.clientX - vr.left);
-  viewer.scrollTop  = mouseY * scale - (e.clientY - vr.top);
 }, { passive: false });
 
 // ═══════════════════════════════════════════════

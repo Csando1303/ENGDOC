@@ -271,7 +271,7 @@ function txtPopSetColor(c) {
   document.querySelectorAll('#txtpop-swatches .rcsw').forEach(s => s.classList.toggle('active', s.dataset.c === c));
 }
 function txtPopConfirm() {
-  _stopDictationIfActive();
+  _stopDictationFor(document.getElementById('txt-pop-input'));
   const val = document.getElementById('txt-pop-input').value.trim();
   document.getElementById('txt-pop').classList.remove('open');
   if (val && txtPopCallback) {
@@ -285,38 +285,41 @@ function txtPopConfirm() {
   txtPopCallback = null;
 }
 function txtPopCancel() {
-  _stopDictationIfActive();
+  _stopDictationFor(document.getElementById('txt-pop-input'));
   document.getElementById('txt-pop').classList.remove('open');
   txtPopCallback = null;
 }
 
-// ── Speech-to-text dictation for the text-note popup ──
-// Uses the browser's built-in Web Speech API — no server or library needed,
-// fitting EngDoc's fully client-side model, but it's Chrome/Edge only (no
-// Firefox/Safari support) and the audio is sent to the browser vendor's own
+// ── Speech-to-text dictation, reused across every free-text entry point ──
+// (text-note popup, inline note editing, Replace Text popover). Uses the
+// browser's built-in Web Speech API — no server or library needed, fitting
+// EngDoc's fully client-side model, but it's Chrome/Edge only (no Firefox/
+// Safari support) and the audio is sent to the browser vendor's own
 // recognition service under the hood even though EngDoc has no backend of
-// its own involved in it.
+// its own involved in it. Only one dictation session can run at a time
+// (matches the browser's own single-microphone-stream behaviour).
 let _dictationRecognition = null;
-let _dictationActive = false;
 
-function toggleDictation() {
+// Toggle dictation into `ta` (a textarea/input element), with `btn` (may be
+// null) showing the active/inactive state. Clicking the mic button for a
+// DIFFERENT field while one is already running stops the old one and starts
+// the new one, rather than needing two clicks.
+function toggleDictation(ta, btn) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     toast("Speech-to-text isn't supported in this browser — try Chrome or Edge", 3200);
     return;
   }
-  if (_dictationActive) {
-    _dictationRecognition.stop(); // onend below clears state/button
-    return;
-  }
+  const wasThisField = _dictationRecognition && _dictationRecognition._targetTa === ta;
+  if (_dictationRecognition) _dictationRecognition.stop(); // onend below clears state/button
+  if (wasThisField) return; // a plain toggle-off on the field that was already dictating
 
   const rec = new SR();
+  rec._targetTa = ta;
   rec.lang = navigator.language || 'en-US';
   rec.continuous = true;
   rec.interimResults = true;
 
-  const ta = document.getElementById('txt-pop-input');
-  const btn = document.getElementById('txtpop-mic-btn');
   // Whatever was already typed before dictation started — interim results
   // are re-sent in full on every update (not just the new words), so the
   // box is rebuilt from this stable base each time rather than appended to.
@@ -338,19 +341,20 @@ function toggleDictation() {
     toast('Speech-to-text error: ' + ev.error, 2800);
   };
   rec.onend = () => {
-    _dictationActive = false;
-    _dictationRecognition = null;
+    if (_dictationRecognition === rec) _dictationRecognition = null;
     if (btn) { btn.style.background = ''; btn.style.color = ''; }
   };
 
   _dictationRecognition = rec;
-  _dictationActive = true;
   if (btn) { btn.style.background = '#ef4444'; btn.style.color = '#fff'; }
   rec.start();
 }
 
-function _stopDictationIfActive() {
-  if (_dictationActive && _dictationRecognition) _dictationRecognition.stop();
+// Stop dictation if it's currently targeting this specific field — called
+// when that field's popup/editor closes, so leaving it open doesn't leave
+// the microphone listening into a field that's no longer visible.
+function _stopDictationFor(ta) {
+  if (_dictationRecognition && _dictationRecognition._targetTa === ta) _dictationRecognition.stop();
 }
 // Enter to confirm (Shift+Enter = newline)
 document.getElementById('txt-pop-input').addEventListener('keydown', e => {
@@ -4163,6 +4167,7 @@ function openReplaceTextPopoverForEdit(a, cx, cy) {
 }
 
 function cancelReplaceText() {
+  _stopDictationFor(document.getElementById('rtp-input'));
   document.getElementById('replace-text-pop').classList.remove('open');
   _rtpState = null;
 }
@@ -5027,6 +5032,22 @@ function startInlineEdit(a, el, ov) {
     // click meant to place the caret. Must override explicitly.
     'pointer-events:auto;';
   container.appendChild(ta);
+
+  // Floating mic button — a sibling of the textarea, not a child (textareas
+  // can't contain elements), so onOutsideMousedown below is taught to treat
+  // it as part of the editor rather than a click that should commit/close it.
+  const micBtn = document.createElement('button');
+  micBtn.className = 'ann-inline-mic';
+  micBtn.title = 'Dictate (speech-to-text)';
+  micBtn.textContent = '🎤';
+  micBtn.style.cssText =
+    'position:absolute;right:3px;bottom:3px;z-index:26;width:22px;height:22px;' +
+    'border:1px solid rgba(0,0,0,.15);border-radius:3px;background:rgba(255,255,255,.9);' +
+    'cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0;';
+  micBtn.addEventListener('mousedown', ev => ev.preventDefault()); // don't steal focus from the textarea
+  micBtn.addEventListener('click', ev => { ev.stopPropagation(); toggleDictation(ta, micBtn); });
+  container.appendChild(micBtn);
+
   ta.focus();
   ta.select();
 
@@ -5034,11 +5055,13 @@ function startInlineEdit(a, el, ov) {
   const finish = commit => {
     if (finished) return;
     finished = true;
+    _stopDictationFor(ta);
     ta.removeEventListener('blur', onBlur);
     ta.removeEventListener('keydown', onKeydown);
     document.removeEventListener('mousedown', onOutsideMousedown, true);
     const newText = ta.value;
     ta.remove();
+    micBtn.remove();
     if (commit && newText !== (a.text || '')) {
       a.text = newText;
       syncAnnots(); updateAnnotPanel(); pushHistory();
@@ -5059,7 +5082,7 @@ function startInlineEdit(a, el, ov) {
   // elsewhere. Explicitly commit on any outside mousedown (capture phase,
   // so it fires before any of those handlers can stopPropagation it away).
   const onOutsideMousedown = ev => {
-    if (!ta.contains(ev.target)) finish(true);
+    if (!ta.contains(ev.target) && ev.target !== micBtn) finish(true);
   };
   ta.addEventListener('blur', onBlur);
   ta.addEventListener('keydown', onKeydown);

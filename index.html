@@ -744,7 +744,10 @@
 <div id="replace-text-pop">
   <div class="sp-label">Replace Text</div>
   <div id="rtp-original"></div>
-  <textarea id="rtp-input" placeholder="Replacement text…"></textarea>
+  <div style="display:flex;gap:4px">
+    <textarea id="rtp-input" placeholder="Replacement text…" style="flex:1"></textarea>
+    <button id="rtp-mic-btn" onclick="toggleDictation(document.getElementById('rtp-input'), this)" title="Dictate (speech-to-text)" style="width:28px;height:28px;align-self:flex-start;background:var(--gray-100);border:1px solid var(--gray-300);border-radius:3px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">🎤</button>
+  </div>
   <div id="rtp-candidates" hidden></div>
   <div class="rtp-actions">
     <button class="hbtn outline" style="padding:5px 11px;font-size:12px" onclick="cancelReplaceText()">Cancel</button>
@@ -1485,7 +1488,7 @@
     <textarea id="txt-pop-input" placeholder="Enter comment…" style="flex:1"></textarea>
     <div style="display:flex;flex-direction:column;gap:3px">
       <button onclick="showTemplates()" title="Discipline templates" style="width:28px;height:28px;background:var(--gray-100);border:1px solid var(--gray-300);border-radius:3px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">📋</button>
-      <button id="txtpop-mic-btn" onclick="toggleDictation()" title="Dictate (speech-to-text)" style="width:28px;height:28px;background:var(--gray-100);border:1px solid var(--gray-300);border-radius:3px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">🎤</button>
+      <button id="txtpop-mic-btn" onclick="toggleDictation(document.getElementById('txt-pop-input'), this)" title="Dictate (speech-to-text)" style="width:28px;height:28px;background:var(--gray-100);border:1px solid var(--gray-300);border-radius:3px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center">🎤</button>
     </div>
   </div>
   <div id="template-picker" style="display:none;background:var(--white);border:1px solid var(--gray-200);border-radius:4px;margin-bottom:6px;max-height:180px;overflow-y:auto">

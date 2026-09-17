@@ -1646,29 +1646,48 @@ function _restoreZoomAnchor(anchor) {
   viewer.scrollTop  += targetClientY - anchor.toClientY;
 }
 
-async function rerenderAll() {
+// While the hi-res re-render is pending, scale the existing canvases with a
+// cheap CSS transform so the user sees continuous, immediate feedback
+// instead of a frozen page for the length of the debounce. Called on every
+// zoom change (from applyZoom, live — not just once the debounce settles)
+// so a fast burst of wheel ticks looks like smooth zooming rather than one
+// jump at the end.
+async function _applyCssZoomPreview() {
   if (!pdf) return;
-  const savedPg = curPg;
-
-  // ── Instant CSS scale preview ──
-  // While hi-res renders, scale existing canvases so user sees something immediately.
   const page1Obj = _pageCache[1] || await pdf.getPage(1);
   if (!_pageCache[1]) _pageCache[1] = page1Obj;
   const unscaledVp = page1Obj.getViewport({ scale: 1 });
   const oldZoom = pageViewports[1] ? (pageViewports[1].width / unscaledVp.width) : zoom;
   const scaleFactor = zoom / oldZoom;
+  if (scaleFactor === 1 || scaleFactor <= 0) return;
 
-  if (scaleFactor !== 1 && scaleFactor > 0) {
-    document.querySelectorAll('.pwrap').forEach(wrap => {
-      const canvas = wrap.querySelector('canvas');
-      if (!canvas) return;
-      // Only scale the canvas visually — do NOT resize the wrapper or overlay.
-      // Resizing those would corrupt coordinate calculations in syncAnnots/select tool
-      // before renderPageContent has updated pageViewports to the new zoom.
-      canvas.style.transformOrigin = 'top left';
-      canvas.style.transform = 'scale(' + scaleFactor + ')';
-    });
-  }
+  document.querySelectorAll('.pwrap').forEach(wrap => {
+    const canvas = wrap.querySelector('canvas');
+    if (!canvas) return;
+    // Only scale the canvas visually — do NOT resize the wrapper or overlay.
+    // Resizing those would corrupt coordinate calculations in syncAnnots/select tool
+    // before renderPageContent has updated pageViewports to the new zoom.
+    // The page under the cursor/marquee (see _zoomAnchor) scales from that
+    // exact point instead of its top-left corner, so the preview visibly
+    // zooms in/out from where the user is looking rather than lurching
+    // toward a corner while the real re-render is pending.
+    const isAnchorPage = _zoomAnchor && _zoomAnchor.pageNum === parseInt(wrap.id.slice(3), 10);
+    canvas.style.transformOrigin = isAnchorPage
+      ? (_zoomAnchor.fracX * 100) + '% ' + (_zoomAnchor.fracY * 100) + '%'
+      : 'top left';
+    // Short ease between successive scale values — smooths out a fast burst
+    // of wheel ticks into one continuous zoom instead of a series of little
+    // jumps, without adding noticeable lag to a single click/keyboard step.
+    canvas.style.transition = 'transform 90ms ease-out';
+    canvas.style.transform = 'scale(' + scaleFactor + ')';
+  });
+}
+
+async function rerenderAll() {
+  if (!pdf) return;
+  const savedPg = curPg;
+
+  await _applyCssZoomPreview();
 
   // ── Hi-res re-render ──
   // Mark all pages unrendered — DO NOT clear _pageCache (page objects are zoom-independent)
@@ -2338,12 +2357,20 @@ async function applyZoom(val) {
   if (mobLabel) mobLabel.textContent = pct;
 
   // Instant — doesn't need to wait for the debounced hi-res re-render below,
-  // since it's just a style write on elements that already exist.
+  // since these are just style writes on elements that already exist. Doing
+  // this live, on every call (not just once the debounce settles), is what
+  // makes a fast burst of wheel ticks look like continuous zooming instead
+  // of a pause followed by one jump.
   _rescaleAnnotFonts();
+  await _applyCssZoomPreview();
 
-  // Debounce the actual re-render — 150ms collapses rapid changes
+  // Debounce the actual re-render — collapses rapid changes (e.g. a
+  // trackpad pinch firing many wheel ticks) into one hi-res render instead
+  // of racing to keep up with each one. Short enough that the CSS-scale
+  // preview above resolves into the real render quickly, so the pause
+  // before it lands reads as brief rather than stuck.
   clearTimeout(_zoomTimer);
-  _zoomTimer = setTimeout(() => rerenderAll(), 250);
+  _zoomTimer = setTimeout(() => rerenderAll(), 120);
 }
 
 /* ═══════════════════════════════════════════════

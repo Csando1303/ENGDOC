@@ -271,6 +271,7 @@ function txtPopSetColor(c) {
   document.querySelectorAll('#txtpop-swatches .rcsw').forEach(s => s.classList.toggle('active', s.dataset.c === c));
 }
 function txtPopConfirm() {
+  _stopDictationIfActive();
   const val = document.getElementById('txt-pop-input').value.trim();
   document.getElementById('txt-pop').classList.remove('open');
   if (val && txtPopCallback) {
@@ -284,8 +285,72 @@ function txtPopConfirm() {
   txtPopCallback = null;
 }
 function txtPopCancel() {
+  _stopDictationIfActive();
   document.getElementById('txt-pop').classList.remove('open');
   txtPopCallback = null;
+}
+
+// ── Speech-to-text dictation for the text-note popup ──
+// Uses the browser's built-in Web Speech API — no server or library needed,
+// fitting EngDoc's fully client-side model, but it's Chrome/Edge only (no
+// Firefox/Safari support) and the audio is sent to the browser vendor's own
+// recognition service under the hood even though EngDoc has no backend of
+// its own involved in it.
+let _dictationRecognition = null;
+let _dictationActive = false;
+
+function toggleDictation() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    toast("Speech-to-text isn't supported in this browser — try Chrome or Edge", 3200);
+    return;
+  }
+  if (_dictationActive) {
+    _dictationRecognition.stop(); // onend below clears state/button
+    return;
+  }
+
+  const rec = new SR();
+  rec.lang = navigator.language || 'en-US';
+  rec.continuous = true;
+  rec.interimResults = true;
+
+  const ta = document.getElementById('txt-pop-input');
+  const btn = document.getElementById('txtpop-mic-btn');
+  // Whatever was already typed before dictation started — interim results
+  // are re-sent in full on every update (not just the new words), so the
+  // box is rebuilt from this stable base each time rather than appended to.
+  const baseText = ta.value;
+  let finalText = '';
+
+  rec.onresult = ev => {
+    let interim = '';
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      const chunk = ev.results[i][0].transcript;
+      if (ev.results[i].isFinal) finalText += chunk + ' ';
+      else interim += chunk;
+    }
+    const sep = baseText && !/\s$/.test(baseText) ? ' ' : '';
+    ta.value = baseText + sep + finalText + interim;
+  };
+  rec.onerror = ev => {
+    if (ev.error === 'no-speech') return; // benign — user just paused
+    toast('Speech-to-text error: ' + ev.error, 2800);
+  };
+  rec.onend = () => {
+    _dictationActive = false;
+    _dictationRecognition = null;
+    if (btn) { btn.style.background = ''; btn.style.color = ''; }
+  };
+
+  _dictationRecognition = rec;
+  _dictationActive = true;
+  if (btn) { btn.style.background = '#ef4444'; btn.style.color = '#fff'; }
+  rec.start();
+}
+
+function _stopDictationIfActive() {
+  if (_dictationActive && _dictationRecognition) _dictationRecognition.stop();
 }
 // Enter to confirm (Shift+Enter = newline)
 document.getElementById('txt-pop-input').addEventListener('keydown', e => {

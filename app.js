@@ -5032,22 +5032,6 @@ function startInlineEdit(a, el, ov) {
     // click meant to place the caret. Must override explicitly.
     'pointer-events:auto;';
   container.appendChild(ta);
-
-  // Floating mic button — a sibling of the textarea, not a child (textareas
-  // can't contain elements), so onOutsideMousedown below is taught to treat
-  // it as part of the editor rather than a click that should commit/close it.
-  const micBtn = document.createElement('button');
-  micBtn.className = 'ann-inline-mic';
-  micBtn.title = 'Dictate (speech-to-text)';
-  micBtn.textContent = '🎤';
-  micBtn.style.cssText =
-    'position:absolute;right:3px;bottom:3px;z-index:26;width:22px;height:22px;' +
-    'border:1px solid rgba(0,0,0,.15);border-radius:3px;background:rgba(255,255,255,.9);' +
-    'cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0;';
-  micBtn.addEventListener('mousedown', ev => ev.preventDefault()); // don't steal focus from the textarea
-  micBtn.addEventListener('click', ev => { ev.stopPropagation(); toggleDictation(ta, micBtn); });
-  container.appendChild(micBtn);
-
   ta.focus();
   ta.select();
 
@@ -5055,13 +5039,11 @@ function startInlineEdit(a, el, ov) {
   const finish = commit => {
     if (finished) return;
     finished = true;
-    _stopDictationFor(ta);
     ta.removeEventListener('blur', onBlur);
     ta.removeEventListener('keydown', onKeydown);
     document.removeEventListener('mousedown', onOutsideMousedown, true);
     const newText = ta.value;
     ta.remove();
-    micBtn.remove();
     if (commit && newText !== (a.text || '')) {
       a.text = newText;
       syncAnnots(); updateAnnotPanel(); pushHistory();
@@ -5082,7 +5064,7 @@ function startInlineEdit(a, el, ov) {
   // elsewhere. Explicitly commit on any outside mousedown (capture phase,
   // so it fires before any of those handlers can stopPropagation it away).
   const onOutsideMousedown = ev => {
-    if (!ta.contains(ev.target) && ev.target !== micBtn) finish(true);
+    if (!ta.contains(ev.target)) finish(true);
   };
   ta.addEventListener('blur', onBlur);
   ta.addEventListener('keydown', onKeydown);

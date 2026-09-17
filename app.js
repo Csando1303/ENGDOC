@@ -1598,68 +1598,38 @@ async function renderPageContent(pageNum) {
   canvas.style.height = '';
 }
 
-// Set by a cursor/marquee zoom just before calling applyZoom() so
-// rerenderAll() can restore the exact same content point under the same
-// screen point once the real re-render lands, instead of unconditionally
-// snapping to the top of the current page (which was overriding the
-// careful cursor-relative math ~250ms later and showing up as a jump/jitter
-// on every zoom step).
+// Set by a cursor/marquee zoom just before calling applyZoom(): the content
+// point to keep fixed (in absolute #pdfpages pixel space, at whatever zoom
+// is currently actually rendered) and the screen point it should stay under
+// once the real re-render lands. Deliberately simple, pure arithmetic — no
+// dependency on any element's live layout rect. An earlier version
+// re-measured the anchor page's own getBoundingClientRect() after the
+// re-render, which sounds more precise but isn't safe here: pages render
+// lazily across several animation frames (RENDER_CONCURRENCY), so a page
+// above the anchor can still be mid-resize when that measurement is taken,
+// and then resize again afterward with nothing to re-correct for it — that
+// showed up as the view visibly bouncing a few times after every zoom.
+// Multiplying the whole content coordinate by the zoom ratio is less exact
+// (the fixed px gap between pages doesn't itself scale with zoom, so this
+// drifts slightly the further down a multi-page document you are) but it's
+// a single number computed once, with nothing left to shift under it later.
 let _zoomAnchor = null;
 
-// Anchor by page-relative FRACTION, not by scaling absolute scroll pixels.
-// Pages are separated by a fixed-px gap/padding (see padTop/gap constants
-// elsewhere) that does NOT scale with zoom, so "multiply the whole scroll
-// offset by the zoom ratio" drifts more and more the further you are down a
-// multi-page document — that residual drift is what was still showing up as
-// jitter after the scrollIntoView fix. Expressing the anchor as "this
-// fraction across this specific page" and re-measuring that same page's
-// real DOM rect after the re-render sidesteps the gap math entirely.
-// (fromClientX,fromClientY) is the screen point to anchor on right now (e.g.
-// the cursor, or a marquee selection's centre); (toClientX,toClientY) is
-// where that same content point should end up on screen once the re-render
-// lands (the same spot, for cursor-zoom — the viewport centre, for marquee
-// zoom, since that gesture recentres on the selection).
-function _captureZoomAnchor(fromClientX, fromClientY, toClientX, toClientY) {
-  const wraps = document.querySelectorAll('.pwrap');
-  for (const wrap of wraps) {
-    const r = wrap.getBoundingClientRect();
-    if (fromClientY >= r.top && fromClientY <= r.bottom && r.height > 0 && r.width > 0) {
-      return {
-        pageNum: parseInt(wrap.id.slice(3), 10), // 'pw-<n>'
-        fracX: (fromClientX - r.left) / r.width,
-        fracY: (fromClientY - r.top) / r.height,
-        toClientX, toClientY,
-      };
-    }
-  }
-  return null; // anchor point is over a gap/margin, not a page — nothing to restore
-}
-
-function _restoreZoomAnchor(anchor) {
-  const wrap = document.getElementById('pw-' + anchor.pageNum);
-  if (!wrap) return;
-  const r = wrap.getBoundingClientRect();
-  const targetClientX = r.left + anchor.fracX * r.width;
-  const targetClientY = r.top + anchor.fracY * r.height;
-  const viewer = document.getElementById('viewer');
-  viewer.scrollLeft += targetClientX - anchor.toClientX;
-  viewer.scrollTop  += targetClientY - anchor.toClientY;
-}
-
-// While the hi-res re-render is pending, scale the existing canvases with a
-// cheap CSS transform so the user sees continuous, immediate feedback
-// instead of a frozen page for the length of the debounce. Called on every
-// zoom change (from applyZoom, live — not just once the debounce settles)
-// so a fast burst of wheel ticks looks like smooth zooming rather than one
-// jump at the end.
-async function _applyCssZoomPreview() {
-  if (!pdf) return;
+async function _getRenderedZoom() {
+  if (!pdf) return zoom;
   const page1Obj = _pageCache[1] || await pdf.getPage(1);
   if (!_pageCache[1]) _pageCache[1] = page1Obj;
   const unscaledVp = page1Obj.getViewport({ scale: 1 });
-  const oldZoom = pageViewports[1] ? (pageViewports[1].width / unscaledVp.width) : zoom;
+  return pageViewports[1] ? (pageViewports[1].width / unscaledVp.width) : zoom;
+}
+
+// Scale existing canvases with a cheap CSS transform so the user sees
+// something immediately while the hi-res re-render (debounced) is pending.
+async function _applyCssZoomPreview() {
+  if (!pdf) return 1;
+  const oldZoom = await _getRenderedZoom();
   const scaleFactor = zoom / oldZoom;
-  if (scaleFactor === 1 || scaleFactor <= 0) return;
+  if (scaleFactor === 1 || scaleFactor <= 0) return scaleFactor;
 
   document.querySelectorAll('.pwrap').forEach(wrap => {
     const canvas = wrap.querySelector('canvas');
@@ -1667,19 +1637,10 @@ async function _applyCssZoomPreview() {
     // Only scale the canvas visually — do NOT resize the wrapper or overlay.
     // Resizing those would corrupt coordinate calculations in syncAnnots/select tool
     // before renderPageContent has updated pageViewports to the new zoom.
-    // The page under the cursor/marquee (see _zoomAnchor) scales from that
-    // exact point instead of its top-left corner, so the preview visibly
-    // zooms in/out from where the user is looking rather than lurching
-    // toward a corner while the real re-render is pending.
-    const isAnchorPage = _zoomAnchor && _zoomAnchor.pageNum === parseInt(wrap.id.slice(3), 10);
-    canvas.style.transformOrigin = isAnchorPage
-      ? (_zoomAnchor.fracX * 100) + '% ' + (_zoomAnchor.fracY * 100) + '%'
-      : 'top left';
-    // Short ease between successive scale values — smooths out a fast burst
-    // of wheel ticks into one continuous zoom instead of a series of little
-    // jumps, without adding noticeable lag to a single click/keyboard step.
+    canvas.style.transformOrigin = 'top left';
     canvas.style.transform = 'scale(' + scaleFactor + ')';
   });
+  return scaleFactor;
 }
 
 async function rerenderAll() {
@@ -1687,7 +1648,7 @@ async function rerenderAll() {
   const savedPg = curPg;
 
   _rescaleAnnotFonts();
-  await _applyCssZoomPreview();
+  const scaleFactor = await _applyCssZoomPreview();
 
   // ── Hi-res re-render ──
   // Mark all pages unrendered — DO NOT clear _pageCache (page objects are zoom-independent)
@@ -1708,8 +1669,11 @@ async function rerenderAll() {
     scheduleRender();
     // Ensure scroll position after render
     requestAnimationFrame(() => {
+      const viewer = document.getElementById('viewer');
       if (anchor) {
-        _restoreZoomAnchor(anchor);
+        const vr = viewer.getBoundingClientRect();
+        viewer.scrollLeft = anchor.contentX * scaleFactor - (anchor.clientX - vr.left);
+        viewer.scrollTop  = anchor.contentY * scaleFactor - (anchor.clientY - vr.top);
       } else {
         const el = document.getElementById('pw-' + savedPg);
         if (el) el.scrollIntoView({ block: 'start' });
@@ -2364,7 +2328,7 @@ async function applyZoom(val) {
   // fires, means nothing visibly changes size until the gesture ends, then
   // it snaps straight to the correct final size once.
   clearTimeout(_zoomTimer);
-  _zoomTimer = setTimeout(() => rerenderAll(), 80);
+  _zoomTimer = setTimeout(() => rerenderAll(), 150);
 }
 
 /* ═══════════════════════════════════════════════
@@ -9188,14 +9152,15 @@ function initMarqueeZoom() {
       (vr.height / selH) * zoom,
       zoom * 10
     );
-    // Recentre on the selection — anchored by page fraction (see
-    // _captureZoomAnchor) so rerenderAll's debounced real render lands it
-    // exactly right instead of drifting from the fixed per-page gap not
-    // scaling with zoom the way page content does. Deliberately not also
-    // nudging scrollLeft/scrollTop immediately here — a second, slightly
-    // different scroll jump right before the real one reads as the page
-    // being dragged rather than zoomed in place.
-    _zoomAnchor = _captureZoomAnchor(centreClientX, centreClientY, vr.left + vr.width / 2, vr.top + vr.height / 2);
+    // Recentre on the selection once rerenderAll's debounced real render
+    // lands (see _zoomAnchor above _applyCssZoomPreview for why this is
+    // plain content*scale arithmetic rather than re-measuring page rects).
+    _zoomAnchor = {
+      contentX: centreClientX - vr.left + viewer.scrollLeft,
+      contentY: centreClientY - vr.top  + viewer.scrollTop,
+      clientX: vr.left + vr.width / 2,
+      clientY: vr.top + vr.height / 2,
+    };
     await applyZoom(String(Math.round(newZoom * 100) / 100));
 
     // Drop back to pan
@@ -9209,23 +9174,22 @@ document.getElementById('viewer').addEventListener('wheel', async e => {
   if (!e.ctrlKey && !e.metaKey) return;
   e.preventDefault();
   if (!pdf) return;
+  const viewer = document.getElementById('viewer');
+  const vr = viewer.getBoundingClientRect();
   const factor = e.deltaY > 0 ? 0.88 : 1.14;
   const newZoom = Math.max(0.2, Math.min(8, zoom * factor));
-  // Anchored by page fraction (see _captureZoomAnchor) rather than scaling
-  // the absolute scroll offset — the fixed px gap between pages doesn't
-  // scale with zoom the way page content does, so the naive "multiply the
-  // whole scroll position" approach drifted more and more the further down
-  // a multi-page document you were. Each rapid wheel tick (e.g. a trackpad
-  // pinch) re-captures fresh against the current (still real, not-yet-
-  // rerendered) layout, so only the last tick's anchor before the debounce
-  // settles ever actually gets used.
-  //
-  // Deliberately NOT also nudging scrollLeft/scrollTop here for an "instant
-  // preview" — that produced a second, slightly different scroll jump
-  // moments before the real one below, which reads as the page being
-  // dragged/scrolled rather than zoomed in place. Better to hold still and
-  // apply the one correct scroll change in sync with the real re-render.
-  _zoomAnchor = _captureZoomAnchor(e.clientX, e.clientY, e.clientX, e.clientY);
+  // Keep this content point under the cursor once rerenderAll's debounced
+  // real render lands (see _zoomAnchor above _applyCssZoomPreview for why
+  // this is plain content*scale arithmetic, not a live rect re-measurement).
+  // Deliberately not also nudging scrollLeft/scrollTop immediately here — a
+  // second, slightly different scroll jump right before the real one reads
+  // as the page being dragged rather than zoomed in place.
+  _zoomAnchor = {
+    contentX: e.clientX - vr.left + viewer.scrollLeft,
+    contentY: e.clientY - vr.top  + viewer.scrollTop,
+    clientX: e.clientX,
+    clientY: e.clientY,
+  };
   await applyZoom(String(Math.round(newZoom * 100) / 100));
 }, { passive: false });
 

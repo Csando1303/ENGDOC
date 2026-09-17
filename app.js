@@ -1598,22 +1598,53 @@ async function renderPageContent(pageNum) {
   canvas.style.height = '';
 }
 
-// Set by a cursor/marquee zoom just before calling applyZoom(): the content
-// point to keep fixed (in absolute #pdfpages pixel space, at whatever zoom
-// is currently actually rendered) and the screen point it should stay under
-// once the real re-render lands. Deliberately simple, pure arithmetic — no
-// dependency on any element's live layout rect. An earlier version
-// re-measured the anchor page's own getBoundingClientRect() after the
-// re-render, which sounds more precise but isn't safe here: pages render
-// lazily across several animation frames (RENDER_CONCURRENCY), so a page
-// above the anchor can still be mid-resize when that measurement is taken,
-// and then resize again afterward with nothing to re-correct for it — that
-// showed up as the view visibly bouncing a few times after every zoom.
-// Multiplying the whole content coordinate by the zoom ratio is less exact
-// (the fixed px gap between pages doesn't itself scale with zoom, so this
-// drifts slightly the further down a multi-page document you are) but it's
-// a single number computed once, with nothing left to shift under it later.
+// Set by a cursor/marquee zoom just before calling applyZoom(): which page
+// is under the anchor point and how far down it (as a 0-1 fraction), plus
+// the screen point it should stay under once the real re-render lands.
+//
+// This used to be plain "multiply the whole scroll offset by the zoom
+// ratio" arithmetic, which is simple but wrong: pages are separated by a
+// fixed 28px/24px padding+gap that does NOT scale with zoom, so that
+// approach drifts more the further down a multi-page document you are —
+// enough to be visible after a few zoom steps. Page+fraction sidesteps the
+// gap entirely by walking the same padTop/gap constants explicitly (see
+// _pageFracAtY/_yAtPageFrac) instead of assuming uniform scaling.
+//
+// An earlier version tried this by re-measuring the anchor page's own
+// getBoundingClientRect() after the re-render, which was NOT safe: pages
+// render lazily across several animation frames, so a page above the
+// anchor could still be mid-resize at that moment and then resize again
+// afterward with nothing left to correct for it — that was the real
+// "bouncing" bug. Now that rerenderAll() resizes every page's shell
+// synchronously up front (see the loop right after _applyCssZoomPreview),
+// pageViewports is consistent for every page before this ever runs, so
+// computing the target position from that data directly (no DOM
+// measurement at all) is both precise and immune to that timing issue.
 let _zoomAnchor = null;
+
+// Which page + how far down it (0-1) an absolute #pdfpages Y coordinate
+// falls on, and the inverse — walking the same padTop/gap constants used
+// elsewhere (getVisibleRange, the scroll handler) so this always agrees
+// with how the document is actually laid out.
+function _pageFracAtY(y) {
+  const padTop = 28, gap = 24;
+  let cumY = padTop;
+  for (let i = 1; i <= nPages; i++) {
+    const h = (pageViewports[i] || pageViewports[1] || { height: 1000 }).height;
+    if (y < cumY + h) return { pageNum: i, frac: (y - cumY) / h };
+    cumY += h + gap;
+  }
+  return { pageNum: nPages, frac: 1 };
+}
+function _yAtPageFrac(pageNum, frac) {
+  const padTop = 28, gap = 24;
+  let cumY = padTop;
+  for (let i = 1; i < pageNum; i++) {
+    cumY += (pageViewports[i] || pageViewports[1] || { height: 1000 }).height + gap;
+  }
+  const h = (pageViewports[pageNum] || pageViewports[1] || { height: 1000 }).height;
+  return cumY + frac * h;
+}
 
 async function _getRenderedZoom() {
   if (!pdf) return zoom;
@@ -1697,8 +1728,14 @@ async function rerenderAll() {
       const viewer = document.getElementById('viewer');
       if (anchor) {
         const vr = viewer.getBoundingClientRect();
+        // X: plain scale (pages don't stack horizontally, so there's no
+        // fixed gap to account for). Y: page+fraction against the NOW-
+        // updated pageViewports (see the shell re-estimate loop above),
+        // which is exact regardless of how many pages of fixed 24px gaps
+        // sit between here and the top of the document.
         viewer.scrollLeft = anchor.contentX * scaleFactor - (anchor.clientX - vr.left);
-        viewer.scrollTop  = anchor.contentY * scaleFactor - (anchor.clientY - vr.top);
+        const newAbsY = _yAtPageFrac(anchor.pageNum, anchor.frac);
+        viewer.scrollTop = newAbsY - (anchor.clientY - vr.top);
       } else {
         const el = document.getElementById('pw-' + savedPg);
         if (el) el.scrollIntoView({ block: 'start' });
@@ -9178,11 +9215,12 @@ function initMarqueeZoom() {
       zoom * 10
     );
     // Recentre on the selection once rerenderAll's debounced real render
-    // lands (see _zoomAnchor above _applyCssZoomPreview for why this is
-    // plain content*scale arithmetic rather than re-measuring page rects).
+    // lands (see the _zoomAnchor comment above _pageFracAtY for why this is
+    // page+fraction rather than plain content*scale arithmetic).
+    const absY = centreClientY - vr.top + viewer.scrollTop;
     _zoomAnchor = {
       contentX: centreClientX - vr.left + viewer.scrollLeft,
-      contentY: centreClientY - vr.top  + viewer.scrollTop,
+      ..._pageFracAtY(absY),
       clientX: vr.left + vr.width / 2,
       clientY: vr.top + vr.height / 2,
     };
@@ -9204,14 +9242,15 @@ document.getElementById('viewer').addEventListener('wheel', async e => {
   const factor = e.deltaY > 0 ? 0.88 : 1.14;
   const newZoom = Math.max(0.2, Math.min(8, zoom * factor));
   // Keep this content point under the cursor once rerenderAll's debounced
-  // real render lands (see _zoomAnchor above _applyCssZoomPreview for why
-  // this is plain content*scale arithmetic, not a live rect re-measurement).
+  // real render lands (see the _zoomAnchor comment above _pageFracAtY for
+  // why Y is page+fraction rather than plain content*scale arithmetic).
   // Deliberately not also nudging scrollLeft/scrollTop immediately here — a
   // second, slightly different scroll jump right before the real one reads
   // as the page being dragged rather than zoomed in place.
+  const absY = e.clientY - vr.top + viewer.scrollTop;
   _zoomAnchor = {
     contentX: e.clientX - vr.left + viewer.scrollLeft,
-    contentY: e.clientY - vr.top  + viewer.scrollTop,
+    ..._pageFracAtY(absY),
     clientX: e.clientX,
     clientY: e.clientY,
   };

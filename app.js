@@ -2305,9 +2305,16 @@ function _rescaleAnnotFonts() {
       if (inp) inp.style.fontSize = (a.fontSize * zoom) + 'px';
     } else {
       el.style.fontSize = (a.fontSize * zoom) + 'px';
-      // Auto-sized text notes (no explicit a.w) also need their wrap width
-      // rescaled — see the matching comment where this element is built.
-      if (a.type === 'text' && a.w === undefined) el.style.maxWidth = (280 * zoom) + 'px';
+      if (a.type === 'text') {
+        // Box chrome (padding/border/max-width) is fixed px in the .atxt
+        // class — all of it needs rescaling in step with font-size, or the
+        // ratio of "space available for text" to "text size" drifts with
+        // zoom and the note wraps differently than it did a moment ago.
+        // See the matching comments where this element is built.
+        el.style.padding = (2 * zoom) + 'px ' + (4 * zoom) + 'px';
+        el.style.borderWidth = (1.5 * zoom) + 'px';
+        if (a.w === undefined) el.style.maxWidth = (280 * zoom) + 'px';
+      }
     }
   });
 }
@@ -4261,7 +4268,14 @@ function buildAnnotEl(a) {
     el.style.cssText = `position:absolute;left:${a.x}%;top:${a.y}%;Color:${txtC};` +
       `font-size:${(a.fontSize || 13) * zoom}px;opacity:${(a.opacity ?? 100) / 100};` +
       `display:flex;flex-direction:column;justify-content:${vAlignCss(a.vAlign)};` +
-      (txtBox ? `border:1.5px solid ${txtC};border-radius:3px;background:${a.replacesText ? '#fff' : 'rgba(255,255,255,.85)'}` : 'border:none;background:none') +
+      // Padding/border are fixed px in the .atxt class — scale them by zoom
+      // too (inline, overriding the class), same reasoning as max-width
+      // below: any box "chrome" that doesn't scale in step with font-size
+      // eats a different fraction of the available width at every zoom
+      // level, so text wraps differently depending on where you happen to
+      // be zoomed to.
+      `padding:${2 * zoom}px ${4 * zoom}px;` +
+      (txtBox ? `border:${1.5 * zoom}px solid ${txtC};border-radius:3px;background:${a.replacesText ? '#fff' : 'rgba(255,255,255,.85)'}` : 'border:none;background:none') +
       // Auto-sized notes (no explicit a.w) fall back to the .atxt class's
       // max-width:280px — a fixed CSS px value that doesn't scale with zoom,
       // so once font-size started scaling with zoom (see above) the same

@@ -657,47 +657,73 @@ function renderTabBar() {
       <button class="tab-pill-close" onclick="event.stopPropagation(); closeTab(${t.id})" title="Close tab">✕</button>
     </div>`).join('') +
     `<button class="tab-add-btn" onclick="document.getElementById('fopen-tab').click()" title="Open another PDF in a new tab">+</button>`;
-  bar.querySelectorAll('.tab-pill').forEach(attachTabDrag);
+  initTabBarDrag(bar);
 }
 
-// Drag a tab pill left/right to reorder the open files. Uses its own MIME
-// type so page-thumbnail drops and the viewer's file drop ignore it.
+// Drag a tab pill left/right to reorder the open files. The dragged pill
+// moves live as you drag and the other pills slide out of its way (FLIP
+// animation); the new order is committed to `tabs` on drop. Uses its own
+// MIME type so page-thumbnail drops and the viewer's file drop ignore it.
 const TAB_DRAG_MIME = 'application/x-engdoc-tab';
-function attachTabDrag(pill) {
-  const clearMarks = () => pill.classList.remove('tab-drop-before', 'tab-drop-after');
-  pill.addEventListener('dragstart', e => {
+let _tabDragEl = null;
+
+function initTabBarDrag(bar) {
+  if (bar._tabDragInited) return;
+  bar._tabDragInited = true;
+
+  bar.addEventListener('dragstart', e => {
+    const pill = e.target.closest && e.target.closest('.tab-pill');
+    if (!pill) return;
+    _tabDragEl = pill;
     e.dataTransfer.setData(TAB_DRAG_MIME, pill.dataset.tabId);
     e.dataTransfer.effectAllowed = 'move';
-    pill.classList.add('dragging');
+    // Defer so the drag ghost image is captured before the pill fades
+    requestAnimationFrame(() => pill.classList.add('dragging'));
   });
-  pill.addEventListener('dragend', () => pill.classList.remove('dragging'));
-  pill.addEventListener('dragover', e => {
-    if (!e.dataTransfer.types.includes(TAB_DRAG_MIME)) return;
+
+  bar.addEventListener('dragover', e => {
+    if (!_tabDragEl || !e.dataTransfer.types.includes(TAB_DRAG_MIME)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    const r = pill.getBoundingClientRect();
-    const before = e.clientX < r.left + r.width / 2;
-    pill.classList.toggle('tab-drop-before', before);
-    pill.classList.toggle('tab-drop-after', !before);
+    // Insertion point from layout positions (offsetLeft ignores the slide
+    // transforms, so pills mid-animation don't make the target jitter).
+    const others = [...bar.querySelectorAll('.tab-pill')].filter(p => p !== _tabDragEl);
+    const x = e.clientX - bar.getBoundingClientRect().left + bar.scrollLeft;
+    const next = others.find(p => x < p.offsetLeft + p.offsetWidth / 2) || null;
+    const ref = next || bar.querySelector('.tab-add-btn');
+    if (_tabDragEl.nextElementSibling === ref) return;   // already there
+    _animateTabMove(bar, () => bar.insertBefore(_tabDragEl, ref));
   });
-  pill.addEventListener('dragleave', clearMarks);
-  pill.addEventListener('drop', e => {
-    if (!e.dataTransfer.types.includes(TAB_DRAG_MIME)) return;
+
+  bar.addEventListener('drop', e => {
+    if (!_tabDragEl || !e.dataTransfer.types.includes(TAB_DRAG_MIME)) return;
     e.preventDefault();
     e.stopPropagation();
-    const before = pill.classList.contains('tab-drop-before');
-    clearMarks();
-    const fromId = parseInt(e.dataTransfer.getData(TAB_DRAG_MIME));
-    const toId = parseInt(pill.dataset.tabId);
-    if (fromId === toId) return;
-    const from = tabs.findIndex(t => t.id === fromId);
-    if (from < 0) return;
-    const [moved] = tabs.splice(from, 1);
-    let to = tabs.findIndex(t => t.id === toId);
-    if (to < 0) { tabs.splice(from, 0, moved); return; }
-    if (!before) to++;
-    tabs.splice(to, 0, moved);
-    renderTabBar();
+    const order = [...bar.querySelectorAll('.tab-pill')].map(p => parseInt(p.dataset.tabId));
+    tabs.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  });
+
+  bar.addEventListener('dragend', () => {
+    if (!_tabDragEl) return;
+    _tabDragEl = null;
+    renderTabBar();   // committed order on drop; original order if cancelled
+  });
+}
+
+// FLIP: record each pill's position, apply the DOM change, then animate
+// every pill that moved from its old spot to its new one.
+function _animateTabMove(bar, mutate) {
+  const pills = [...bar.querySelectorAll('.tab-pill')];
+  const before = new Map(pills.map(p => [p, p.getBoundingClientRect().left]));
+  mutate();
+  pills.forEach(p => {
+    const dx = before.get(p) - p.getBoundingClientRect().left;
+    if (!dx) return;
+    p.style.transition = 'none';
+    p.style.transform = `translateX(${dx}px)`;
+    p.offsetWidth;   // force reflow so the jump back isn't animated
+    p.style.transition = 'transform .18s ease';
+    p.style.transform = '';
   });
 }
 

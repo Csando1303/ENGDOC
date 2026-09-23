@@ -207,8 +207,6 @@ body{font-family:var(--font);background:var(--gray-100);Color:var(--gray-900);
 .tab-pill:hover{background:var(--gray-100);Color:var(--gray-800)}
 .tab-pill.active{background:var(--blue-50);border-Color:var(--blue-200);Color:var(--blue-700)}
 .tab-pill.dragging{opacity:.45}
-.tab-pill.tab-drop-before{box-shadow:inset 2px 0 0 var(--blue-500, #3b82f6)}
-.tab-pill.tab-drop-after{box-shadow:inset -2px 0 0 var(--blue-500, #3b82f6)}
 .tab-pill-name{max-width:180px;overflow:hidden;text-overflow:ellipsis}
 .tab-pill-close{display:flex;align-items:center;justify-content:center;width:16px;height:16px;
   border:none;background:transparent;Color:inherit;opacity:.55;cursor:pointer;border-radius:3px;

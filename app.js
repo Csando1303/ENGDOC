@@ -652,11 +652,53 @@ function renderTabBar() {
   if (!tabs.length) { bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
   bar.innerHTML = tabs.map(t => `
-    <div class="tab-pill${t.id === activeTabId ? ' active' : ''}" onclick="switchDocTab(${t.id})" title="${escapeHtmlAttr(t.name)}">
+    <div class="tab-pill${t.id === activeTabId ? ' active' : ''}" draggable="true" data-tab-id="${t.id}" onclick="switchDocTab(${t.id})" title="${escapeHtmlAttr(t.name)}">
       <span class="tab-pill-name">${escapeHtmlAttr(t.name.length > 24 ? t.name.slice(0, 22) + '…' : t.name)}</span>
       <button class="tab-pill-close" onclick="event.stopPropagation(); closeTab(${t.id})" title="Close tab">✕</button>
     </div>`).join('') +
     `<button class="tab-add-btn" onclick="document.getElementById('fopen-tab').click()" title="Open another PDF in a new tab">+</button>`;
+  bar.querySelectorAll('.tab-pill').forEach(attachTabDrag);
+}
+
+// Drag a tab pill left/right to reorder the open files. Uses its own MIME
+// type so page-thumbnail drops and the viewer's file drop ignore it.
+const TAB_DRAG_MIME = 'application/x-engdoc-tab';
+function attachTabDrag(pill) {
+  const clearMarks = () => pill.classList.remove('tab-drop-before', 'tab-drop-after');
+  pill.addEventListener('dragstart', e => {
+    e.dataTransfer.setData(TAB_DRAG_MIME, pill.dataset.tabId);
+    e.dataTransfer.effectAllowed = 'move';
+    pill.classList.add('dragging');
+  });
+  pill.addEventListener('dragend', () => pill.classList.remove('dragging'));
+  pill.addEventListener('dragover', e => {
+    if (!e.dataTransfer.types.includes(TAB_DRAG_MIME)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const r = pill.getBoundingClientRect();
+    const before = e.clientX < r.left + r.width / 2;
+    pill.classList.toggle('tab-drop-before', before);
+    pill.classList.toggle('tab-drop-after', !before);
+  });
+  pill.addEventListener('dragleave', clearMarks);
+  pill.addEventListener('drop', e => {
+    if (!e.dataTransfer.types.includes(TAB_DRAG_MIME)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const before = pill.classList.contains('tab-drop-before');
+    clearMarks();
+    const fromId = parseInt(e.dataTransfer.getData(TAB_DRAG_MIME));
+    const toId = parseInt(pill.dataset.tabId);
+    if (fromId === toId) return;
+    const from = tabs.findIndex(t => t.id === fromId);
+    if (from < 0) return;
+    const [moved] = tabs.splice(from, 1);
+    let to = tabs.findIndex(t => t.id === toId);
+    if (to < 0) { tabs.splice(from, 0, moved); return; }
+    if (!before) to++;
+    tabs.splice(to, 0, moved);
+    renderTabBar();
+  });
 }
 
 function escapeHtmlAttr(s) {
@@ -3508,11 +3550,53 @@ function buildTextLeaderSvg(a, ov) {
 
 // ── Overlay-level right-click handler — works in ALL tool modes ──
 // Attached once per overlay. Uses capture phase so pointer-events:none is irrelevant.
+// A quick ("soft") right-click does the context-sensitive thing — annotation
+// menu or Replace Text. Holding the right button for RCLICK_HOLD_MS ("hard"
+// click) always opens the quick toolbar instead, as soon as the hold elapses.
+const RCLICK_HOLD_MS = 1000;
 function attachOverlayCtxMenu(ov) {
   if (ov._ctxHandlerAttached) return;
   ov._ctxHandlerAttached = true;
+
+  // Press state for the current right-button press. The browser's
+  // 'contextmenu' event fires on mouseup on Windows but on mousedown on
+  // macOS/Linux, so the soft action is dispatched from whichever of
+  // contextmenu / mouseup arrives second.
+  let press = null;   // {x, y, target, timer, held, released, pendingSoft}
+
+  ov.addEventListener('mousedown', ev => {
+    if (ev.button !== 2) return;
+    if (press) clearTimeout(press.timer);
+    const p = press = { x: ev.clientX, y: ev.clientY, target: ev.target,
+                        held: false, released: false, pendingSoft: false };
+    p.timer = setTimeout(() => {
+      if (press !== p || p.released) return;
+      p.held = true;
+      hideCtx(); openQuickToolbar(p.x, p.y);
+    }, RCLICK_HOLD_MS);
+  }, true);
+
+  document.addEventListener('mouseup', ev => {
+    if (ev.button !== 2 || !press || press.released) return;
+    const p = press;
+    p.released = true;
+    clearTimeout(p.timer);
+    if (p.pendingSoft && !p.held) softRightClick(p.target, p.x, p.y);
+  }, true);
+
   ov.addEventListener('contextmenu', ev => {
     ev.preventDefault();
+    ev.stopPropagation();
+    const p = press;
+    if (!p) { softRightClick(ev.target, ev.clientX, ev.clientY); return; }  // e.g. keyboard menu key
+    if (p.held) return;                       // hard press — quick toolbar already open
+    if (p.released) softRightClick(p.target, p.x, p.y);   // Windows: mouseup came first
+    else p.pendingSoft = true;                // macOS/Linux: wait to see how long it's held
+  }, true); // capture — fires regardless of child pointer-events
+
+  function softRightClick(target, clientX, clientY) {
+    press = null;
+    const ev = { target, clientX, clientY };
 
     // 1. Try to find [data-aid] or [data-svg-proxy-for] by walking up DOM
     let annotId = null;
@@ -3546,7 +3630,7 @@ function attachOverlayCtxMenu(ov) {
       // An annotation is already sitting under the cursor — show its own
       // menu (which includes "Replace text…" for type:'text' notes) rather
       // than reaching past it for the PDF text underneath.
-      ev.stopPropagation(); hideQuickToolbar();
+      hideQuickToolbar();
       openCtxMenu(annotId, ev.clientX, ev.clientY);
       return;
     }
@@ -3568,14 +3652,13 @@ function attachOverlayCtxMenu(ov) {
       if (hit) items = _msExpandToMatch(pageN, hit);
     }
     if (items && items.length) {
-      ev.stopPropagation();
       hideQuickToolbar(); hideCtx();
       openReplaceTextPopover(items, pageN, ov, ev.clientX, ev.clientY);
       return;
     }
 
-    ev.stopPropagation(); hideCtx(); openQuickToolbar(ev.clientX, ev.clientY);
-  }, true); // capture — fires regardless of child pointer-events
+    hideCtx(); openQuickToolbar(ev.clientX, ev.clientY);
+  }
 }
 
 // ── DRAWING SCAN + CLIENT-SIDE CALIBRATION ──

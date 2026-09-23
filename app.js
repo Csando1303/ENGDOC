@@ -3550,29 +3550,33 @@ function buildTextLeaderSvg(a, ov) {
 
 // ── Overlay-level right-click handler — works in ALL tool modes ──
 // Attached once per overlay. Uses capture phase so pointer-events:none is irrelevant.
-// A quick ("soft") right-click does the context-sensitive thing — annotation
-// menu or Replace Text. Holding the right button for RCLICK_HOLD_MS ("hard"
-// click) always opens the quick toolbar instead, as soon as the hold elapses.
+// A quick right-click opens the quick toolbar. Holding the right button for
+// RCLICK_HOLD_MS does the context-sensitive thing — the annotation's menu, or
+// Replace Text on the PDF text under the cursor — as soon as the hold elapses.
 const RCLICK_HOLD_MS = 1000;
 function attachOverlayCtxMenu(ov) {
   if (ov._ctxHandlerAttached) return;
   ov._ctxHandlerAttached = true;
 
-  // Press state for the current right-button press. The browser's
-  // 'contextmenu' event fires on mouseup on Windows but on mousedown on
-  // macOS/Linux, so the soft action is dispatched from whichever of
-  // contextmenu / mouseup arrives second.
-  let press = null;   // {x, y, target, timer, held, released, pendingSoft}
+  // State for the current right-button press. What's under the cursor is
+  // resolved at mousedown, before any other mouseup/selection handlers can
+  // change it. The browser's 'contextmenu' event fires on mouseup on Windows
+  // but on mousedown on macOS/Linux, so the quick toolbar is opened from
+  // whichever of contextmenu / mouseup arrives second.
+  let press = null;   // {x, y, action, timer, held, released, pendingQuick}
+
+  const openQuick = (x, y) => { hideCtx(); openQuickToolbar(x, y); };
 
   ov.addEventListener('mousedown', ev => {
     if (ev.button !== 2) return;
     if (press) clearTimeout(press.timer);
-    const p = press = { x: ev.clientX, y: ev.clientY, target: ev.target,
-                        held: false, released: false, pendingSoft: false };
+    const p = press = { x: ev.clientX, y: ev.clientY,
+                        action: resolveRightClick(ev.target, ev.clientX, ev.clientY),
+                        held: false, released: false, pendingQuick: false };
     p.timer = setTimeout(() => {
       if (press !== p || p.released) return;
       p.held = true;
-      hideCtx(); openQuickToolbar(p.x, p.y);
+      if (p.action) p.action(); else openQuick(p.x, p.y);
     }, RCLICK_HOLD_MS);
   }, true);
 
@@ -3581,21 +3585,22 @@ function attachOverlayCtxMenu(ov) {
     const p = press;
     p.released = true;
     clearTimeout(p.timer);
-    if (p.pendingSoft && !p.held) softRightClick(p.target, p.x, p.y);
+    if (p.pendingQuick && !p.held) { press = null; openQuick(p.x, p.y); }
   }, true);
 
   ov.addEventListener('contextmenu', ev => {
     ev.preventDefault();
     ev.stopPropagation();
     const p = press;
-    if (!p) { softRightClick(ev.target, ev.clientX, ev.clientY); return; }  // e.g. keyboard menu key
-    if (p.held) return;                       // hard press — quick toolbar already open
-    if (p.released) softRightClick(p.target, p.x, p.y);   // Windows: mouseup came first
-    else p.pendingSoft = true;                // macOS/Linux: wait to see how long it's held
+    if (!p) { openQuick(ev.clientX, ev.clientY); return; }  // e.g. keyboard menu key
+    if (p.held) { press = null; return; }        // long press — already handled
+    if (p.released) { press = null; openQuick(p.x, p.y); }  // Windows: mouseup came first
+    else p.pendingQuick = true;                  // macOS/Linux: wait to see how long it's held
   }, true); // capture — fires regardless of child pointer-events
 
-  function softRightClick(target, clientX, clientY) {
-    press = null;
+  // Works out what a long press here should do. Returns a function that
+  // opens the right popover, or null when there's nothing under the cursor.
+  function resolveRightClick(target, clientX, clientY) {
     const ev = { target, clientX, clientY };
 
     // 1. Try to find [data-aid] or [data-svg-proxy-for] by walking up DOM
@@ -3630,9 +3635,8 @@ function attachOverlayCtxMenu(ov) {
       // An annotation is already sitting under the cursor — show its own
       // menu (which includes "Replace text…" for type:'text' notes) rather
       // than reaching past it for the PDF text underneath.
-      hideQuickToolbar();
-      openCtxMenu(annotId, ev.clientX, ev.clientY);
-      return;
+      const id = annotId;
+      return () => { hideQuickToolbar(); openCtxMenu(id, ev.clientX, ev.clientY); };
     }
 
     // 3. Nothing annotated here — right-clicking PDF text (an active
@@ -3652,12 +3656,12 @@ function attachOverlayCtxMenu(ov) {
       if (hit) items = _msExpandToMatch(pageN, hit);
     }
     if (items && items.length) {
-      hideQuickToolbar(); hideCtx();
-      openReplaceTextPopover(items, pageN, ov, ev.clientX, ev.clientY);
-      return;
+      return () => {
+        hideQuickToolbar(); hideCtx();
+        openReplaceTextPopover(items, pageN, ov, ev.clientX, ev.clientY);
+      };
     }
-
-    hideCtx(); openQuickToolbar(ev.clientX, ev.clientY);
+    return null;
   }
 }
 

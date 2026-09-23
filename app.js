@@ -12021,3 +12021,85 @@ document.addEventListener('keydown', e => {
     overlay.classList.contains('open') ? closeCmdk() : openCmdk();
   }
 });
+
+/* ═══════════════════════════════════════════════
+   EASTER EGG — type the Konami code (↑↑↓↓←→←→BA)
+   anywhere outside a text field for fireworks.
+═══════════════════════════════════════════════ */
+(() => {
+  const CODE = ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a'];
+  let pos = 0, running = false;
+
+  document.addEventListener('keydown', ev => {
+    if (ev.target.closest && ev.target.closest('input,textarea,select,[contenteditable="true"]')) return;
+    const k = ev.key.toLowerCase();
+    pos = k === CODE[pos] ? pos + 1 : (k === CODE[0] ? 1 : 0);
+    if (pos === CODE.length) { pos = 0; launchFireworks(); }
+  });
+
+  function launchFireworks(durationMs = 6000) {
+    if (running) return;
+    running = true;
+    const cv = document.createElement('canvas');
+    cv.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:99999';
+    document.body.appendChild(cv);
+    const ctx = cv.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const resize = () => { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+    resize(); window.addEventListener('resize', resize);
+
+    const rockets = [], sparks = [];
+    const start = performance.now();
+    let lastLaunch = 0, prev = start;
+
+    const launch = () => rockets.push({
+      x: innerWidth * (0.15 + Math.random() * 0.7), y: innerHeight,
+      vx: (Math.random() - 0.5) * 120, vy: -(innerHeight * (0.9 + Math.random() * 0.45)),
+      hue: Math.random() * 360,
+    });
+
+    const burst = r => {
+      const n = 70 + Math.floor(Math.random() * 50);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2, sp = 90 + Math.random() * 190;
+        sparks.push({ x: r.x, y: r.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                      life: 1, decay: 0.55 + Math.random() * 0.5,
+                      hue: r.hue + (Math.random() - 0.5) * 40 });
+      }
+    };
+
+    function frame(now) {
+      const dt = Math.min((now - prev) / 1000, 0.05); prev = now;
+      const elapsed = now - start;
+      if (elapsed < durationMs && now - lastLaunch > 280 + Math.random() * 350) { launch(); lastLaunch = now; }
+
+      // Fade the previous frame for motion trails, keeping the canvas transparent
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(0, 0, innerWidth, innerHeight);
+      ctx.globalCompositeOperation = 'lighter';
+
+      for (let i = rockets.length - 1; i >= 0; i--) {
+        const r = rockets[i];
+        r.vy += 500 * dt; r.x += r.vx * dt; r.y += r.vy * dt;
+        ctx.fillStyle = `hsl(${r.hue},100%,75%)`;
+        ctx.beginPath(); ctx.arc(r.x, r.y, 2.2, 0, Math.PI * 2); ctx.fill();
+        if (r.vy >= -40) { burst(r); rockets.splice(i, 1); }
+      }
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const p = sparks[i];
+        p.vx *= 0.985; p.vy = p.vy * 0.985 + 160 * dt;
+        p.x += p.vx * dt; p.y += p.vy * dt;
+        p.life -= p.decay * dt;
+        if (p.life <= 0) { sparks.splice(i, 1); continue; }
+        ctx.fillStyle = `hsla(${p.hue},100%,${55 + p.life * 25}%,${p.life})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 1.8, 0, Math.PI * 2); ctx.fill();
+      }
+
+      if (elapsed < durationMs || rockets.length || sparks.length) requestAnimationFrame(frame);
+      else { window.removeEventListener('resize', resize); cv.remove(); running = false; }
+    }
+    requestAnimationFrame(frame);
+    if (typeof toast === 'function') toast('🎆 You found the secret!', 3000);
+  }
+})();

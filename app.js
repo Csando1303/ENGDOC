@@ -404,8 +404,11 @@ async function onDrop(e) {
 
   const pdfs    = files.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
   const engdocs = files.filter(f => f.name.toLowerCase().endsWith('.engdoc'));
+  const svgs    = files.filter(f => f.type === 'image/svg+xml' || f.name.toLowerCase().endsWith('.svg'));
 
-  if (engdocs.length) {
+  if (svgs.length && !pdfs.length && !engdocs.length) {
+    openSvgModal(svgs); // SVGs dropped on their own go straight to the converter
+  } else if (engdocs.length) {
     // Load the first .engdoc (ignore others)
     loadSession({ target: { files: [engdocs[0]], value: '' } });
   } else if (pdfs.length === 1) {
@@ -5510,6 +5513,137 @@ function dl(bytes, name) {
   const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
   const a = document.createElement('a'); a.href = url; a.download = name; a.click();
   URL.revokeObjectURL(url);
+}
+
+/* ═══════════════════════════════════════════════
+   SVG → PDF
+   Vector conversion via jsPDF + svg2pdf.js (both
+   lazy-loaded) — paths, strokes and text stay vector
+   rather than being rasterized. Externally linked
+   <image> hrefs can't be fetched from a local file,
+   so only embedded (data: URI) images come through.
+═══════════════════════════════════════════════ */
+let svgFiles = [];
+
+async function loadSvg2Pdf() {
+  if (window.jspdf && window.jspdf.jsPDF.API.svg) return;
+  const load = src => new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+  // svg2pdf's UMD build binds to the `jspdf` global, so jsPDF must load first
+  if (!window.jspdf) await load('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  await load('https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.4/dist/svg2pdf.umd.min.js');
+}
+
+function openSvgModal(files) {
+  if (files) setSvgFiles(files);
+  openM('msvg');
+}
+
+function onSvgFiles(e) {
+  setSvgFiles(Array.from(e.target.files));
+  e.target.value = '';
+}
+
+function setSvgFiles(files) {
+  svgFiles = files;
+  document.getElementById('svgfl').innerHTML =
+    svgFiles.map((f, i) => `<div class="frow">${i + 1}. ${escapeHtmlAttr(f.name)}</div>`).join('');
+  if (svgFiles.length === 1) document.getElementById('svg-fn').value = _svgBaseName(svgFiles[0].name) + '.pdf';
+}
+
+function _svgBaseName(name) { return name.replace(/\.svg$/i, ''); }
+
+// SVG length attribute → PDF points. Unitless/px follow CSS's 96 px per inch.
+// Percentages and font-relative units have no absolute size here → null.
+function _svgLenToPt(v) {
+  const m = /^\s*([\d.]+(?:e[-+]?\d+)?)\s*(px|pt|pc|in|cm|mm)?\s*$/i.exec(v || '');
+  if (!m) return null;
+  const PT_PER = { px: 0.75, pt: 1, pc: 12, in: 72, cm: 72 / 2.54, mm: 72 / 25.4 };
+  const n = parseFloat(m[1]) * PT_PER[(m[2] || 'px').toLowerCase()];
+  return n > 0 ? n : null;
+}
+
+// Intrinsic size in points, from width/height, falling back to the viewBox
+// (treated as px) and keeping its aspect ratio when only one side is given.
+function _svgSizePt(svg) {
+  const vb = (svg.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+  const hasVb = vb.length === 4 && vb[2] > 0 && vb[3] > 0;
+  let w = _svgLenToPt(svg.getAttribute('width'));
+  let h = _svgLenToPt(svg.getAttribute('height'));
+  if (hasVb) {
+    if (w && !h) h = w * vb[3] / vb[2];
+    else if (h && !w) w = h * vb[2] / vb[3];
+    else if (!w && !h) { w = vb[2] * 0.75; h = vb[3] * 0.75; }
+  }
+  return { w: w || 600, h: h || 450, hasVb };
+}
+
+async function doSvgToPdf() {
+  if (!svgFiles.length) { toast('Select at least one SVG file'); return; }
+  const size     = document.getElementById('svg-size').value;
+  const separate = document.getElementById('svg-output').value === 'separate';
+  const openIt   = document.getElementById('svg-open').checked && !separate;
+  let outName    = document.getElementById('svg-fn').value.trim() || 'converted.pdf';
+  if (!/\.pdf$/i.test(outName)) outName += '.pdf';
+  toast('Converting…');
+
+  // svg2pdf resolves styles more reliably on attached elements, so each SVG
+  // is briefly mounted off-screen while it's drawn
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-100000px;top:0;visibility:hidden';
+  document.body.appendChild(host);
+  try {
+    await loadSvg2Pdf();
+    const { jsPDF } = window.jspdf;
+    const margin = 10 * 72 / 25.4;
+    let doc = null, done = 0;
+
+    for (const f of svgFiles) {
+      const parsed = new DOMParser().parseFromString(await f.text(), 'image/svg+xml');
+      const svgEl = parsed.documentElement;
+      if (parsed.querySelector('parsererror') || svgEl.nodeName.toLowerCase() !== 'svg') {
+        toast(`Skipped ${f.name} — not a valid SVG`); continue;
+      }
+      const { w, h, hasVb } = _svgSizePt(svgEl);
+      // No viewBox means content is in user units (px) — add one so the
+      // drawing scales to the target box instead of being clipped by it
+      if (!hasVb) svgEl.setAttribute('viewBox', `0 0 ${w / 0.75} ${h / 0.75}`);
+
+      let pw = w, ph = h, x = 0, y = 0, dw = w, dh = h;
+      if (size !== 'match') {
+        const [long, short] = ISO_SHEET_SIZES_MM[size].map(mm => mm * 72 / 25.4);
+        [pw, ph] = w >= h ? [long, short] : [short, long];
+        const s = Math.min((pw - 2 * margin) / w, (ph - 2 * margin) / h);
+        dw = w * s; dh = h * s; x = (pw - dw) / 2; y = (ph - dh) / 2;
+      }
+      const orient = pw >= ph ? 'landscape' : 'portrait';
+      if (!doc || separate) doc = new jsPDF({ unit: 'pt', format: [pw, ph], orientation: orient, compress: true });
+      else doc.addPage([pw, ph], orient);
+
+      const el = document.importNode(svgEl, true);
+      host.appendChild(el);
+      try { await doc.svg(el, { x, y, width: dw, height: dh }); }
+      finally { host.removeChild(el); }
+      done++;
+
+      if (separate) {
+        dl(doc.output('arraybuffer'), _svgBaseName(f.name) + '.pdf');
+        await new Promise(r => setTimeout(r, 250));
+      }
+    }
+
+    if (!done) return;
+    if (!separate) {
+      const bytes = doc.output('arraybuffer');
+      dl(bytes, outName);
+      if (openIt) await openFileAsNewTab(new File([bytes], outName, { type: 'application/pdf' }));
+    }
+    closeM('msvg');
+    toast(`✓ Converted ${done} SVG${done !== 1 ? 's' : ''}`);
+  } catch(e) { toast('SVG conversion failed: ' + e.message); }
+  finally { host.remove(); }
 }
 
 /* ═══════════════════════════════════════════════
@@ -11878,6 +12012,7 @@ const CMDK_COMMANDS = [
   { label: 'Export to Word',        group: 'File', icon: ICON_FILE, run: () => openWordExportModal() },
   { label: 'Merge PDF',             group: 'File', icon: ICON_FILE, run: () => openM('mm') },
   { label: 'Split PDF',             group: 'File', icon: ICON_FILE, run: () => openM('ms') },
+  { label: 'SVG to PDF',            group: 'File', icon: ICON_FILE, run: () => openSvgModal() },
   { label: 'Set your name',         group: 'File', icon: ICON_GEAR, run: () => openM('mau') },
   { label: 'Toggle dark mode',      group: 'File', icon: ICON_GEAR, run: () => toggleDark() },
   { label: 'Keyboard shortcuts',    group: 'File', icon: ICON_GEAR, run: () => openM('mkeys') },

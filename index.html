@@ -481,6 +481,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="8 13 12 17 16 13"/><line x1="12" y1="17" x2="12" y2="9"/></svg>
             <span class="rbtn-label">Compress<br>PDF</span>
           </button>
+          <button class="rbtn lg" onclick="openSvgModal()" data-tip="Convert SVG drawings to PDF — vector lines stay crisp">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 17l2.5-5 2 3 1.5-2 2 4z"/></svg>
+            <span class="rbtn-label">SVG to<br>PDF</span>
+          </button>
         </div>
         <div class="rgroup-label">PDF Tools</div>
       </div>
@@ -1316,6 +1320,57 @@
     <div class="mfoot">
       <button class="hbtn outline" onclick="closeM('mcompress')">Cancel</button>
       <button class="hbtn primary" onclick="compressPdf()">Compress &amp; Download</button>
+    </div>
+  </div>
+</div>
+
+<!-- SVG TO PDF MODAL -->
+<div class="overlay" id="msvg">
+  <div class="modal" style="width:440px">
+    <div class="mhead"><span class="mtitle">SVG to PDF</span><button class="mclose" onclick="closeM('msvg')">✕</button></div>
+    <div class="mbody">
+      <p style="font-size:12.5px;Color:var(--gray-600);margin-bottom:12px">
+        Converts SVG files to vector PDF — lines and shapes stay crisp at any zoom. Images must be
+        embedded in the SVG; externally linked images are skipped.
+      </p>
+      <label class="flabel">Select SVG files</label>
+      <div class="fdrop" onclick="document.getElementById('svgfi').click()">
+        <input type="file" id="svgfi" accept=".svg,image/svg+xml" multiple onchange="onSvgFiles(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="22" height="22" style="margin-bottom:6px;Color:var(--gray-400)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div>Click to select SVG files</div>
+      </div>
+      <div class="flist" id="svgfl"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0">
+        <div>
+          <label class="flabel">Page size</label>
+          <select class="finput fselect" id="svg-size" style="margin-bottom:0;padding:8px">
+            <option value="match" selected>Match SVG size</option>
+            <option value="A0">A0</option>
+            <option value="A1">A1</option>
+            <option value="A2">A2</option>
+            <option value="A3">A3</option>
+            <option value="A4">A4</option>
+          </select>
+        </div>
+        <div>
+          <label class="flabel">Output</label>
+          <select class="finput fselect" id="svg-output" style="margin-bottom:0;padding:8px">
+            <option value="combined" selected>One PDF, page per SVG</option>
+            <option value="separate">Separate PDF per SVG</option>
+          </select>
+        </div>
+      </div>
+      <label class="flabel">Output filename</label>
+      <input class="finput" id="svg-fn" value="converted.pdf">
+      <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;Color:var(--gray-700);cursor:pointer;user-select:none">
+        <input type="checkbox" id="svg-open" checked style="width:14px;height:14px">
+        Open the result in EngDoc (combined output only)
+      </label>
+      <div class="hint" style="margin-top:10px">Sheet sizes fit the drawing within a 10&nbsp;mm margin, with orientation matched to the drawing.</div>
+    </div>
+    <div class="mfoot">
+      <button class="hbtn outline" onclick="closeM('msvg')">Cancel</button>
+      <button class="hbtn primary" onclick="doSvgToPdf()">Convert</button>
     </div>
   </div>
 </div>

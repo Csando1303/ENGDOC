@@ -5580,6 +5580,57 @@ function _svgSizePt(svg) {
   return { w: w || 600, h: h || 450, hasVb };
 }
 
+// svg2pdf only understands unitless/px lengths — anything else parses as 0,
+// which is how GDI-style exports (font-size:8.5pt, dy="8.5pt") lost all their
+// text. Rewrite absolute units to px throughout, below the root element (whose
+// size has already been read by _svgSizePt).
+const _SVG_ABS_LEN = /(-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)(pt|pc|in|cm|mm)\b/gi;
+const _SVG_PX_PER  = { pt: 4 / 3, pc: 16, in: 96, cm: 96 / 2.54, mm: 96 / 25.4 };
+function _svgUnitsToPx(str) {
+  return str.replace(_SVG_ABS_LEN, (m, n, u) => String(+(parseFloat(n) * _SVG_PX_PER[u.toLowerCase()]).toFixed(4)))
+    // relative weights also trip svg2pdf's font lookup, falling back to Times
+    .replace(/(font-weight\s*:\s*)bolder/gi, '$1bold')
+    .replace(/(font-weight\s*:\s*)lighter/gi, '$1normal');
+}
+
+function _normalizeSvgForPdf(svgEl) {
+  const LEN_ATTRS = ['x', 'y', 'dx', 'dy', 'width', 'height', 'r', 'rx', 'ry', 'cx', 'cy',
+    'x1', 'y1', 'x2', 'y2', 'font-size', 'stroke-width', 'letter-spacing', 'word-spacing'];
+  for (const el of svgEl.querySelectorAll('*')) {
+    for (const a of LEN_ATTRS) {
+      const v = el.getAttribute(a);
+      if (v && /[a-z]/i.test(v)) el.setAttribute(a, _svgUnitsToPx(v));
+    }
+    const fwt = el.getAttribute('font-weight');
+    if (fwt === 'bolder' || fwt === 'lighter') el.setAttribute('font-weight', fwt === 'bolder' ? 'bold' : 'normal');
+    const st = el.getAttribute('style');
+    if (st) el.setAttribute('style', _svgUnitsToPx(st));
+  }
+  for (const s of svgEl.querySelectorAll('style')) s.textContent = _svgUnitsToPx(s.textContent);
+
+  // svg2pdf ignores <foreignObject>. A common export pattern (logos, stamps)
+  // is a foreignObject that just wraps another <svg>, which can be lifted out
+  // as a nested svg viewport; true HTML content has no vector equivalent.
+  let dropped = 0;
+  for (const fo of Array.from(svgEl.querySelectorAll('foreignObject'))) {
+    const inner = Array.from(fo.children).find(c => c.localName === 'svg');
+    if (!inner) { fo.remove(); dropped++; continue; }
+    const vb = (inner.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+    const fw = parseFloat(fo.getAttribute('width')), fh = parseFloat(fo.getAttribute('height'));
+    let w = parseFloat(inner.getAttribute('width')), h = parseFloat(inner.getAttribute('height'));
+    if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) {
+      if (w && !h) h = w * vb[3] / vb[2];
+      else if (h && !w) w = h * vb[2] / vb[3];
+    }
+    inner.setAttribute('x', fo.getAttribute('x') || 0);
+    inner.setAttribute('y', fo.getAttribute('y') || 0);
+    inner.setAttribute('width',  w || fw || 0);
+    inner.setAttribute('height', h || fh || 0);
+    fo.replaceWith(inner);
+  }
+  return dropped;
+}
+
 async function doSvgToPdf() {
   if (!svgFiles.length) { toast('Select at least one SVG file'); return; }
   const size     = document.getElementById('svg-size').value;
@@ -5598,7 +5649,7 @@ async function doSvgToPdf() {
     await loadSvg2Pdf();
     const { jsPDF } = window.jspdf;
     const margin = 10 * 72 / 25.4;
-    let doc = null, done = 0;
+    let doc = null, done = 0, htmlDropped = 0;
 
     for (const f of svgFiles) {
       const parsed = new DOMParser().parseFromString(await f.text(), 'image/svg+xml');
@@ -5610,6 +5661,7 @@ async function doSvgToPdf() {
       // No viewBox means content is in user units (px) — add one so the
       // drawing scales to the target box instead of being clipped by it
       if (!hasVb) svgEl.setAttribute('viewBox', `0 0 ${w / 0.75} ${h / 0.75}`);
+      htmlDropped += _normalizeSvgForPdf(svgEl);
 
       let pw = w, ph = h, x = 0, y = 0, dw = w, dh = h;
       if (size !== 'match') {
@@ -5641,7 +5693,8 @@ async function doSvgToPdf() {
       if (openIt) await openFileAsNewTab(new File([bytes], outName, { type: 'application/pdf' }));
     }
     closeM('msvg');
-    toast(`✓ Converted ${done} SVG${done !== 1 ? 's' : ''}`);
+    toast(`✓ Converted ${done} SVG${done !== 1 ? 's' : ''}` +
+      (htmlDropped ? ` — ${htmlDropped} embedded HTML block${htmlDropped !== 1 ? 's' : ''} couldn't be converted` : ''), 4000);
   } catch(e) { toast('SVG conversion failed: ' + e.message); }
   finally { host.remove(); }
 }
